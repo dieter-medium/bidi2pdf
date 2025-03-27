@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+
+body {
+
+    margin: 0;
+    padding: 0;
+
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 11pt;
+    line-height: 1.4;
+    font-feature-settings: "liga" 0; /* Disable ligatures that may cause spacing issues */
+}
+
+pre, code, .monospace {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10pt;
+}
+
+/* Define page size and margins */
+@page {
+    size: A4;
+    margin: 30mm;
+    font-family: 'Roboto', sans-serif;
+
+    @top-center {
+        content: element(pageHeader);
+    }
+
+    @bottom-center {
+        content: element(pageFooter);
+    }
+
+    @bottom-right {
+        content: counter(page) " / " counter(pages);
+    }
+
+}
+
+/* Fix spacing and typography to ensure consistent rendering */
+p, li, td, th {
+    font-size: 11pt;
+    line-height: 1.4;
+    word-spacing: 0.05em;
+    letter-spacing: 0.01em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    line-height: 1.2;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    page-break-after: avoid;
+}
+
+header.page-header {
+    position: running(pageHeader);
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+footer.page-footer {
+    position: running(pageFooter);
+    font-family: 'Roboto', sans-serif;
+    font-size: 9pt;
+    text-align: center;
+    border-top: 1px solid #ccc;
+    padding-top: 5px;
+}
+
+.section-heading {
+    background-color: #4a90e2 !important; /* solid color */
+    color: white !important;
+    box-shadow: none !important; /* shadows may print poorly */
+}
+
+/* Bootstrap adjustments for print clarity */
+.page-content {
+    margin-top: 20px;
+}
+
+.break-after {
+    page-break-after: always;
+}
+
+/* Page numbers handled by Paged.js CSS counters */
+.pageNumber::after {
+    content: counter(page);
+}
+
+.totalPages::after {
+    content: counter(pages);
+}
+
+.signature-section {
+    page-break-inside: avoid; /* ensures the section doesn't awkwardly split across pages */
+    color: #333;
+}
+
+
+/* Keep table styles for page-break control */
+table {
+    page-break-inside: auto;
+}
+
+tr {
+    font-size: 10pt;
+    page-break-inside: avoid;
+    page-break-after: auto;
+}
+
+svg {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+}

@@ -1,0 +1,11 @@
+module Bidi2pdf
+  module Chrome
+    class ChromedriverDownloader
+      def self.install_dir: -> String
+
+      def self.target: -> String
+
+      def self.update: -> String
+    end
+  end
+end
