@@ -1,0 +1,49 @@
+name: Ruby CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Lint with RuboCop
+        run: |
+          bundle install --jobs 4 --retry 3
+          bundle exec rubocop
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Install dependencies
+        run: bundle install --jobs 4 --retry 3
+      - name: Run RSpec with coverage
+        run: |
+          COVERAGE=true bundle exec rspec
+      - name: Upload generated pdf files
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pdf-files
+          path: tmp/pdf-files/
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/

@@ -1,0 +1,84 @@
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+/* Define page size and margins */
+@page {
+    size: A4;
+    margin: 30mm;
+
+    @top-center {
+        content: element(pageHeader);
+    }
+
+    @bottom-center {
+        content: element(pageFooter);
+    }
+
+    @bottom-right {
+        content: counter(page) " / " counter(pages);
+    }
+
+}
+
+header.page-header {
+    position: running(pageHeader);
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+footer.page-footer {
+    position: running(pageFooter);
+    font-size: 0.8rem;
+    text-align: center;
+    border-top: 1px solid #ccc;
+    padding-top: 5px;
+}
+
+.section-heading {
+    background-color: #4a90e2 !important; /* solid color */
+    color: white !important;
+    box-shadow: none !important; /* shadows may print poorly */
+}
+
+/* Bootstrap adjustments for print clarity */
+.page-content {
+    margin-top: 20px;
+}
+
+.break-after {
+    page-break-after: always;
+}
+
+/* Page numbers handled by Paged.js CSS counters */
+.pageNumber::after {
+    content: counter(page);
+}
+
+.totalPages::after {
+    content: counter(pages);
+}
+
+.signature-section {
+    page-break-inside: avoid; /* ensures the section doesn't awkwardly split across pages */
+    color: #333;
+}
+
+
+/* Keep table styles for page-break control */
+table {
+    page-break-inside: auto;
+}
+
+tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+}
+
+svg {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+}

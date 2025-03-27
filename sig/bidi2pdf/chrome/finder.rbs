@@ -1,0 +1,27 @@
+module Bidi2pdf
+  module Chrome
+    class Finder
+      def self.location: -> String
+
+      def self.version: -> String
+
+      def self.win_location: -> String
+
+      def self.mac_location: -> String
+
+      def self.linux_location: -> String
+
+      def self.win_version: (String location) -> String
+
+      def self.linux_version: (String location) -> String
+
+      def self.mac_version: (String location) -> String
+
+      def self.call: (String process, Array[String] arg) -> String
+
+      private
+
+      def self.find_in_paths: -> String
+    end
+  end
+end
