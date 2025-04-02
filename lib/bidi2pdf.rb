@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "bidi2pdf/utils"
+require_relative "bidi2pdf/process_tree"
 require_relative "bidi2pdf/launcher"
 require_relative "bidi2pdf/bidi/session"
 

@@ -42,6 +42,8 @@ module Bidi2pdf
 
       term_chromedriver
 
+      detect_zombie_processes
+
       return unless process_alive?
 
       kill_chromedriver timeout: timeout
@@ -50,6 +52,33 @@ module Bidi2pdf
     end
 
     private
+
+    # rubocop:disable Metrics/AbcSize
+    def detect_zombie_processes
+      debug_show_all_children
+
+      child_processes = Bidi2pdf::ProcessTree.new(@pid).children(@pid)
+      Bidi2pdf.logger.debug "Found child processes: #{child_processes.map(&:pid).join(", ")}"
+
+      zombie_processes = child_processes.select { |child| process_alive? child.pid }
+
+      return if zombie_processes.empty?
+
+      printable_zombie_processes = zombie_processes.map { |child| "#{child.name}:#{child.pid}" }
+      printable_zombie_processes_str = printable_zombie_processes.join(", ")
+
+      Bidi2pdf.logger.error "Zombie Processes detected #{printable_zombie_processes_str}"
+    end
+
+    # rubocop:enable Metrics/AbcSize
+
+    def debug_show_all_children
+      Bidi2pdf::ProcessTree.new(@pid).traverse do |process, level|
+        indent = "  " * level
+        prefix = level.zero? ? "" : "└─ "
+        Bidi2pdf.logger.debug "#{indent}#{prefix}PID #{process.pid} (#{process.name})"
+      end
+    end
 
     def close_session
       Bidi2pdf.logger.info "Closing session"
@@ -126,8 +155,8 @@ module Bidi2pdf
 
     # rubocop: enable Metrics/AbcSize
 
-    def process_alive?
-      return false unless @pid
+    def process_alive?(pid = @pid)
+      return false unless pid
 
       begin
         Process.waitpid(@pid, Process::WNOHANG)
