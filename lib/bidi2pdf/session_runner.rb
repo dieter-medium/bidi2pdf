@@ -29,25 +29,25 @@ module Bidi2pdf
       browser = @session.browser
       user_context = browser.create_user_context
 
-      add_cookies(user_context)
-
       window = user_context.create_browser_window
       tab = window.create_browser_tab
 
       @window = window
       @tab = tab
 
+      add_cookies(tab)
+
       add_headers
       add_basic_auth
     end
 
-    def add_cookies(user_context)
+    def add_cookies(tab)
       @cookies.each do |name, value|
-        user_context.set_cookie(
+        tab.set_cookie(
           name: name,
           value: value,
           domain: domain,
-          source_origin: source_origin
+          secure: uri.scheme == "https"
         )
       end
     end
