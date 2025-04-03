@@ -1,0 +1,42 @@
+module Bidi2pdf
+  module Bidi
+    class BrowserTab
+      @browser: Bidi2pdf::Bidi::Browser
+      @tab_id: String?
+      @session_id: String?
+      @timeout: Integer
+
+      attr_reader browser: Bidi2pdf::Bidi::Browser
+      attr_reader tab_id: String?
+      attr_reader session_id: String?
+
+      def initialize: (
+          browser: Bidi2pdf::Bidi::Browser,
+          ?tab_id: String?,
+          ?timeout: Integer
+        ) -> void
+
+      def navigate_to: (String url) -> void
+
+      def execute_script: [T] (String script, *untyped args) -> T
+
+      def wait_for_navigation: (?timeout: Integer) -> void
+
+      def wait_for_element: (
+          selector: String,
+          ?visible: bool,
+          ?timeout: Integer
+        ) -> untyped
+
+      def capture_screenshot: (?path: String?) -> String
+
+      def close: () -> void
+
+      private
+
+      def ensure_tab_active: () -> void
+
+      def connect_to_tab: () -> String?
+    end
+  end
+end

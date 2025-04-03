@@ -1,0 +1,71 @@
+module Bidi2pdf
+  module Bidi
+    class Client
+      @ws_url: untyped
+
+      @id: untyped
+
+      @pending_responses: untyped
+
+      @connected: untyped
+
+      @connection_mutex: untyped
+
+      @send_cmd_mutex: untyped
+
+      @connection_cv: untyped
+
+      @started: untyped
+
+      @socket: untyped
+
+      @dispatcher: untyped
+
+      include Bidi2pdf::Utils
+
+      attr_reader ws_url: untyped
+
+      def initialize: (untyped ws_url) -> void
+
+      def start: () -> untyped
+
+      def started?: () -> untyped
+
+      def wait_until_open: (?timeout: untyped) -> untyped
+
+      def send_cmd: (untyped method, ?::Hash[untyped, untyped] params) -> untyped
+
+      # rubocop:disable Metrics/AbcSize
+      def send_cmd_and_wait: (untyped method, ?::Hash[untyped, untyped] params, ?timeout: untyped) ?{ (untyped) -> untyped } -> untyped
+
+      # Event API for external consumers
+      def on_message: () { () -> untyped } -> untyped
+
+      def on_open: () { () -> untyped } -> untyped
+
+      def on_close: () { () -> untyped } -> untyped
+
+      def on_error: () { () -> untyped } -> untyped
+
+      def on_event: (*untyped names) { () -> untyped } -> untyped
+
+      def remove_message_listener: (untyped block) -> untyped
+
+      def remove_event_listener: (*untyped names) { () -> untyped } -> untyped
+
+      def add_headers_interceptor: (context: untyped, url_patterns: untyped, headers: untyped) -> untyped
+
+      def add_auth_interceptor: (context: untyped, url_patterns: untyped, username: untyped, password: untyped) -> untyped
+
+      private
+
+      def next_id: () -> untyped
+
+      def handle_open: () -> untyped
+
+      def handle_response_to_cmd: (untyped data) -> untyped
+
+      def redact_sensitive_fields: (untyped obj, ?::Array[untyped] sensitive_keys) -> untyped
+    end
+  end
+end

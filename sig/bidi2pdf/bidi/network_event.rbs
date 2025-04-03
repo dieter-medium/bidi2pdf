@@ -1,0 +1,51 @@
+module Bidi2pdf
+  module Bidi
+    class NetworkEvent
+      # Request data
+      @request_id: String
+      @url: String
+      @method: String
+      @headers: Hash[String, String]
+      @post_data: String?
+
+      # Response data
+      @response_status: Integer?
+      @response_headers: Hash[String, String]?
+      @response_body: String?
+
+      # Timing information
+      @timestamp: Float
+      @timing: Hash[Symbol, Float]?
+
+      attr_reader request_id: String
+      attr_reader url: String
+      attr_reader method: String
+      attr_reader headers: Hash[String, String]
+      attr_reader post_data: String?
+      attr_reader response_status: Integer?
+      attr_reader response_headers: Hash[String, String]?
+      attr_reader response_body: String?
+      attr_reader timestamp: Float
+      attr_reader timing: Hash[Symbol, Float]?
+
+      def initialize: (
+          request_id: String,
+          url: String,
+          method: String,
+          headers: Hash[String, String],
+          ?post_data: String?,
+          ?timestamp: Float?
+        ) -> void
+
+      def add_response: (
+          status: Integer,
+          headers: Hash[String, String],
+          ?body: String?
+        ) -> void
+
+      def add_timing: (Hash[Symbol, Float] timing_data) -> void
+
+      def completed?: () -> bool
+    end
+  end
+end

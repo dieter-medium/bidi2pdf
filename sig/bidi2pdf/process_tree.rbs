@@ -1,0 +1,27 @@
+module Bidi2pdf
+  class ProcessTree
+    @root_pid: untyped
+
+    @process_map: untyped
+
+    include Sys
+
+    def initialize: (?untyped? root_pid) -> void
+
+    def children: (untyped of_pid) -> (::Array[untyped] | untyped)
+
+    def traverse: () { () -> untyped } -> untyped
+
+    private
+
+    def print_handler: (untyped process, untyped level) -> untyped
+
+    def build_process_map: () -> untyped
+
+    def connect_children: () -> untyped
+
+    def root_pids: () -> (::Array[untyped] | untyped)
+
+    def traverse_branch: (untyped pid, ?::Integer level) { () -> untyped } -> (nil | untyped)
+  end
+end

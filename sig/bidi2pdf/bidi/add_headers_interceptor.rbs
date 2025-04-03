@@ -1,0 +1,20 @@
+module Bidi2pdf
+  module Bidi
+    class AddHeadersInterceptor
+      @id: String
+      @client: untyped
+      @headers: Hash[String, String]
+
+      attr_reader id: String
+      attr_reader headers: Hash[String, String]
+
+      def initialize: (String id, Hash[String, String] headers, untyped client) -> void
+
+      def handle_event: (Hash[String, untyped] response) -> (nil | untyped)
+
+      private
+
+      attr_reader client: untyped
+    end
+  end
+end

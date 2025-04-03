@@ -1,0 +1,42 @@
+module Bidi2pdf
+  class ChromedriverManager
+    @port: Integer
+    @headless: bool
+    @session: untyped
+    @pid: Integer?
+
+    attr_reader port: Integer
+    attr_reader pid: Integer?
+    attr_reader session: untyped
+
+    def initialize: (?port: Integer, ?headless: bool) -> void
+
+    def start: () -> self
+
+    def stop: (?timeout: Integer) -> bool
+
+    private
+
+    # rubocop:disable Metrics/AbcSize
+    def detect_zombie_processes: () -> Array[Integer]?
+
+    def debug_show_all_children: () -> void
+
+    def close_session: () -> void
+
+    def term_chromedriver: () -> bool
+
+    def kill_chromedriver: (?timeout: Integer) -> bool
+
+    def build_cmd: () -> Array[String]
+
+    def update_chromedriver: () -> void
+
+    # rubocop:disable Metrics/AbcSize
+    def parse_port_from_output: (IO io, ?timeout: Integer) -> Integer?
+
+    def process_alive?: (?pid: Integer?) -> bool
+
+    def wait_until_chromedriver_ready: (?timeout: Integer) -> bool
+  end
+end

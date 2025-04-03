@@ -1,0 +1,53 @@
+module Bidi2pdf
+  module Bidi
+    class WebSocketDispatcher
+      @url: String
+      @socket: WebSocket::Driver
+      @connection: TCPSocket
+      @pending_requests: Hash[Integer, Concurrent::Promises::ResolvableFuture]
+      @message_id: Integer
+      @listeners: Hash[String, Array[Proc]]
+      @thread: Thread?
+      @mutex: Mutex
+      @connected: bool
+      @logger: Logger?
+
+      attr_reader url: String
+      attr_reader connected: bool
+
+      def initialize: (String url, ?logger: Logger?) -> void
+
+      def connect: () -> bool
+
+      def disconnect: () -> void
+
+      def send_command: [T] (String method, ?Hash[Symbol, untyped] params) -> T
+
+      def send_message: (Hash[Symbol, untyped] message) -> Integer
+
+      def add_event_listener: (String event_name) { (Hash[String, untyped]) -> void } -> void
+
+      def remove_event_listener: (String event_name, ?Proc? callback) -> void
+
+      def connected?: () -> bool
+
+      private
+
+      def generate_message_id: () -> Integer
+
+      def create_socket: () -> WebSocket::Driver
+
+      def handle_open: () -> void
+
+      def handle_message: (String data) -> void
+
+      def handle_close: () -> void
+
+      def handle_error: (Exception error) -> void
+
+      def dispatch_event: (String event_name, Hash[String, untyped] params) -> void
+
+      def listen_for_messages: () -> void
+    end
+  end
+end

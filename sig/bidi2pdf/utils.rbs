@@ -1,0 +1,5 @@
+module Bidi2pdf
+  module Utils
+    def self?.timed: (untyped operation_name) { () -> untyped } -> untyped
+  end
+end

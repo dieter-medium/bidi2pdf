@@ -1,0 +1,52 @@
+module Bidi2pdf
+  module Bidi
+    class Session
+      @browser: Bidi2pdf::Bidi::Browser
+      @session_id: String?
+      @contexts: Array[String]
+      @timeout: Integer
+      @event_manager: Bidi2pdf::Bidi::EventManager?
+      @network_events: Bidi2pdf::Bidi::NetworkEvents?
+
+      attr_reader browser: Bidi2pdf::Bidi::Browser
+      attr_reader session_id: String?
+      attr_reader contexts: Array[String]
+
+      def initialize: (
+          browser: Bidi2pdf::Bidi::Browser,
+          ?session_id: String?,
+          ?timeout: Integer
+        ) -> void
+
+      def create: () -> String
+
+      def attach: (session_id: String) -> String
+
+      def detach: () -> void
+
+      def execute_command: [T] (String method, ?Hash[Symbol, untyped] params) -> T
+
+      def navigate_to: (String url) -> void
+
+      def evaluate: [T] (String script) -> T
+
+      def wait_for_load: (?timeout: Integer?) -> void
+
+      def network_events: () -> Bidi2pdf::Bidi::NetworkEvents
+
+      def capture_screenshot: (?path: String?) -> String
+
+      def print_to_pdf: (
+          ?Hash[Symbol, untyped] parameters
+        ) -> String
+
+      def close: () -> void
+
+      private
+
+      def ensure_session: () -> String
+
+      def setup_event_listeners: () -> void
+    end
+  end
+end

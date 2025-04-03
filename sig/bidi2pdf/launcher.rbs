@@ -1,0 +1,38 @@
+module Bidi2pdf
+  class Launcher
+    @url: untyped
+
+    @port: untyped
+
+    @headless: untyped
+
+    @output: untyped
+
+    @cookies: untyped
+
+    @headers: untyped
+
+    @auth: untyped
+
+    @manager: untyped
+
+    @wait_window_loaded: untyped
+
+    @wait_network_idle: untyped
+
+    @print_options: untyped
+
+    @remote_browser_url: untyped
+
+    # rubocop:disable Metrics/ParameterLists
+    def initialize: (url: untyped, output: untyped, cookies: untyped, headers: untyped, auth: untyped, ?headless: bool, ?port: ::Integer, ?wait_window_loaded: bool, ?wait_network_idle: bool, ?print_options: ::Hash[untyped, untyped], ?remote_browser_url: untyped?) -> void
+
+    def launch: () -> untyped
+
+    def stop: () -> untyped
+
+    private
+
+    def session: () -> untyped
+  end
+end

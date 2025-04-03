@@ -1,0 +1,55 @@
+module Bidi2pdf
+  module Bidi
+    class NetworkEvents
+      include Enumerable[NetworkEvent]
+
+      @events: Hash[String, NetworkEvent]
+      @browser: Bidi2pdf::Bidi::Browser?
+      @event_manager: Bidi2pdf::Bidi::EventManager?
+      @recording: bool
+      @filters: Array[Proc]
+
+      attr_reader events: Hash[String, NetworkEvent]
+      attr_reader recording: bool
+
+      def initialize: (?browser: Bidi2pdf::Bidi::Browser?) -> void
+
+      def start_recording: (?browser: Bidi2pdf::Bidi::Browser?) -> void
+
+      def stop_recording: () -> void
+
+      def add_filter: () { (NetworkEvent) -> bool } -> void
+
+      def clear_filters: () -> void
+
+      def clear: () -> void
+
+      def size: () -> Integer
+
+      def []: (String request_id) -> NetworkEvent?
+
+      def each: () { (NetworkEvent) -> void } -> self
+        | () -> Enumerator[NetworkEvent, self]
+
+      def find_by_url: (String url_pattern) -> Array[NetworkEvent]
+
+      def find_by_method: (String method) -> Array[NetworkEvent]
+
+      def completed_requests: () -> Array[NetworkEvent]
+
+      def pending_requests: () -> Array[NetworkEvent]
+
+      def to_a: () -> Array[NetworkEvent]
+
+      private
+
+      def setup_event_listeners: () -> void
+
+      def handle_request_event: (Hash[String, untyped] params) -> void
+
+      def handle_response_event: (Hash[String, untyped] params) -> void
+
+      def handle_loading_finished_event: (Hash[String, untyped] params) -> void
+    end
+  end
+end

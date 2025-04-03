@@ -1,0 +1,21 @@
+module Bidi2pdf
+  class CLI < Thor
+    # rubocop:disable Layout/BeginEndAlignment
+    @launcher: untyped
+
+    def render: () -> untyped
+
+    private
+
+    # rubocop:disable  Metrics/AbcSize
+    def launcher: () -> untyped
+
+    def configure: () -> untyped
+
+    def log_level: () -> untyped
+
+    def parse_key_values: (untyped pairs) -> untyped
+
+    def parse_auth: (untyped auth_string) -> ::Array[untyped]
+  end
+end

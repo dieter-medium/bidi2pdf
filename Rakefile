@@ -14,6 +14,8 @@ task default: %i[spec rubocop]
 require "chromedriver/binary"
 load "chromedriver/Rakefile"
 
+Dir.glob("tasks/*.rake").each { |r| load r }
+
 desc "Run tests with coverage"
 task :coverage do
   ENV["COVERAGE"] = "true"

@@ -1,0 +1,51 @@
+module Bidi2pdf
+  class SessionRunner
+    @session: untyped
+
+    @url: untyped
+
+    @output: untyped
+
+    @cookies: untyped
+
+    @headers: untyped
+
+    @auth: untyped
+
+    @wait_window_loaded: untyped
+
+    @wait_network_idle: untyped
+
+    @print_options: untyped
+
+    @window: untyped
+
+    @tab: untyped
+
+    @uri: untyped
+
+    def initialize: (session: untyped, url: untyped, output: untyped, ?cookies: ::Hash[untyped, untyped], ?headers: ::Hash[untyped, untyped], ?auth: ::Hash[untyped, untyped], ?wait_window_loaded: bool, ?wait_network_idle: bool, ?print_options: ::Hash[untyped, untyped]) -> void
+
+    def run: () -> untyped
+
+    private
+
+    def setup_browser: () -> untyped
+
+    def add_cookies: (untyped tab) -> untyped
+
+    def add_headers: () -> untyped
+
+    def add_basic_auth: () -> (nil | untyped)
+
+    def run_flow: () -> untyped
+
+    def uri: () -> untyped
+
+    def domain: () -> untyped
+
+    def source_origin: () -> untyped
+
+    def url_patterns: () -> ::Array[{ type: "pattern", protocol: untyped, hostname: untyped, port: untyped }]
+  end
+end

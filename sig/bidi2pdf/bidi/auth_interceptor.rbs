@@ -1,0 +1,17 @@
+module Bidi2pdf
+  module Bidi
+    class AuthInterceptor
+      @credentials: Hash[Symbol, String]?
+
+      def initialize: (?credentials: Hash[Symbol, String]?) -> void
+
+      def intercept: (untyped request) -> untyped
+
+      private
+
+      def add_auth_header: (untyped request) -> void
+
+      def auth_header_value: () -> String?
+    end
+  end
+end
