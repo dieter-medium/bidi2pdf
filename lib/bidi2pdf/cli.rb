@@ -39,6 +39,7 @@ module Bidi2pdf
            desc: "Wait for the window to be fully loaded (windoow.loaded set by your script)"
     option :wait_network_idle, type: :boolean, default: false, desc: "Wait for network to be idle"
     option :default_timeout, type: :numeric, default: 60, desc: "Default timeout for commands"
+    option :remote_browser_url, type: :string, desc: "Remote browser URL for ChromeDriver"
     option :log_level,
            type: :string,
            default: "info", enum: %w[debug info warn error fatal unknown], desc: "Set log level"
@@ -66,6 +67,7 @@ module Bidi2pdf
                         headers: parse_key_values(options[:header]),
                         auth: { username: username, password: password },
                         port: options[:port],
+                        remote_browser_url: options[:remote_browser_url],
                         headless: options[:headless],
                         wait_window_loaded: options[:wait_window_loaded],
                         wait_network_idle: options[:wait_network_idle]

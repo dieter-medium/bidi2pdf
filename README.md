@@ -94,6 +94,7 @@ docker run -it --rm -v ./output:/reports bidi2pdf \
 ### Test it with docker compose
 
 ```bash
+rake build
 docker compose -f docker/docker-compose.yml up -d
 
 # simple example
@@ -108,6 +109,8 @@ docker compose -f docker/docker-compose.yml exec app bidi2pdf render --url=http:
 # cookie example
 docker compose -f docker/docker-compose.yml exec app bidi2pdf render --url=http://nginx/cookie/sample.html --cookie "auth=secret" --wait_window_loaded --wait_network_idle --output /reports/cookie.pdf
 
+# remote chrome example
+docker compose -f docker/docker-compose.yml exec app bidi2pdf render --url=http://nginx/cookie/sample.html --remote_browser_url http://remote-chrome:3000/session --cookie "auth=secret" --wait_window_loaded --wait_network_idle --output /reports/remote.pdf
 
 docker compose -f docker/docker-compose.yml down
 ```

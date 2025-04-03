@@ -30,7 +30,9 @@ module Bidi2pdf
 
       at_exit { stop }
 
-      @session = Bidi::Session.new(@port, headless: @headless)
+      session_url = "http://localhost:#{@port}/session"
+
+      @session = Bidi::Session.new(session_url: session_url, headless: @headless)
 
       @pid
     end

@@ -25,10 +25,10 @@ module Bidi2pdf
         "goog:cdp.Page.screencastFrame"
       ].freeze
 
-      attr_reader :port, :websocket_url
+      attr_reader :session_uri
 
-      def initialize(port, headless: true)
-        @port = port
+      def initialize(session_url:, headless: true)
+        @session_uri = URI(session_url)
         @headless = headless
         @client = nil
         @browser = nil
@@ -88,9 +88,19 @@ module Bidi2pdf
         Bidi::Browser.new(@client)
       end
 
-      # rubocop: disable Metrics/AbcSize
       def create_client
-        uri = URI("http://localhost:#{port}/session")
+        Bidi::Client.new(websocket_url).tap(&:start)
+      end
+
+      # rubocop:disable Metrics/AbcSize
+      def websocket_url
+        return @websocket_url if @websocket_url
+
+        if %w[ws wss].include?(session_uri.scheme)
+          @websocket_url = session_uri.to_s
+          return @websocket_url
+        end
+
         args = %w[
           --disable-gpu
           --disable-popup-blocking
@@ -115,7 +125,12 @@ module Bidi2pdf
             }
           }
         }
-        response = Net::HTTP.post(uri, session_request.to_json, "Content-Type" => "application/json")
+
+        response = Net::HTTP.post(session_uri, session_request.to_json, "Content-Type" => "application/json")
+
+        Bidi2pdf.logger.debug "Response code: #{response.code}"
+        Bidi2pdf.logger.debug "Response body: #{response.body}"
+
         session_data = JSON.parse(response.body)
 
         Bidi2pdf.logger.debug "Session data: #{session_data}"
@@ -126,10 +141,10 @@ module Bidi2pdf
         Bidi2pdf.logger.info "Created session with ID: #{session_id}"
         Bidi2pdf.logger.info "WebSocket URL: #{@websocket_url}"
 
-        Bidi::Client.new(@websocket_url).tap(&:start)
+        @websocket_url
       end
 
-      # rubocop: enable Metrics/AbcSize
+      # rubocop:enable Metrics/AbcSize
     end
   end
 end

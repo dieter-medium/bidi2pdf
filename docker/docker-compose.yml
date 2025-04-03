@@ -9,6 +9,13 @@ services:
       - ./nginx/htpasswd:/etc/nginx/conf.d/.htpasswd
       - ../spec/fixtures:/var/www/html
 
+  remote-chrome:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.chromedriver
+    ports:
+      - "9092:3000"
+
   app:
     build:
       context: ..

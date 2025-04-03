@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Added
+
+- Support for remote chromedriver connections
+
 ## [0.1.1] - 2025-04-01
 
 ### Added
