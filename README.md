@@ -91,6 +91,27 @@ docker run -it --rm -v ./output:/reports bidi2pdf \
   bidi2pdf render --url=https://example.com --output /reports/example.pdf
 ```
 
+### Test it with docker compose
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+
+# simple example
+docker compose -f docker/docker-compose.yml exec app bidi2pdf render --url=http://nginx/sample.html --wait_window_loaded --wait_network_idle --output /reports/simple.pdf
+
+# basic auth example
+docker compose -f docker/docker-compose.yml exec app bidi2pdf render --url=http://nginx/basic/sample.html --auth admin:secret --wait_window_loaded --wait_network_idle --output /reports/basic.pdf
+
+# header example
+docker compose -f docker/docker-compose.yml exec app bidi2pdf render --url=http://nginx/header/sample.html --header "X-API-KEY=secret" --wait_window_loaded --wait_network_idle --output /reports/header.pdf
+
+# cookie example
+docker compose -f docker/docker-compose.yml exec app bidi2pdf render --url=http://nginx/cookie/sample.html --cookie "auth=secret" --wait_window_loaded --wait_network_idle --output /reports/cookie.pdf
+
+
+docker compose -f docker/docker-compose.yml down
+```
+
 ## Configuration Options
 
 | Option                 | Description                                                                                                         |
