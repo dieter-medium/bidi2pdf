@@ -1,3 +1,7 @@
+[![Maintainability](https://api.codeclimate.com/v1/badges/6425d9893aa3a9ca243e/maintainability)](https://codeclimate.com/github/dieter-medium/bidi2pdf/maintainability)
+[![Gem Version](https://badge.fury.io/rb/bidi2pdf.svg)](https://badge.fury.io/rb/bidi2pdf)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/6425d9893aa3a9ca243e/test_coverage)](https://codeclimate.com/github/dieter-medium/bidi2pdf/test_coverage)
+
 # Bidi2pdf
 
 Bidi2pdf is a Ruby gem that generates high-quality PDFs from web pages using Chrome's BiDi (BiDirectional) protocol. It
@@ -129,6 +133,8 @@ docker compose -f docker/docker-compose.yml down
 | `--wait_window_loaded` | Wait for the window to be fully loaded. You need to set a variable `window.loaded`. See ./spec/fixtures/sample.html |
 | `--wait_network_idle`  | Wait for network to be idle                                                                                         |
 | `--log_level`          | Log level (debug, info, warn, error, fatal)                                                                         |
+| `--remote_browser_url` | URL of the remote Chrome instance (default: nil)                                                                    |
+| `--default_timeout`    | Default timeout for operations (default: 60 seconds)                                                                |
 
 ## Development
 
