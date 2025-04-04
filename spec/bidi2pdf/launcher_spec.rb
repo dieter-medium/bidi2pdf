@@ -12,7 +12,7 @@ RSpec.describe Bidi2pdf::Launcher do
       cookies: cookies,
       headers: headers,
       auth: auth,
-      port: 0,
+      remote_browser_url: @chromedriver_manager.session_url, # speed things up
       headless: true,
       wait_window_loaded: true,
       wait_network_idle: true
@@ -79,11 +79,16 @@ RSpec.describe Bidi2pdf::Launcher do
       @golden_sample_text = reader.pages.map(&:text)
       @golden_sample_pages = reader.page_count
     end
+
+    # in order to speed things up, we start chromedriver here, once, for all the tests
+    @chromedriver_manager = Bidi2pdf::ChromedriverManager.new(port: 0, headless: true)
+    @chromedriver_manager.start
   end
 
   after(:all) do
     @container&.stop if @container&.running?
     @container&.remove
+    @chromedriver_manager&.stop
   end
   # rubocop:enable RSpec/BeforeAfterAll
 

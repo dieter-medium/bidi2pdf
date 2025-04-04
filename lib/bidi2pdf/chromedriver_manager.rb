@@ -4,16 +4,19 @@ require "chromedriver/binary"
 
 module Bidi2pdf
   class ChromedriverManager
-    attr_reader :port, :pid, :session
+    attr_reader :port, :pid, :started
 
     def initialize(port: 0, headless: true)
       @port = port
       @headless = headless
       @session = nil
+      @started = false
     end
 
     def start
       return @pid if @pid
+
+      @started = true
 
       update_chromedriver
       cmd = build_cmd
@@ -30,15 +33,25 @@ module Bidi2pdf
 
       at_exit { stop }
 
-      session_url = "http://localhost:#{@port}/session"
-
-      @session = Bidi::Session.new(session_url: session_url, headless: @headless)
-
       @pid
+    end
+
+    def session
+      return unless @started
+
+      @session ||= Bidi::Session.new(session_url: session_url, headless: @headless)
+    end
+
+    def session_url
+      return unless @started
+
+      "http://localhost:#{@port}/session"
     end
 
     def stop(timeout: 5)
       return unless @pid
+
+      @started = false
 
       close_session
 
@@ -85,7 +98,7 @@ module Bidi2pdf
     def close_session
       Bidi2pdf.logger.info "Closing session"
 
-      @session.close
+      @session&.close
       @session = nil
     end
 
