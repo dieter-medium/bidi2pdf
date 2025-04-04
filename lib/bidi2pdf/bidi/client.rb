@@ -80,11 +80,7 @@ module Bidi2pdf
           id = send_cmd(method, params)
           queue = @pending_responses[id]
 
-          begin
-            response = queue.pop(true)
-          rescue ThreadError
-            response = queue.pop(timeout: timeout)
-          end
+          response = queue.pop(timeout: timeout)
 
           if response.nil?
             # rubocop:disable Layout/LineLength
@@ -180,7 +176,7 @@ module Bidi2pdf
         @send_cmd_mutex.synchronize do
           @id += 1
           cmd_id = @id
-          @pending_responses[cmd_id] = Queue.new
+          @pending_responses[cmd_id] = Thread::Queue.new
         end
 
         cmd_id
