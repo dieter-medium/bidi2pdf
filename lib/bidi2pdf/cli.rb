@@ -73,9 +73,6 @@ module Bidi2pdf
       validate_print_options(print_options) if print_options
 
       launcher.launch
-    rescue StandardError => e
-      Bidi2pdf.logger.error "Error: #{e.message}"
-      exit 1
     ensure
       launcher.stop if defined?(@launcher) && @launcher
     end
