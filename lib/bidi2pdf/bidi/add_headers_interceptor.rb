@@ -5,7 +5,7 @@ module Bidi2pdf
     class AddHeadersInterceptor
       attr_reader :id, :headers
 
-      def initialize(id, headers, client)
+      def initialize(id, headers:, client:)
         @id = id
         @client = client
         @headers = headers.map do |header|

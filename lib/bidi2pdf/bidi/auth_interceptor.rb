@@ -5,7 +5,7 @@ module Bidi2pdf
     class AuthInterceptor
       attr_reader :id, :username, :password, :network_ids
 
-      def initialize(id, username, password, client)
+      def initialize(id, username:, password:, client:)
         @id = id
         @client = client
         @username = username
