@@ -3,6 +3,7 @@
 ### Added
 
 - Support for remote chromedriver connections
+- Enhance CLI with YAML configuration support and additional options
 
 ## [0.1.1] - 2025-04-01
 
