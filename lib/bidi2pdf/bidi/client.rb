@@ -21,7 +21,7 @@ module Bidi2pdf
 
         @connected = false
         @connection_mutex = Mutex.new
-        @send_cmd_mutex = Mutex.new
+        @next_id_mutex = Mutex.new
         @connection_cv = ConditionVariable.new
 
         @started = false
@@ -173,7 +173,7 @@ module Bidi2pdf
       def next_id
         cmd_id = nil
 
-        @send_cmd_mutex.synchronize do
+        @next_id_mutex.synchronize do
           @id += 1
           cmd_id = @id
           @pending_responses[cmd_id] = Thread::Queue.new

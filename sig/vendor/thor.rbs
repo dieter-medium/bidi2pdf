@@ -1,0 +1,13 @@
+class Thor
+  def self.desc: (String name, String description) -> void
+
+  def self.option: (Symbol name, ?Hash[Symbol, untyped] options) -> void
+
+  def self.long_desc: (String description, ?Hash[Symbol, untyped] options) -> void
+
+  interface _Command
+    def execute: (*untyped) -> untyped
+  end
+
+  def initialize: (?Hash[Symbol, untyped] options) -> void
+end

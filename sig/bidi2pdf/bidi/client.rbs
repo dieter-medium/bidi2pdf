@@ -1,17 +1,18 @@
 module Bidi2pdf
   module Bidi
     class Client
+      @next_id_mutex: Mutex
       @ws_url: untyped
 
       @id: untyped
 
-      @pending_responses: untyped
+      @pending_responses: Hash[String, Thread::Queue]
 
       @connected: untyped
 
-      @connection_mutex: untyped
+      @connection_mutex: Mutex
 
-      @send_cmd_mutex: untyped
+      @send_cmd_mutex: Mutex
 
       @connection_cv: untyped
 
