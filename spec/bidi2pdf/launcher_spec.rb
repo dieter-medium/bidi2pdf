@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "webrick"
 require "pdf-reader"
+require "testcontainers"
 
 RSpec.describe Bidi2pdf::Launcher do
   subject(:launcher) do
@@ -25,7 +25,9 @@ RSpec.describe Bidi2pdf::Launcher do
   let(:cookies) { nil }
   let(:tmp_dir) { File.expand_path("../tmp", __dir__) }
 
-  def port = @server.config[:Port]
+  def host = @container.host
+
+  def port = @container.mapped_port(80)
 
   # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
@@ -39,52 +41,35 @@ RSpec.describe Bidi2pdf::Launcher do
 
     root = File.expand_path("../fixtures", __dir__)
 
-    user_db = WEBrick::HTTPAuth::Htpasswd.new("#{Dir.tmpdir}/webrick-htpasswd")
-    user_db.set_passwd(nil, "admin", "secret")
+    nginx_conf = File.expand_path("../../docker/nginx/default.conf", __dir__)
+    htpasswd = File.expand_path("../../docker/nginx/htpasswd", __dir__)
+    html_dir = File.expand_path("../fixtures", __dir__)
 
-    basic_auth = WEBrick::HTTPAuth::BasicAuth.new(
-      Realm: "My Protected Server",
-      UserDB: user_db,
-      Logger: WEBrick::Log.new(File::NULL)
+    @container = Testcontainers::DockerContainer.new(
+      "nginx:1.27-bookworm",
+      exposed_ports: [80],
+      filesystem_binds: {
+        nginx_conf.to_s => "/etc/nginx/conf.d/default.conf",
+        htpasswd.to_s => "/etc/nginx/conf.d/.htpasswd",
+        html_dir.to_s => "/var/www/html"
+      }
     )
 
-    api_key = "secret"
-    cookie_secret = "secret"
+    @container.start
 
-    @server = WEBrick::HTTPServer.new(
-      Port: 0,
-      DocumentRoot: root,
-      AccessLog: [],
-      Logger: WEBrick::Log.new(File::NULL)
-    )
+    Timeout.timeout(15) do
+      loop do
+        response = nil
+        if @container.running? && @container.mapped_port(80) != 0
+          response = Net::HTTP.get_response(URI("http://#{host}:#{port}/sample.html"))
+        end
+        break if response&.code&.to_i == 200
 
-    # Middleware-like helper to serve files after checking something
-    serve_if = lambda do |req, res, &condition|
-      if condition.call(req)
-        WEBrick::HTTPServlet::FileHandler.new(@server, root).service(req, res)
-      else
-        res.status = 403
-        res.body = "Forbidden"
+        sleep 0.5
+      rescue StandardError
+        puts "Waiting for container to start"
       end
     end
-
-    @server.mount_proc("/basic") do |req, res|
-      basic_auth.authenticate(req, res)
-      WEBrick::HTTPServlet::FileHandler.new(@server, root).service(req, res)
-    end
-
-    @server.mount_proc("/api") do |req, res|
-      serve_if.call(req, res) { req.header["x-api-key"]&.first == api_key }
-    end
-
-    @server.mount_proc("/cookie") do |req, res|
-      serve_if.call(req, res) do
-        cookie = req.cookies.find { |c| c.name == "auth" }
-        cookie&.value == cookie_secret
-      end
-    end
-
-    @server_thread = Thread.new { @server.start }
 
     @golden_sample_text = nil
     @golden_sample_pages = nil
@@ -95,14 +80,11 @@ RSpec.describe Bidi2pdf::Launcher do
       @golden_sample_text = reader.pages.map(&:text)
       @golden_sample_pages = reader.page_count
     end
-
-    # Wait for server to boot
-    sleep 0.5
   end
 
   after(:all) do
-    @server&.shutdown
-    @server_thread.kill
+    @container&.stop if @container&.running?
+    @container&.remove
   end
   # rubocop:enable RSpec/BeforeAfterAll
 
@@ -111,21 +93,21 @@ RSpec.describe Bidi2pdf::Launcher do
   end
 
   context "with basic auth" do
-    let(:url) { "http://localhost:#{port}/basic/sample.html" }
+    let(:url) { "http://#{host}:#{port}/basic/sample.html" }
     let(:auth) { { username: "admin", password: "secret" } }
 
     include_examples "a PDF downloader"
   end
 
   context "with api key" do
-    let(:url) { "http://localhost:#{port}/api/sample.html" }
+    let(:url) { "http://#{host}:#{port}/header/sample.html" }
     let(:headers) { { "x-api-key" => "secret" } }
 
     include_examples "a PDF downloader"
   end
 
   context "with api cookie" do
-    let(:url) { "http://localhost:#{port}/cookie/sample.html" }
+    let(:url) { "http://#{host}:#{port}/cookie/sample.html" }
     let(:cookies) { { "auth" => "secret" } }
 
     include_examples "a PDF downloader"
