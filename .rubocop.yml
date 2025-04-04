@@ -45,6 +45,9 @@ Gemspec/DevelopmentDependencies:
 RSpec/InstanceVariable:
   Enabled: false
 
+RSpec/BeforeAfterAll:
+  Enabled: false
+
 plugins:
   - rubocop-rake
   - rubocop-rspec

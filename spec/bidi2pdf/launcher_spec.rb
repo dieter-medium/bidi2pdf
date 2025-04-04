@@ -29,7 +29,6 @@ RSpec.describe Bidi2pdf::Launcher do
 
   def port = @container.mapped_port(80)
 
-  # rubocop:disable RSpec/BeforeAfterAll
   before(:all) do
     Bidi2pdf.configure do |config|
       config.logger.level = Logger::INFO

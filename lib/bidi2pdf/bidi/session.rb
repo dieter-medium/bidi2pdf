@@ -25,7 +25,7 @@ module Bidi2pdf
         "goog:cdp.Page.screencastFrame"
       ].freeze
 
-      attr_reader :session_uri
+      attr_reader :session_uri, :started
 
       def initialize(session_url:, headless: true)
         @session_uri = URI(session_url)
@@ -33,14 +33,16 @@ module Bidi2pdf
         @client = nil
         @browser = nil
         @websocket_url = nil
+        @started = false
       end
 
       def start
+        @started = true
         client
       end
 
       def client
-        @client ||= create_client
+        @client ||= @started ? create_client : nil
       end
 
       def close
