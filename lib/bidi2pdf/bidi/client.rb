@@ -18,14 +18,6 @@ module Bidi2pdf
 
       def initialize(ws_url)
         @ws_url = ws_url
-        @id = 0
-        @pending_responses = {}
-
-        @connected = false
-        @connection_mutex = Mutex.new
-        @next_id_mutex = Mutex.new
-        @connection_cv = ConditionVariable.new
-
         @started = false
       end
 
