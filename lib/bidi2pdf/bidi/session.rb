@@ -11,18 +11,8 @@ module Bidi2pdf
   module Bidi
     class Session
       SUBSCRIBE_EVENTS = [
-        "browsingContext",
-        "network",
         "log",
         "script",
-        "goog:cdp.Debugger.scriptParsed",
-        "goog:cdp.CSS.styleSheetAdded",
-        "goog:cdp.Runtime.executionContextsCleared",
-        # Tracing
-        "goog:cdp.Tracing.tracingComplete",
-        "goog:cdp.Network.requestWillBeSent",
-        "goog:cdp.Debugger.scriptParsed",
-        "goog:cdp.Page.screencastFrame"
       ].freeze
 
       attr_reader :session_uri, :started
