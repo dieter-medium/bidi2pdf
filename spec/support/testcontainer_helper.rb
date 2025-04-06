@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "testcontainers"
+require "testcontainers/nginx"
 require_relative "nginx_helper"
 
 RSpec.configure do |config|
@@ -35,10 +36,10 @@ def nginx_tests_present?
 end
 
 def start_nginx_container(conf_dir:, fixture_dir:)
-  container = Testcontainers::DockerContainer.new(
-    "nginx:1.27-bookworm",
-    exposed_ports: [80],
-    filesystem_binds: {
+  container = Testcontainers::NginxContainer.new(
+    "nginx:1.27-bookworm"
+  ).with_filesystem_binds(
+    {
       File.join(conf_dir, "default.conf") => "/etc/nginx/conf.d/default.conf",
       File.join(conf_dir, "htpasswd") => "/etc/nginx/conf.d/.htpasswd",
       fixture_dir => "/var/www/html"
@@ -46,7 +47,6 @@ def start_nginx_container(conf_dir:, fixture_dir:)
   )
 
   container.start
-  container
 end
 
 def wait_for_nginx(container)

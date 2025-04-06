@@ -9,7 +9,7 @@ module NginxTestHelper
   end
 
   def nginx_port
-    RSpec.configuration.nginx_container.mapped_port(80)
+    RSpec.configuration.nginx_container.first_mapped_port
   end
 
   def nginx_url(path = "")
