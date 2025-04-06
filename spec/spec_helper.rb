@@ -25,14 +25,6 @@ RSpec.configure do |config|
   # Disable RSpec exposing methods globally on `Module` and `main`
   config.disable_monkey_patching!
 
-  # Add a setting for the spec root directory
-  config.add_setting :spec_dir, default: File.expand_path(__dir__)
-
-  # You could also add other useful paths
-  config.add_setting :fixture_dir, default: File.join(config.spec_dir, "fixtures")
-  config.add_setting :tmp_dir, default: File.join(config.spec_dir, "tmp")
-  config.add_setting :docker_dir, default: File.join(config.spec_dir, "..", "docker")
-
   config.expect_with :rspec do |c|
     c.syntax = :expect
   end
@@ -49,6 +41,8 @@ RSpec.configure do |config|
     metadata[:acceptance] = true
   end
 end
+
+require_relative "support/default_dirs_helper" # just to ensure that the folder definitions are loaded first
 
 Dir[File.expand_path("shared/**/*.rb", __dir__)].each { |f| require f }
 Dir[File.expand_path("support/**/*.rb", __dir__)].each { |f| require f }

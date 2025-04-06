@@ -22,7 +22,6 @@ RSpec.describe Bidi2pdf::Launcher, :nginx do
   let(:headers) { nil }
   let(:auth) { nil }
   let(:cookies) { nil }
-  let(:tmp_dir) { File.expand_path("../tmp", __dir__) }
 
   before(:all) do
     Bidi2pdf.configure do |config|
@@ -33,11 +32,19 @@ RSpec.describe Bidi2pdf::Launcher, :nginx do
       end
     end
 
+    tmp_dir = random_tmp_dir("chromedriver")
+    FileUtils.mkdir_p(tmp_dir)
+
+    Chromedriver::Binary.configure do |config|
+      @old_install_dir = config.install_dir
+
+      config.install_dir = tmp_dir
+    end
+
     @golden_sample_text = nil
     @golden_sample_pages = nil
 
-    root = File.expand_path("../fixtures", __dir__)
-    golden_sample = File.join(root, "sample.pdf")
+    golden_sample = fixture_file("sample.pdf")
 
     PDF::Reader.open(golden_sample) do |reader|
       @golden_sample_text = reader.pages.map(&:text)
@@ -51,6 +58,14 @@ RSpec.describe Bidi2pdf::Launcher, :nginx do
 
   after(:all) do
     @chromedriver_manager&.stop
+
+    Chromedriver::Binary.configure do |config|
+      current_dir = config.install_dir
+
+      FileUtils.rm_rf(current_dir)
+
+      config.install_dir = @old_install_dir
+    end
   end
   # rubocop:enable RSpec/BeforeAfterAll
 
@@ -162,7 +177,7 @@ RSpec.describe Bidi2pdf::Launcher, :nginx do
     def with_pdf_debug(pdf_data)
       yield
     rescue RSpec::Expectations::ExpectationNotMetError => e
-      failure_output = File.join(tmp_dir, "pdf-files", "test-failure-#{Time.now.to_i}.pdf")
+      failure_output = tmp_file("pdf-files", "test-failure-#{Time.now.to_i}.pdf")
       FileUtils.mkdir_p(File.dirname(failure_output))
       File.binwrite(failure_output, pdf_data)
       puts "Test failed! PDF saved to: #{failure_output}"

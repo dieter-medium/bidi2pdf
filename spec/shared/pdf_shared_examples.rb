@@ -26,7 +26,7 @@ RSpec.shared_examples "a PDF downloader" do
 
   context "with file creation" do
     let(:output) do
-      tmp_dir = File.join(File.expand_path("../../tmp", __dir__), "pdf-files")
+      tmp_dir = tmp_file "pdf-files"
       FileUtils.mkdir_p(tmp_dir)
       File.join(tmp_dir, "test-#{SecureRandom.hex(8)}.pdf")
     end

@@ -7,7 +7,7 @@ RSpec.describe Bidi2pdf::ChromedriverManager, :chromedriver_update do
   let(:manager) { described_class.new(port: 0, headless: true) }
 
   before(:all) do
-    tmp_dir = File.join(File.expand_path("../../tmp", __dir__), "chromedriver", SecureRandom.hex(8))
+    tmp_dir = random_tmp_dir("chromedriver")
     FileUtils.mkdir_p(tmp_dir)
 
     Chromedriver::Binary.configure do |config|
