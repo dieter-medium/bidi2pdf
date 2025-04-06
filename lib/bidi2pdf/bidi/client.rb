@@ -95,6 +95,15 @@ module Bidi2pdf
         )
       end
 
+      def close
+        return unless @socket
+
+        Bidi2pdf.logger.debug "Closing WebSocket connection"
+        @socket&.close
+        @socket = nil
+        @started = false
+      end
+
       private
 
       def dispatcher

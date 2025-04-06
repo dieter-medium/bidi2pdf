@@ -10,9 +10,9 @@ require_relative "user_context"
 module Bidi2pdf
   module Bidi
     class Session
-      SUBSCRIBE_EVENTS = [
-        "log",
-        "script",
+      SUBSCRIBE_EVENTS = %w[
+        log
+        script
       ].freeze
 
       attr_reader :session_uri, :started
@@ -38,6 +38,7 @@ module Bidi2pdf
       def close
         client&.send_cmd_and_wait("session.end", {}) do |response|
           Bidi2pdf.logger.debug "Session ended: #{response}"
+          @client&.close
           @client = nil
           @websocket_url = nil
           @browser = nil
