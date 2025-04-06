@@ -48,6 +48,11 @@ RSpec/InstanceVariable:
 RSpec/BeforeAfterAll:
   Enabled: false
 
+RSpec/SpecFilePathFormat:
+  Enabled: true
+  Exclude:
+    - 'spec/acceptance/**/*_spec.rb'
+
 plugins:
   - rubocop-rake
   - rubocop-rspec
