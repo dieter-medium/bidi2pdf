@@ -55,9 +55,11 @@ module Bidi2pdf
 
       close_session
 
-      term_chromedriver
+      debug_show_all_children
 
-      detect_zombie_processes
+      old_childprocesses = term_chromedriver
+
+      detect_zombie_processes old_childprocesses
 
       return unless process_alive?
 
@@ -68,14 +70,10 @@ module Bidi2pdf
 
     private
 
-    # rubocop:disable Metrics/AbcSize
-    def detect_zombie_processes
-      debug_show_all_children
+    def detect_zombie_processes(old_childprocesses)
+      Bidi2pdf.logger.debug "Old child processes for #{@pid}: #{old_childprocesses.map(&:pid).join(", ")}"
 
-      child_processes = Bidi2pdf::ProcessTree.new(@pid).children(@pid)
-      Bidi2pdf.logger.debug "Found child processes: #{child_processes.map(&:pid).join(", ")}"
-
-      zombie_processes = child_processes.select { |child| process_alive? child.pid }
+      zombie_processes = old_childprocesses.select { |child| process_alive? child.pid }
 
       return if zombie_processes.empty?
 
@@ -83,9 +81,18 @@ module Bidi2pdf
       printable_zombie_processes_str = printable_zombie_processes.join(", ")
 
       Bidi2pdf.logger.error "Zombie Processes detected #{printable_zombie_processes_str}"
+
+      term_zombie_processes zombie_processes
     end
 
-    # rubocop:enable Metrics/AbcSize
+    def term_zombie_processes(zombie_processes)
+      Bidi2pdf.logger.info "Terminating zombie processes: #{zombie_processes.map(&:pid).join(", ")}"
+
+      zombie_processes.each do |child|
+        Bidi2pdf.logger.debug "Terminating PID #{child.pid} (#{child.name})"
+        Process.kill("TERM", child.pid)
+      end
+    end
 
     def debug_show_all_children
       Bidi2pdf::ProcessTree.new(@pid).traverse do |process, level|
@@ -103,9 +110,11 @@ module Bidi2pdf
     end
 
     def term_chromedriver
-      Bidi2pdf.logger.info "Stopping Chromedriver (PID #{@pid})"
+      Bidi2pdf::ProcessTree.new(@pid).children(@pid).tap do |_child_processes|
+        Bidi2pdf.logger.info "Stopping Chromedriver (PID #{@pid})"
 
-      Process.kill("TERM", @pid)
+        Process.kill("TERM", @pid)
+      end
     rescue Errno::ESRCH
       Bidi2pdf.logger.debug "Process already gone"
       @pid = nil
