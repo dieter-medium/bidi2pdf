@@ -53,6 +53,11 @@ RSpec/SpecFilePathFormat:
   Exclude:
     - 'spec/acceptance/**/*_spec.rb'
 
+RSpec/DescribeClass:
+  Enabled: true
+  Exclude:
+    - 'spec/acceptance/**/*_spec.rb'
+
 plugins:
   - rubocop-rake
   - rubocop-rspec
