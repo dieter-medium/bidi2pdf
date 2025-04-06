@@ -79,33 +79,57 @@ commit_preprocessors = [
 ]
 # regex for parsing and grouping commits
 commit_parsers = [
-    # ✅ Additions
-      { message = "^[a|A]dd", group = "🚀 Added" },
-      { message = "^[s|S]upport", group = "🚀 Added" },
-      { message = "^.*: add", group = "🚀 Added" },
-      { message = "^.*: support", group = "🚀 Added" },
+    # ✅ Features (additions)
+    { message = "^feat(?:\\([^)]+\\))?!?:", group = "🚀 Added" },
+    { message = "^[aA]dd", group = "🚀 Added" },
+    { message = "^[sS]upport", group = "🚀 Added" },
 
-      # ❌ Removals
-      { message = "^[r|R]emove", group = "🗑️ Removed" },
-      { message = "^.*: remove", group = "🗑️ Removed" },
-      { message = "^.*: delete", group = "🗑️ Removed" },
+    # ❌ Removals
+    { message = "^[rR]emove", group = "🗑️ Removed" },
+    { message = "^[dD]elete", group = "🗑️ Removed" },
 
-      # 🐛 Fixes
-      { message = "^test", group = "🐛 Fixed" },
-      { message = "^fix", group = "🐛 Fixed" },
-      { message = "^.*: fix", group = "🐛 Fixed" },
+    # 🐛 Fixes
+    { message = "^fix(?:\\([^)]+\\))?!?:", group = "🐛 Fixed" },
+    { message = "^[tT]est", group = "🐛 Fixed" },
+    { message = "^[fF]ix", group = "🐛 Fixed" },
 
-      # ⛔️ Chore & CI commits to skip
-      { message = "^chore\\(release\\): prepare for", skip = true },
-      { message = "^chore\\(deps.*\\)", skip = true },
-      { message = "^chore\\(pr\\)", skip = true },
-      { message = "^chore\\(pull\\)", skip = true },
-      { message = "^chore", skip = true },
-      { message = "^ci", skip = true },
+    # 🎨 Refactors
+    { message = "^refactor(?:\\([^)]+\\))?!?:", group = "🎨 Refactored" },
 
-      # 🌀 Catch-All
-      { message = "^.*", group = "🔄 Changed" }
+    # ⚡️ Performance
+    { message = "^perf(?:\\([^)]+\\))?!?:", group = "⚡️ Performance" },
+
+    # 📝 Docs
+    { message = "^docs(?:\\([^)]+\\))?!?:", group = "📝 Docs" },
+
+    # 💄 Style (formatting, whitespace, etc.)
+    { message = "^style(?:\\([^)]+\\))?!?:", group = "💄 Style" },
+
+    # 🧪 Tests
+    { message = "^test(?:\\([^)]+\\))?!?:", group = "🧪 Tests" },
+
+    # 🔧 Build
+    { message = "^build(?:\\([^)]+\\))?!?:", group = "🔧 Build" },
+
+    # 🛠️ CI
+    { message = "^ci(?:\\([^)]+\\))?!?:", skip = true },
+
+    # 🧹 Chores (skip)
+    { message = "^chore\\(release\\): prepare for", skip = true },
+    { message = "^chore\\(deps.*\\)", skip = true },
+    { message = "^chore\\(pr\\)", skip = true },
+    { message = "^chore\\(pull\\)", skip = true },
+    { message = "^chore(?:\\([^)]+\\))?!?:", skip = true },
+    { message = "^\\s*chore", skip = true },
+
+    # ⏪ Reverts
+    { message = "^revert(?:\\([^)]+\\))?!?:", group = "⏪ Reverted" },
+
+    # 🌀 Catch-all (only if nothing else matched)
+    { message = "^.*", group = "🔄 Changed" }
 ]
+
+
 # filter out the commits that are not matched by commit parsers
 filter_commits = false
 # sort the tags topologically
