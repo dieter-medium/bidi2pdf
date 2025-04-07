@@ -68,7 +68,6 @@ module Bidi2pdf
           end
 
           if Time.now - start_time > timeout
-            # rubocop:disable Layout/LineLength
             Bidi2pdf.logger.warn "⏰ Timeout while waiting for network events to complete. Still in progress: #{in_progress.map(&:id)}"
             # rubocop:enable Layout/LineLength
             break

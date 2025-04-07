@@ -51,7 +51,6 @@ module Bidi2pdf
 
         Bidi2pdf.logger.debug "Auth-Interceptor #{id} already handled event: #{navigation_id}/#{network_id}/#{url}"
 
-        # rubocop: disable Layout/LineLength
         Bidi2pdf.logger.error "It seems that the same request is being intercepted multiple times. Check your credentials or the URL you are trying to access. If you are using a proxy, make sure it is configured correctly."
         # rubocop: enable Layout/LineLength
 

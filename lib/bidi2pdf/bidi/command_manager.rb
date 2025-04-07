@@ -72,7 +72,6 @@ module Bidi2pdf
       end
 
       def raise_timeout_error(id, method, params)
-        # rubocop:disable Layout/LineLength
         @logger.error "Timeout waiting for response to command #{id}, cmd: #{method}, params: #{redact_sensitive_fields(params).inspect}"
         # rubocop:enable Layout/LineLength
         raise "Timeout waiting for response to command ID #{id}"

@@ -26,6 +26,9 @@ Layout/FirstHashElementIndentation:
 Layout/FirstArrayElementIndentation:
   EnforcedStyle: consistent
 
+Layout/LineLength:
+  Enabled: false
+
 RSpec/MultipleMemoizedHelpers:
   Max: 10
 

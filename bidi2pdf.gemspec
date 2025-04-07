@@ -8,7 +8,6 @@ Gem::Specification.new do |spec|
   spec.authors = ["Dieter S."]
   spec.email = ["101627195+dieter-medium@users.noreply.github.com"]
 
-  # rubocop:disable Layout/LineLength
   spec.summary = "A Ruby gem that generates PDFs from web pages using Chrome's BiDi protocol, providing high-quality PDF documents from any URL with full support for modern web features."
   # rubocop:enable Layout/LineLength
   spec.description = <<~DESC
