@@ -38,6 +38,15 @@ end
 
 def stop_container(container)
   if container&.running?
+
+    if ENV["SHOW_CONTAINER_LOGS"]
+      puts "Container logs:"
+      logs_std, logs_error = container.logs
+
+      puts logs_error
+      puts logs_std
+    end
+
     puts "🧹 #{container.image} stopping container..."
     container.stop
   end

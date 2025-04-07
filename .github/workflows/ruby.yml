@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+      SHOW_CONTAINER_LOGS: true
+      DISABLE_CHROME_SANDBOX: true
     steps:
       - uses: actions/checkout@v3
       - name: Set up Ruby

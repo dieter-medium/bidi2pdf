@@ -11,13 +11,15 @@ module Bidi2pdf
   module Bidi
     class Session
       SUBSCRIBE_EVENTS = %w[log script].freeze
+      DEFAULT_CHROME_ARGS = %w[--disable-gpu --disable-popup-blocking --disable-hang-monitor].freeze
 
-      attr_reader :session_uri, :started
+      attr_reader :session_uri, :started, :chrome_args
 
-      def initialize(session_url:, headless: true)
+      def initialize(session_url:, headless: true, chrome_args: DEFAULT_CHROME_ARGS)
         @session_uri = URI(session_url)
         @headless = headless
         @started = false
+        @chrome_args = chrome_args.dup
       end
 
       def start
@@ -122,14 +124,14 @@ module Bidi2pdf
       end
 
       def session_request
-        chrome_args = %w[--disable-gpu --disable-popup-blocking --disable-hang-monitor]
-        chrome_args << "--headless" if @headless
+        session_chrome_args = chrome_args.dup
+        session_chrome_args << "--headless" if @headless
 
         {
           "capabilities" => {
             "alwaysMatch" => {
               "browserName" => "chrome",
-              "goog:chromeOptions" => { "args" => chrome_args },
+              "goog:chromeOptions" => { "args" => session_chrome_args },
               "goog:prerenderingDisabled" => true,
               "unhandledPromptBehavior" => { default: "ignore" },
               "acceptInsecureCerts" => true,
@@ -197,7 +199,7 @@ module Bidi2pdf
         Bidi2pdf.logger.error "Stacktrace: #{trace}" if trace
 
         if msg =~ /probably user data directory is already in use/
-          Bidi2pdf.logger.info "Container detected with headless-only support" if @headless
+          Bidi2pdf.logger.info "Container detected with headless-only support, ensure xvfb is started" unless @headless
           Bidi2pdf.logger.info "Check chromedriver permissions and --user-data-dir"
         end
 
