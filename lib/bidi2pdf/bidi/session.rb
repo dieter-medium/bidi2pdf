@@ -10,134 +10,205 @@ require_relative "user_context"
 module Bidi2pdf
   module Bidi
     class Session
-      SUBSCRIBE_EVENTS = %w[
-        log
-        script
-      ].freeze
+      SUBSCRIBE_EVENTS = %w[log script].freeze
 
       attr_reader :session_uri, :started
 
       def initialize(session_url:, headless: true)
         @session_uri = URI(session_url)
         @headless = headless
-        @client = nil
-        @browser = nil
-        @websocket_url = nil
         @started = false
       end
 
       def start
+        return if started?
+
         @started = true
         client
+      rescue StandardError => e
+        @started = false
+        raise e
       end
 
       def client
-        @client ||= @started ? create_client : nil
-      end
-
-      def close
-        client&.send_cmd_and_wait("session.end", {}) do |response|
-          Bidi2pdf.logger.debug "Session ended: #{response}"
-          @client&.close
-          @client = nil
-          @websocket_url = nil
-          @browser = nil
-        end
+        @client ||= started? ? create_client : nil
       end
 
       def browser
         @browser ||= create_browser
       end
 
-      def user_contexts
-        client&.send_cmd_and_wait("browser.getUserContexts", {}) do |response|
-          Bidi2pdf.logger.debug "User contexts: #{response}"
+      def close
+        return unless started?
+
+        2.times do |attempt|
+          client&.send_cmd_and_wait("session.end", {}, timeout: 1) do |response|
+            Bidi2pdf.logger.debug "Session ended: #{response}"
+            cleanup
+          end
+          break
+        rescue CmdTimeoutError
+          Bidi2pdf.logger.error "Session end command timed out. Retrying... (#{attempt + 1})"
         end
       end
 
+      def user_contexts
+        send_cmd("browser.getUserContexts") { |resp| Bidi2pdf.logger.debug "User contexts: #{resp}" }
+      end
+
       def status
-        client&.send_cmd_and_wait("session.status", {}) do |response|
-          Bidi2pdf.logger.info "Session status: #{response.inspect}"
-        end
+        send_cmd("session.status") { |resp| Bidi2pdf.logger.info "Session status: #{resp.inspect}" }
+      end
+
+      def started?
+        @started
       end
 
       private
 
+      def send_cmd(command, &block)
+        client&.send_cmd_and_wait(command, {}, &block)
+      end
+
+      # rubocop: disable Metrics/AbcSize
       def create_browser
         start
-
-        @client.start
-        @client.wait_until_open
+        client.start
+        client.wait_until_open
 
         Bidi2pdf.logger.info "Subscribing to events"
 
-        event_client = Bidi::Client.new(websocket_url).tap(&:start)
-        event_client.wait_until_open
+        Bidi::Client.new(websocket_url).tap do |event_client|
+          event_client.start
+          event_client.wait_until_open
 
-        event_client.on_event(*SUBSCRIBE_EVENTS) do |data|
-          Bidi2pdf.logger.debug "Received event: #{data["method"]}, params: #{data["params"]}"
+          event_client.on_event(*SUBSCRIBE_EVENTS) do |data|
+            Bidi2pdf.logger.debug "Received event: #{data["method"]}, params: #{data["params"]}"
+          end
         end
 
-        Bidi::Browser.new(@client)
+        Bidi::Browser.new(client)
       end
+
+      # rubocop: enable Metrics/AbcSize
 
       def create_client
         Bidi::Client.new(websocket_url).tap(&:start)
       end
 
-      # rubocop:disable Metrics/AbcSize
       def websocket_url
         return @websocket_url if @websocket_url
 
-        if %w[ws wss].include?(session_uri.scheme)
-          @websocket_url = session_uri.to_s
-          return @websocket_url
-        end
+        @websocket_url = if %w[ws wss].include?(session_uri.scheme)
+                           session_uri.to_s
+                         else
+                           create_new_session
+                         end
+      end
 
-        args = %w[
-          --disable-gpu
-          --disable-popup-blocking
-          --disable-hang-monitor
-        ]
+      def create_new_session
+        session_data = exec_api_call(session_request)
+        Bidi2pdf.logger.debug "Session data: #{session_data}"
 
-        args << "--headless" if @headless
+        value = session_data["value"]
+        handle_error(value) if value.nil? || value["error"]
 
-        session_request = {
+        session_id = value["sessionId"]
+        ws_url = value["capabilities"]["webSocketUrl"]
+
+        Bidi2pdf.logger.info "Created session with ID: #{session_id}"
+        Bidi2pdf.logger.info "WebSocket URL: #{ws_url}"
+        ws_url
+      end
+
+      def session_request
+        chrome_args = %w[--disable-gpu --disable-popup-blocking --disable-hang-monitor]
+        chrome_args << "--headless" if @headless
+
+        {
           "capabilities" => {
             "alwaysMatch" => {
               "browserName" => "chrome",
-              "goog:chromeOptions" => {
-                "args" => args
-              },
+              "goog:chromeOptions" => { "args" => chrome_args },
               "goog:prerenderingDisabled" => true,
-              "unhandledPromptBehavior" => {
-                default: "ignore"
-              },
+              "unhandledPromptBehavior" => { default: "ignore" },
               "acceptInsecureCerts" => true,
               "webSocketUrl" => true
             }
           }
         }
-
-        response = Net::HTTP.post(session_uri, session_request.to_json, "Content-Type" => "application/json")
-
-        Bidi2pdf.logger.debug "Response code: #{response.code}"
-        Bidi2pdf.logger.debug "Response body: #{response.body}"
-
-        session_data = JSON.parse(response.body)
-
-        Bidi2pdf.logger.debug "Session data: #{session_data}"
-
-        session_id = session_data["value"]["sessionId"]
-        @websocket_url = session_data["value"]["capabilities"]["webSocketUrl"]
-
-        Bidi2pdf.logger.info "Created session with ID: #{session_id}"
-        Bidi2pdf.logger.info "WebSocket URL: #{@websocket_url}"
-
-        @websocket_url
       end
 
-      # rubocop:enable Metrics/AbcSize
+      def exec_api_call(payload)
+        response = Net::HTTP.post(session_uri, payload.to_json, "Content-Type" => "application/json")
+        body = response.body
+        code = response.code.to_i
+
+        if code != 200
+          log_api_error("Failed to create session", code, body)
+          return build_error("Session creation failed", "Response code: #{code}")
+        end
+
+        JSON.parse(body)
+      rescue StandardError => e
+        error_type = error_category(e)
+        build_error(error_type, "#{error_description(error_type)} #{e.message}", e.backtrace)
+      end
+
+      def log_api_error(message, code, body)
+        Bidi2pdf.logger.error "#{message}. Response code: #{code}"
+        Bidi2pdf.logger.error "Response body: #{body}"
+      end
+
+      def error_category(exception)
+        case exception
+        when Errno::ECONNREFUSED then "Connection refused"
+        when JSON::ParserError then "Invalid JSON response"
+        else "Unknown error"
+        end
+      end
+
+      def error_description(type)
+        {
+          "Connection refused" => "Could not connect to the session URL:",
+          "Invalid JSON response" => "Could not parse the response:",
+          "Unknown error" => "An unknown error occurred:"
+        }[type]
+      end
+
+      def build_error(error, message, backtrace = nil)
+        {
+          "value" => {
+            "error" => error,
+            "message" => message,
+            "stacktrace" => backtrace&.join("\n")
+          }.compact
+        }
+      end
+
+      def handle_error(value)
+        error = value["error"]
+        return unless error
+
+        msg = value["message"]
+        trace = value["stacktrace"]
+
+        Bidi2pdf.logger.error "Error: #{error} message: #{msg}"
+        Bidi2pdf.logger.error "Stacktrace: #{trace}" if trace
+
+        if msg =~ /probably user data directory is already in use/
+          Bidi2pdf.logger.info "Container detected with headless-only support" if @headless
+          Bidi2pdf.logger.info "Check chromedriver permissions and --user-data-dir"
+        end
+
+        raise SessionNotStartedError,
+              "Session not started. Check logs for more details. Error: #{error} message: #{msg}"
+      end
+
+      def cleanup
+        @client&.close
+        @client = @websocket_url = @browser = nil
+      end
     end
   end
 end

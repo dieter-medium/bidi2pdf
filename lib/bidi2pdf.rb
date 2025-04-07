@@ -10,6 +10,10 @@ require "logger"
 module Bidi2pdf
   class Error < StandardError; end
 
+  class SessionNotStartedError < Error; end
+
+  class CmdTimeoutError < Error; end
+
   @logger = Logger.new($stdout)
   @logger.level = Logger::DEBUG
 
