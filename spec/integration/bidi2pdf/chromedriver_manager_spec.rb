@@ -3,7 +3,7 @@
 require "spec_helper"
 require "net/http"
 
-RSpec.describe Bidi2pdf::ChromedriverManager, :chromedriver_update do
+RSpec.describe Bidi2pdf::ChromedriverManager do
   let(:manager) { described_class.new(port: 0, headless: true) }
 
   before(:all) do

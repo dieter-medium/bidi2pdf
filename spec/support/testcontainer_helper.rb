@@ -3,11 +3,14 @@
 require "testcontainers"
 require "testcontainers/nginx"
 require_relative "nginx_helper"
+require_relative "chromedriver_helper"
 
 RSpec.configure do |config|
   config.add_setting :nginx_container, default: nil
+  config.add_setting :chromedriver_container, default: nil
 
   config.include NginxTestHelper, nginx: true
+  config.include ChromedriverTestHelper, chromedriver: true
 
   config.before(:suite) do
     if nginx_tests_present?
@@ -19,20 +22,48 @@ RSpec.configure do |config|
 
       puts "🚀 nginx container started for tests"
     end
+
+    if chromedriver_tests_present?
+      config.chromedriver_container = start_chromedriver_container(File.join(config.docker_dir, ".."))
+
+      puts "🚀 chromedriver container started for tests"
+    end
   end
 
   config.after(:suite) do
-    container = config.nginx_container
-    if container&.running?
-      puts "🧹 stopping nginx container..."
-      container.stop
-    end
-    container&.remove
+    stop_container config.nginx_container
+    stop_container config.chromedriver_container
   end
 end
 
+def stop_container(container)
+  if container&.running?
+    puts "🧹 #{container.image} stopping container..."
+    container.stop
+  end
+  container&.remove
+end
+
 def nginx_tests_present?
-  RSpec.world.filtered_examples.values.flatten.any? { |example| example.metadata[:nginx] }
+  test_of_kind_present? :nginx
+end
+
+def chromedriver_tests_present?
+  test_of_kind_present? :chromedriver
+end
+
+def test_of_kind_present?(type)
+  RSpec.world.filtered_examples.values.flatten.any? { |example| example.metadata[type] }
+end
+
+def start_chromedriver_container(build_dir)
+  container = ChromedriverContainer.new(ChromedriverContainer::DEFAULT_IMAGE,
+                                        build_dir: build_dir,
+                                        docker_file: "docker/Dockerfile.chromedriver")
+
+  container.start_local_image
+
+  container
 end
 
 def start_nginx_container(conf_dir:, fixture_dir:)

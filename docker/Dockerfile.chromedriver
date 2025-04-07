@@ -1,5 +1,7 @@
 FROM ruby:3.3
 
+ARG CHROMEDRIVER_PORT=3000
+
 # Install dependencies
 RUN apt-get update && \
     apt-get install -y \
@@ -29,5 +31,8 @@ WORKDIR /app
 USER appuser
 
 RUN gem install chromedriver-binary && ruby -e 'require "chromedriver/binary"; puts Chromedriver::Binary::ChromedriverDownloader.update'
+
+ENV CHROMEDRIVER_PORT=${CHROMEDRIVER_PORT}
+EXPOSE ${CHROMEDRIVER_PORT}
 
 CMD ["/usr/local/bin/entrypoint.sh"]
