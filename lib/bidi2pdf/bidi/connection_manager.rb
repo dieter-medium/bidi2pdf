@@ -6,28 +6,31 @@ module Bidi2pdf
       def initialize(logger:)
         @logger = logger
         @connected = false
-        @mutex = Mutex.new
-        @cv = ConditionVariable.new
+        @connection_queue = Thread::Queue.new
       end
 
       def mark_connected
-        @mutex.synchronize do
-          @connected = true
-          @cv.broadcast
-        end
+        return if @connected
+
+        @connected = true
+        @logger.debug "WebSocket connection is open"
+        @connection_queue.push(true)
       end
 
       def wait_until_open(timeout:)
-        @mutex.synchronize do
-          unless @connected
-            @logger.debug "Waiting for WebSocket connection to open"
-            @cv.wait(@mutex, timeout)
+        return true if @connected
+
+        @logger.debug "Waiting for WebSocket connection to open"
+
+        begin
+          Timeout.timeout(timeout) do
+            @connection_queue.pop
           end
+        rescue Timeout::Error
+          raise Bidi2pdf::WebsocketError, "WebSocket connection did not open in time"
         end
 
-        raise Bidi2pdf::WebsocketError, "WebSocket connection did not open in time" unless @connected
-
-        @logger.debug "WebSocket connection is open"
+        true
       end
     end
   end
