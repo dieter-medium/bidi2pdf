@@ -4,6 +4,8 @@ require "base64"
 
 require_relative "network_events"
 require_relative "print_parameters_validator"
+require_relative "auth_interceptor"
+require_relative "add_headers_interceptor"
 
 module Bidi2pdf
   module Bidi
@@ -71,20 +73,19 @@ module Bidi2pdf
         headers:,
         url_patterns:
       )
-        client.add_headers_interceptor(
+        AddHeadersInterceptor.new(
           context: browsing_context_id,
           url_patterns: url_patterns,
           headers: headers
-        )
+        ).tap { |interceptor| interceptor.register_with_client(client: client) }
       end
 
       def basic_auth(username:, password:, url_patterns:)
-        client.add_auth_interceptor(
+        AuthInterceptor.new(
           context: browsing_context_id,
           url_patterns: url_patterns,
-          username: username,
-          password: password
-        )
+          username: username, password: password
+        ).tap { |interceptor| interceptor.register_with_client(client: client) }
       end
 
       def open_page(url)

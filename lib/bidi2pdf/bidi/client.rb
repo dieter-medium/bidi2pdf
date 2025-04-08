@@ -4,8 +4,6 @@ require "json"
 require "websocket-client-simple"
 
 require_relative "web_socket_dispatcher"
-require_relative "add_headers_interceptor"
-require_relative "auth_interceptor"
 require_relative "command_manager"
 require_relative "connection_manager"
 
@@ -81,22 +79,6 @@ module Bidi2pdf
         names.each { |event_name| dispatcher.remove_event_listener(event_name, block) }
       end
 
-      def add_headers_interceptor(context:, url_patterns:, headers:)
-        AddHeadersInterceptor.new(
-          context: context,
-          url_patterns: url_patterns,
-          headers: headers
-        ).tap { |interceptor| interceptor.register_with_client(client: self) }
-      end
-
-      def add_auth_interceptor(context:, url_patterns:, username:, password:)
-        AuthInterceptor.new(
-          context: context,
-          url_patterns: url_patterns,
-          username: username, password: password
-        ).tap { |interceptor| interceptor.register_with_client(client: self) }
-      end
-
       def close
         return unless @socket
 
@@ -120,21 +102,6 @@ module Bidi2pdf
           Bidi2pdf.logger.error "Error response: #{data["error"].inspect}"
         else
           Bidi2pdf.logger.warn "Unknown response: #{data.inspect}"
-        end
-      end
-
-      def add_interceptor(context:, url_patterns:, phase:, event:, interceptor_class:, extra_args: {})
-        send_cmd_and_wait("network.addIntercept", {
-          context: context,
-          phases: [phase],
-          urlPatterns: url_patterns
-        }) do |response|
-          id = response["result"]["intercept"]
-          Bidi2pdf.logger.debug "Interceptor added: #{id}"
-
-          interceptor_class.new(id, **extra_args, client: self).tap do |interceptor|
-            on_event(event, &interceptor.method(:handle_event))
-          end
         end
       end
     end
