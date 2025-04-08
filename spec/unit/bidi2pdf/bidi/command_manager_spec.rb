@@ -30,6 +30,21 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
 
       expect(command_manager.pop_response(1, timeout: 0.1)).to eq(data)
     end
+
+    it "accepts a as_payload able as parameter" do
+      o = Object.new
+
+      def o.as_payload(id)
+        { "a" => "b", "c" => 1, "id" => id }
+      end
+
+      command_manager.send_cmd o
+      actual = JSON.parse(socket.args.first)
+
+      expect(actual).to eq(
+                          { "a" => "b", "c" => 1, "id" => 1 }
+                        )
+    end
   end
 
   describe "#pop_response" do

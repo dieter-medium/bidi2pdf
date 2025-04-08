@@ -54,9 +54,9 @@ class ChromedriverContainer < Testcontainers::DockerContainer
 
     self
   rescue Docker::Error::NotFoundError => e
-    raise NotFoundError, e.message
+    raise Testcontainers::NotFoundError, e.message
   rescue Excon::Error::Socket => e
-    raise ConnectionError, e.message
+    raise Testcontainers::ConnectionError, e.message
   end
 
   # rubocop: enable Metrics/AbcSize

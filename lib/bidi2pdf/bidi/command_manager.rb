@@ -10,14 +10,23 @@ module Bidi2pdf
         @id = 0
         @next_id_mutex = Mutex.new
         @pending_responses = {}
+        @initiated_cmds = {}
       end
 
       def send_cmd(method, params = {}, store_response: false)
         id = next_id
 
-        init_queue_for id if store_response
+        if store_response
+          init_queue_for id
+        else
+          @initiated_cmds[id] = true
+        end
 
-        payload = { id: id, method: method, params: params }
+        payload = if method.respond_to? :as_payload
+                    method.as_payload(id)
+                  else
+                    { id: id, method: method, params: params }
+                  end
 
         @logger.debug "Sending command: #{redact_sensitive_fields(payload).inspect}"
         @socket.send(payload.to_json)
@@ -46,11 +55,18 @@ module Bidi2pdf
       end
 
       def handle_response(data)
-        if (id = data["id"]) && @pending_responses.key?(id)
-          @pending_responses[id]&.push(data)
-        else
-          false
+        if (id = data["id"])
+          if @pending_responses.key?(id)
+            @pending_responses[id]&.push(data)
+            return true
+          elsif @initiated_cmds.key?(id)
+            @logger.error "Received error: #{response["error"]} for cmd: #{id}" if response["error"]
+
+            return @initiated_cmds.delete(id)
+          end
         end
+
+        false
       end
 
       private

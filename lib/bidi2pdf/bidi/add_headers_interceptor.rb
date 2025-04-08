@@ -8,7 +8,7 @@ module Bidi2pdf
       include Interceptor
 
       class << self
-        def phases = [Interceptor::Phases::BEFORE_REQUEST]
+        def phases = [Bidi2pdf::Bidi::Commands::AddIntercept::BEFORE_REQUEST]
 
         def events = ["network.beforeRequestSent"]
       end

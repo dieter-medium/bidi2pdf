@@ -52,12 +52,11 @@ RSpec.describe Bidi2pdf::Bidi::Interceptor do
 
       expect(client.cmd_params).to eq(
                                      [
-                                       "network.addIntercept",
-                                       {
-                                         context: "test-context",
+                                       Bidi2pdf::Bidi::Commands::AddIntercept.new(
                                          phases: ["beforeRequestSent"],
-                                         urlPatterns: ["*"]
-                                       }
+                                         context: "test-context",
+                                         url_patterns: ["*"]
+                                       )
                                      ]
                                    )
     end

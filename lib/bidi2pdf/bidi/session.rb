@@ -55,11 +55,11 @@ module Bidi2pdf
       end
 
       def user_contexts
-        send_cmd("browser.getUserContexts") { |resp| Bidi2pdf.logger.debug "User contexts: #{resp}" }
+        send_cmd(Bidi2pdf::Bidi::Commands::GetUserContexts.new) { |resp| Bidi2pdf.logger.debug "User contexts: #{resp}" }
       end
 
       def status
-        send_cmd("session.status") { |resp| Bidi2pdf.logger.info "Session status: #{resp.inspect}" }
+        send_cmd(Bidi2pdf::Bidi::Commands::SessionStatus.new) { |resp| Bidi2pdf.logger.info "Session status: #{resp.inspect}" }
       end
 
       def started?

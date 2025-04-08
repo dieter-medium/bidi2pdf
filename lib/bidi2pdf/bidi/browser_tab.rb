@@ -22,10 +22,8 @@ module Bidi2pdf
       end
 
       def create_browser_tab
-        client.send_cmd_and_wait("browsingContext.create", {
-          type: "tab",
-          userContext: @user_context_id
-        }) do |response|
+        cmd = Bidi2pdf::Bidi::Commands::CreateTab.new(user_context_id: user_context_id)
+        client.send_cmd_and_wait(cmd) do |response|
           tab_browsing_context_id = response["result"]["context"]
 
           BrowserTab.new(client, tab_browsing_context_id, user_context_id).tap do |tab|
@@ -45,26 +43,18 @@ module Bidi2pdf
         same_site: "strict",
         ttl: 30
       )
-        expiry = Time.now.to_i + ttl
-        client.send_cmd_and_wait("storage.setCookie", {
-          cookie: {
-            name: name,
-            value: {
-              type: "string",
-              value: value
-            },
-            domain: domain,
-            path: path,
-            secure: secure,
-            httpOnly: http_only,
-            sameSite: same_site,
-            expiry: expiry
-          },
-          partition: {
-            type: "context",
-            context: browsing_context_id
-          }
-        }) do |response|
+        cmd = Bidi2pdf::Bidi::Commands::SetCookie.new(
+          browsing_context_id: browsing_context_id,
+          name: name,
+          value: value,
+          domain: domain,
+          path: path,
+          secure: secure,
+          http_only: http_only,
+          same_site: same_site,
+          ttl: ttl
+        )
+        client.send_cmd_and_wait(cmd) do |response|
           Bidi2pdf.logger.debug "Cookie set: #{response.inspect}"
         end
       end

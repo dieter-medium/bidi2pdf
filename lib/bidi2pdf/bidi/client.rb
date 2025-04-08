@@ -6,6 +6,7 @@ require "websocket-client-simple"
 require_relative "web_socket_dispatcher"
 require_relative "command_manager"
 require_relative "connection_manager"
+require_relative "commands"
 
 module Bidi2pdf
   module Bidi

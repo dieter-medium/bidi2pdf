@@ -8,7 +8,7 @@ module Bidi2pdf
       include Interceptor
 
       class << self
-        def phases = [Interceptor::Phases::AUTH_REQUIRED]
+        def phases = [Bidi2pdf::Bidi::Commands::AddIntercept::AUTH_REQUIRED]
 
         def events = ["network.authRequired"]
       end

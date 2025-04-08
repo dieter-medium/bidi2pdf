@@ -3,13 +3,6 @@
 module Bidi2pdf
   module Bidi
     module Interceptor
-      # Network communication phases that can be intercepted
-      module Phases
-        BEFORE_REQUEST = "beforeRequestSent"
-        RESPONSE_STARTED = "responseStarted"
-        AUTH_REQUIRED = "authRequired"
-      end
-
       def self.included(base)
         base.extend(ClassMethods)
       end
@@ -27,17 +20,11 @@ module Bidi2pdf
       def process_interception(_event_response, _navigation_id, _network_id, _url) = raise(NotImplementedError, "Interceptors must implement process_interception")
 
       def register_with_client(client:)
-        validate_phases!
-
         @client = client
 
-        params = {
-          context: context,
-          phases: self.class.phases,
-          urlPatterns: url_patterns
-        }
+        cmd = Bidi2pdf::Bidi::Commands::AddIntercept.new context: context, phases: self.class.phases, url_patterns: url_patterns
 
-        client.send_cmd_and_wait("network.addIntercept", params) do |response|
+        client.send_cmd_and_wait(cmd) do |response|
           @interceptor_id = response["result"]["intercept"]
 
           Bidi2pdf.logger.debug "Interceptor added: #{@interceptor_id}"
