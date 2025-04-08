@@ -1,76 +1,88 @@
 # frozen_string_literal: true
 
 module Bidi2pdf
-  module Interceptor
-    # Network communication phases that can be intercepted
-    module Phases
-      BEFORE_REQUEST = "beforeRequestSent"
-      RESPONSE_STARTED = "responseStarted"
-      AUTH_REQUIRED = "authRequired"
-    end
-
-    def self.included(base)
-      base.extend(ClassMethods)
-    end
-
-    module ClassMethods
-      def phases = raise(NotImplementedError, "Interceptors must implement phases")
-
-      def events = raise(NotImplementedError, "Interceptors must implement events")
-    end
-
-    def url_patterns = raise(NotImplementedError, "Interceptors must implement url_patterns")
-
-    def context = raise(NotImplementedError, "Interceptors must implement context")
-
-    def process_interception(_event_response, _navigation_id, _network_id, _url) = raise(NotImplementedError, "Interceptors must implement process_interception")
-
-    def register_with_client(client:)
-      @client = client
-
-      client.send_cmd_and_wait("network.addIntercept", {
-        context: context,
-        phases: self.class.phases,
-        urlPatterns: url_patterns
-      }) do |response|
-        @interceptor_id = response["result"]["intercept"]
-
-        Bidi2pdf.logger.debug "Interceptor added: #{@interceptor_id}"
-
-        client.on_event(*self.class.events, &method(:handle_event))
-
-        self
+  module Bidi
+    module Interceptor
+      # Network communication phases that can be intercepted
+      module Phases
+        BEFORE_REQUEST = "beforeRequestSent"
+        RESPONSE_STARTED = "responseStarted"
+        AUTH_REQUIRED = "authRequired"
       end
-    end
 
-    # rubocop: disable Metrics/AbcSize
-    def handle_event(response)
-      event_response = response["params"]
+      def self.included(base)
+        base.extend(ClassMethods)
+      end
 
-      return unless event_response["intercepts"]&.include?(interceptor_id) && event_response["isBlocked"]
+      module ClassMethods
+        def phases = raise(NotImplementedError, "Interceptors must implement phases")
 
-      navigation_id = event_response["navigation"]
-      network_id = event_response["request"]["request"]
-      url = event_response["request"]["url"]
+        def events = raise(NotImplementedError, "Interceptors must implement events")
+      end
 
-      # Log the interception
-      Bidi2pdf.logger.debug "Interceptor #{interceptor_id} handling event: #{navigation_id}/#{network_id}/#{url}"
+      def url_patterns = raise(NotImplementedError, "Interceptors must implement url_patterns")
 
-      process_interception(event_response, navigation_id, network_id, url)
-    rescue StandardError => e
-      Bidi2pdf.logger.error "Error handling event: #{e.message}"
-      Bidi2pdf.logger.error e.backtrace.join("\n")
-      raise e
-    end
+      def context = raise(NotImplementedError, "Interceptors must implement context")
 
-    # rubocop: enable Metrics/AbcSize
+      def process_interception(_event_response, _navigation_id, _network_id, _url) = raise(NotImplementedError, "Interceptors must implement process_interception")
 
-    def interceptor_id
-      @interceptor_id
-    end
+      def register_with_client(client:)
+        validate_phases!
 
-    def client
-      @client
+        @client = client
+
+        params = {
+          context: context,
+          phases: self.class.phases,
+          urlPatterns: url_patterns
+        }
+
+        client.send_cmd_and_wait("network.addIntercept", params) do |response|
+          @interceptor_id = response["result"]["intercept"]
+
+          Bidi2pdf.logger.debug "Interceptor added: #{@interceptor_id}"
+
+          client.on_event(*self.class.events, &method(:handle_event))
+
+          self
+        end
+      end
+
+      # rubocop: disable Metrics/AbcSize
+      def handle_event(response)
+        event_response = response["params"]
+
+        return unless event_response["intercepts"]&.include?(interceptor_id) && event_response["isBlocked"]
+
+        navigation_id = event_response["navigation"]
+        network_id = event_response["request"]["request"]
+        url = event_response["request"]["url"]
+
+        # Log the interception
+        Bidi2pdf.logger.debug "Interceptor #{interceptor_id} handling event: #{navigation_id}/#{network_id}/#{url}"
+
+        process_interception(event_response, navigation_id, network_id, url)
+      rescue StandardError => e
+        Bidi2pdf.logger.error "Error handling event: #{e.message}"
+        Bidi2pdf.logger.error e.backtrace.join("\n")
+        raise e
+      end
+
+      # rubocop: enable Metrics/AbcSize
+
+      def interceptor_id
+        @interceptor_id
+      end
+
+      def client
+        @client
+      end
+
+      def validate_phases!
+        valid_phases = [Phases::BEFORE_REQUEST, Phases::RESPONSE_STARTED, Phases::AUTH_REQUIRED]
+
+        raise ArgumentError, "Unsupported phase(s): #{self.class.phases}" unless self.class.phases.all? { |phase| valid_phases.include?(phase) }
+      end
     end
   end
 end

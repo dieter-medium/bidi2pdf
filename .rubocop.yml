@@ -30,7 +30,10 @@ Layout/FirstHashElementIndentation:
   EnforcedStyle: consistent
 
 Layout/FirstArrayElementIndentation:
-  EnforcedStyle: consistent
+  Enabled: false
+
+Layout/ArrayAlignment:
+  Enabled: false
 
 Layout/LineLength:
   Enabled: false
