@@ -23,21 +23,10 @@ module Bidi2pdf
         @network_ids = []
       end
 
-      # rubocop:disable Metrics/AbcSize
-      def handle_event(response)
-        event_response = response["params"]
-
-        return unless event_response["intercepts"]&.include?(interceptor_id) && event_response["isBlocked"]
-
-        navigation_id = event_response["navigation"]
-        network_id = event_response["request"]["request"]
-        url = event_response["request"]["url"]
-
+      def process_interception(_event_response, navigation_id, network_id, url)
         handle_bad_credentials(navigation_id, network_id, url)
 
         network_ids << network_id
-
-        Bidi2pdf.logger.debug "Auth-Interceptor #{interceptor_id} handle event: #{navigation_id}/#{network_id}/#{url}"
 
         client.send_cmd("network.continueWithAuth", {
           request: network_id,
@@ -53,8 +42,6 @@ module Bidi2pdf
         Bidi2pdf.logger.error e.backtrace.join("\n")
         raise e
       end
-
-      # rubocop:enable Metrics/AbcSize
 
       private
 

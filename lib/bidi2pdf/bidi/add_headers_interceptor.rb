@@ -30,15 +30,7 @@ module Bidi2pdf
         @context = context
       end
 
-      def handle_event(response)
-        event_response = response["params"]
-
-        return unless event_response["intercepts"]&.include?(interceptor_id) && event_response["isBlocked"]
-
-        network_id = event_response["request"]["request"]
-
-        Bidi2pdf.logger.debug "Interceptor #{interceptor_id} handle event: #{network_id}"
-
+      def process_interception(_event_response, _navigation_id, network_id, _url)
         client.send_cmd "network.continueRequest", {
           request: network_id,
           headers: headers

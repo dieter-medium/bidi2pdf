@@ -14,16 +14,16 @@ module Bidi2pdf
     end
 
     module ClassMethods
-      def phases = raise(NotImplementedError)
+      def phases = raise(NotImplementedError, "Interceptors must implement phases")
 
-      def events = raise(NotImplementedError)
+      def events = raise(NotImplementedError, "Interceptors must implement events")
     end
 
-    def handle_event(_event) = raise(NotImplementedError)
+    def url_patterns = raise(NotImplementedError, "Interceptors must implement url_patterns")
 
-    def url_patterns = raise(NotImplementedError)
+    def context = raise(NotImplementedError, "Interceptors must implement context")
 
-    def context = raise(NotImplementedError)
+    def process_interception(_event_response, _navigation_id, _network_id, _url) = raise(NotImplementedError, "Interceptors must implement process_interception")
 
     def register_with_client(client:)
       @client = client
@@ -42,6 +42,28 @@ module Bidi2pdf
         self
       end
     end
+
+    # rubocop: disable Metrics/AbcSize
+    def handle_event(response)
+      event_response = response["params"]
+
+      return unless event_response["intercepts"]&.include?(interceptor_id) && event_response["isBlocked"]
+
+      navigation_id = event_response["navigation"]
+      network_id = event_response["request"]["request"]
+      url = event_response["request"]["url"]
+
+      # Log the interception
+      Bidi2pdf.logger.debug "Interceptor #{interceptor_id} handling event: #{navigation_id}/#{network_id}/#{url}"
+
+      process_interception(event_response, navigation_id, network_id, url)
+    rescue StandardError => e
+      Bidi2pdf.logger.error "Error handling event: #{e.message}"
+      Bidi2pdf.logger.error e.backtrace.join("\n")
+      raise e
+    end
+
+    # rubocop: enable Metrics/AbcSize
 
     def interceptor_id
       @interceptor_id
