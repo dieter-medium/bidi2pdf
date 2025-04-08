@@ -66,6 +66,16 @@ module Bidi2pdf
         @started
       end
 
+      def websocket_url
+        return @websocket_url if @websocket_url
+
+        @websocket_url = if %w[ws wss].include?(session_uri.scheme)
+                           session_uri.to_s
+                         else
+                           create_new_session
+                         end
+      end
+
       private
 
       def send_cmd(command, &block)
@@ -96,16 +106,6 @@ module Bidi2pdf
 
       def create_client
         Bidi::Client.new(websocket_url).tap(&:start)
-      end
-
-      def websocket_url
-        return @websocket_url if @websocket_url
-
-        @websocket_url = if %w[ws wss].include?(session_uri.scheme)
-                           session_uri.to_s
-                         else
-                           create_new_session
-                         end
       end
 
       def create_new_session

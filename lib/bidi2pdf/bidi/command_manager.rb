@@ -28,7 +28,7 @@ module Bidi2pdf
 
         response = queue.pop(timeout: timeout)
         raise_timeout_error(id, method, params) if response.nil?
-        raise "Error response: #{response["error"]}" if response["error"]
+        raise CmdError, "Error response: #{response["error"]}" if response["error"]
 
         block_given? ? yield(response) : response
       ensure

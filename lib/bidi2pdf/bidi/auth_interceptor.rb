@@ -1,13 +1,23 @@
 # frozen_string_literal: true
 
+require_relative "interceptor"
+
 module Bidi2pdf
   module Bidi
     class AuthInterceptor
-      attr_reader :id, :username, :password, :network_ids
+      include Interceptor
 
-      def initialize(id, username:, password:, client:)
-        @id = id
-        @client = client
+      class << self
+        def phases = [Interceptor::Phases::AUTH_REQUIRED]
+
+        def events = ["network.authRequired"]
+      end
+
+      attr_reader :headers, :url_patterns, :context, :username, :password, :network_ids
+
+      def initialize(username:, password:, url_patterns:, context:)
+        @url_patterns = url_patterns
+        @context = context
         @username = username
         @password = password
         @network_ids = []
@@ -17,7 +27,7 @@ module Bidi2pdf
       def handle_event(response)
         event_response = response["params"]
 
-        return unless event_response["intercepts"]&.include?(id) && event_response["isBlocked"]
+        return unless event_response["intercepts"]&.include?(interceptor_id) && event_response["isBlocked"]
 
         navigation_id = event_response["navigation"]
         network_id = event_response["request"]["request"]
@@ -27,7 +37,7 @@ module Bidi2pdf
 
         network_ids << network_id
 
-        Bidi2pdf.logger.debug "Auth-Interceptor #{id} handle event: #{navigation_id}/#{network_id}/#{url}"
+        Bidi2pdf.logger.debug "Auth-Interceptor #{interceptor_id} handle event: #{navigation_id}/#{network_id}/#{url}"
 
         client.send_cmd("network.continueWithAuth", {
           request: network_id,
@@ -38,6 +48,10 @@ module Bidi2pdf
             password: password
           }
         })
+      rescue StandardError => e
+        Bidi2pdf.logger.error "Error handling auth event: #{e.message}"
+        Bidi2pdf.logger.error e.backtrace.join("\n")
+        raise e
       end
 
       # rubocop:enable Metrics/AbcSize
@@ -49,7 +63,7 @@ module Bidi2pdf
 
         network_ids.delete(network_id)
 
-        Bidi2pdf.logger.debug "Auth-Interceptor #{id} already handled event: #{navigation_id}/#{network_id}/#{url}"
+        Bidi2pdf.logger.debug "Auth-Interceptor #{interceptor_id} already handled event: #{navigation_id}/#{network_id}/#{url}"
 
         Bidi2pdf.logger.error "It seems that the same request is being intercepted multiple times. Check your credentials or the URL you are trying to access. If you are using a proxy, make sure it is configured correctly."
         # rubocop: enable Layout/LineLength
@@ -59,8 +73,6 @@ module Bidi2pdf
           action: "cancel"
         })
       end
-
-      attr_reader :client
     end
   end
 end

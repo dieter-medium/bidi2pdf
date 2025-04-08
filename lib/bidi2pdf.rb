@@ -12,7 +12,13 @@ module Bidi2pdf
 
   class SessionNotStartedError < Error; end
 
-  class CmdTimeoutError < Error; end
+  class WebsocketError < Error; end
+
+  class ClientError < WebsocketError; end
+
+  class CmdError < ClientError; end
+
+  class CmdTimeoutError < ClientError; end
 
   @logger = Logger.new($stdout)
   @logger.level = Logger::DEBUG

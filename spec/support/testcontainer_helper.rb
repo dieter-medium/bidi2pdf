@@ -2,8 +2,9 @@
 
 require "testcontainers"
 require "testcontainers/nginx"
-require_relative "nginx_helper"
-require_relative "chromedriver_helper"
+require_relative "nginx_test_helper"
+require_relative "chromedriver_test_helper"
+require_relative "session_test_helper"
 
 RSpec.configure do |config|
   config.add_setting :nginx_container, default: nil
@@ -11,6 +12,7 @@ RSpec.configure do |config|
 
   config.include NginxTestHelper, nginx: true
   config.include ChromedriverTestHelper, chromedriver: true
+  config.include SessionTestHelper, session: true
 
   config.before(:suite) do
     if nginx_tests_present?

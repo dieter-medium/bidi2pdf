@@ -19,6 +19,7 @@ module Bidi2pdf
       def initialize(ws_url)
         @ws_url = ws_url
         @started = false
+        @connection_manager = ConnectionManager.new(logger: Bidi2pdf.logger)
       end
 
       def start
@@ -26,7 +27,6 @@ module Bidi2pdf
 
         @socket = WebSocket::Client::Simple.connect(ws_url)
 
-        @connection_manager = ConnectionManager.new(logger: Bidi2pdf.logger)
         @command_manager = CommandManager.new(@socket, logger: Bidi2pdf.logger)
 
         dispatcher.on_open { @connection_manager.mark_connected }
@@ -42,13 +42,21 @@ module Bidi2pdf
 
       def wait_until_open(timeout: Bidi2pdf.default_timeout)
         @connection_manager.wait_until_open(timeout: timeout)
+      rescue Bidi2pdf::WebsocketError => e
+        raise Bidi2pdf::WebsocketError, "Client#start must be called within #{timeout} sec." unless started?
+
+        raise e
       end
 
       def send_cmd(method, params = {})
+        raise Bidi2pdf::ClientError, "Client#start must be called before" unless started?
+
         @command_manager.send_cmd(method, params)
       end
 
       def send_cmd_and_wait(method, params = {}, timeout: Bidi2pdf.default_timeout, &block)
+        raise Bidi2pdf::ClientError, "Client#start must be called before" unless started?
+
         timed("Command #{method}") do
           @command_manager.send_cmd_and_wait(method, params, timeout: timeout, &block)
         end
@@ -74,25 +82,19 @@ module Bidi2pdf
       end
 
       def add_headers_interceptor(context:, url_patterns:, headers:)
-        add_interceptor(
+        AddHeadersInterceptor.new(
           context: context,
           url_patterns: url_patterns,
-          phase: "beforeRequestSent",
-          event: "network.beforeRequestSent",
-          interceptor_class: AddHeadersInterceptor,
-          extra_args: { headers: headers }
-        )
+          headers: headers
+        ).tap { |interceptor| interceptor.register_with_client(client: self) }
       end
 
       def add_auth_interceptor(context:, url_patterns:, username:, password:)
-        add_interceptor(
+        AuthInterceptor.new(
           context: context,
           url_patterns: url_patterns,
-          phase: "authRequired",
-          event: "network.authRequired",
-          interceptor_class: AuthInterceptor,
-          extra_args: { username: username, password: password }
-        )
+          username: username, password: password
+        ).tap { |interceptor| interceptor.register_with_client(client: self) }
       end
 
       def close

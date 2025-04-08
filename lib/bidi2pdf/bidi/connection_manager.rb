@@ -25,7 +25,7 @@ module Bidi2pdf
           end
         end
 
-        raise "WebSocket connection did not open in time" unless @connected
+        raise Bidi2pdf::WebsocketError, "WebSocket connection did not open in time" unless @connected
 
         @logger.debug "WebSocket connection is open"
       end

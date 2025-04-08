@@ -23,8 +23,7 @@ RSpec.describe Bidi2pdf::Bidi::Session, :chromedriver do
 
   before(:all) do
     Bidi2pdf.configure do |config|
-      config.logger.level = Logger::DEBUG
-      Chromedriver::Binary.configure { |c| c.logger.level = Logger::DEBUG }
+      config.logger.level = Logger::INFO
     end
   end
 
