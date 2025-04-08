@@ -18,6 +18,8 @@ module Bidi2pdf
 
   class CmdError < ClientError; end
 
+  class CmdResponseNotStoredError < ClientError; end
+
   class CmdTimeoutError < ClientError; end
 
   @logger = Logger.new($stdout)

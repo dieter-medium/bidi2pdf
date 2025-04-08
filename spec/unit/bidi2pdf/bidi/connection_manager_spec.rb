@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "spec_helper"
+
 RSpec.describe Bidi2pdf::Bidi::ConnectionManager do
   subject(:connection_manager) { described_class.new logger: logger }
 

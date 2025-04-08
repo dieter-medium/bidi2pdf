@@ -20,6 +20,12 @@ RSpec/ExampleLength:
 Layout/MultilineMethodCallIndentation:
   Enabled: false
 
+Layout/FirstArgumentIndentation:
+  Enabled: false
+
+Layout/ClosingParenthesisIndentation:
+  Enabled: false
+
 Layout/FirstHashElementIndentation:
   EnforcedStyle: consistent
 

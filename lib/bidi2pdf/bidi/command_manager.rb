@@ -12,8 +12,11 @@ module Bidi2pdf
         @pending_responses = {}
       end
 
-      def send_cmd(method, params = {})
+      def send_cmd(method, params = {}, store_response: false)
         id = next_id
+
+        init_queue_for id if store_response
+
         payload = { id: id, method: method, params: params }
 
         @logger.debug "Sending command: #{redact_sensitive_fields(payload).inspect}"
@@ -23,10 +26,9 @@ module Bidi2pdf
       end
 
       def send_cmd_and_wait(method, params = {}, timeout: Bidi2pdf.default_timeout)
-        id = send_cmd(method, params)
-        queue = @pending_responses[id]
+        id = send_cmd(method, params, store_response: true)
+        response = pop_response id, timeout: timeout
 
-        response = queue.pop(timeout: timeout)
         raise_timeout_error(id, method, params) if response.nil?
         raise CmdError, "Error response: #{response["error"]}" if response["error"]
 
@@ -35,8 +37,12 @@ module Bidi2pdf
         @pending_responses.delete(id)
       end
 
-      def queue_for(id)
-        @pending_responses[id]
+      def pop_response(id, timeout:)
+        raise CmdResponseNotStoredError, "No response stored for command ID #{id} or already popped or this command was not send" unless @pending_responses.key?(id)
+
+        @pending_responses[id].pop(timeout: timeout)
+      ensure
+        @pending_responses.delete(id)
       end
 
       def handle_response(data)
@@ -49,13 +55,9 @@ module Bidi2pdf
 
       private
 
-      def next_id
-        @next_id_mutex.synchronize do
-          @id += 1
-          @pending_responses[@id] = Thread::Queue.new
-          @id
-        end
-      end
+      def init_queue_for(id) = @pending_responses[id] = Thread::Queue.new
+
+      def next_id = @next_id_mutex.synchronize { @id += 1 }
 
       def redact_sensitive_fields(obj, sensitive_keys = %w[value token password authorization username])
         case obj
@@ -73,7 +75,7 @@ module Bidi2pdf
 
       def raise_timeout_error(id, method, params)
         @logger.error "Timeout waiting for response to command #{id}, cmd: #{method}, params: #{redact_sensitive_fields(params).inspect}"
-        # rubocop:enable Layout/LineLength
+
         raise CmdTimeoutError, "Timeout waiting for response to command ID #{id}"
       end
     end
