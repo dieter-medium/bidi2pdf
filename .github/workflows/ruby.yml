@@ -57,10 +57,6 @@ jobs:
           bundler-cache: true
       - name: Install dependencies
         run: bundle install --jobs 4 --retry 3
-      - name: Setup Testcontainers Cloud Client
-        uses: atomicjar/testcontainers-cloud-setup-action@v1
-        with:
-          token: ${{ secrets.TC_CLOUD_TOKEN }}
       - name: Run Integration Tests
         run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag integration"
       - name: Upload integration coverage
@@ -81,10 +77,6 @@ jobs:
           bundler-cache: true
       - name: Install dependencies
         run: bundle install --jobs 4 --retry 3
-      - name: Setup Testcontainers Cloud Client
-        uses: atomicjar/testcontainers-cloud-setup-action@v1
-        with:
-          token: ${{ secrets.TC_CLOUD_TOKEN }}
       - name: Run Acceptance Tests
         run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag acceptance"
       - name: Upload acceptance coverage
