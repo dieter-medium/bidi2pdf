@@ -44,8 +44,9 @@ module Bidi2pdf
         return unless started?
 
         2.times do |attempt|
-          client&.send_cmd_and_wait("session.end", {}, timeout: 1) do |response|
-            Bidi2pdf.logger.debug "Session ended: #{response}"
+          client&.send_cmd_and_wait(Bidi2pdf::Bidi::Commands::SessionEnd.new, timeout: 1) do |response|
+            Bidi2pdf.logger.info "Session ended: #{response}"
+
             cleanup
           end
           break
@@ -79,7 +80,7 @@ module Bidi2pdf
       private
 
       def send_cmd(command, &block)
-        client&.send_cmd_and_wait(command, {}, &block)
+        client&.send_cmd_and_wait(command, &block)
       end
 
       # rubocop: disable Metrics/AbcSize

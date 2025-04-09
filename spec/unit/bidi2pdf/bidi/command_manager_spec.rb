@@ -7,11 +7,23 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
 
   let(:socket) { DummySocket.new }
   let(:logger) { Logger.new($stdout) }
+  let(:cmd) do
+    Class.new do
+      include Bidi2pdf::Bidi::Commands::Base
+
+      def method_name = "cmd"
+
+      def params = { "a" => "b", "c" => 1 }
+    end.new
+  end
+
+  before do
+    described_class.initialize_counter
+  end
 
   describe "#send_cmd" do
     it "sends a command to the socket" do
-      command_manager.send_cmd "cmd", { "a" => "b", "c" => 1 }
-
+      command_manager.send_cmd cmd
       actual = JSON.parse(socket.args.first)
 
       expect(actual).to eq(
@@ -25,25 +37,10 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
 
     it "stores the response, if the response should be stored" do
       data = { "id" => 1, "result" => "test" }
-      command_manager.send_cmd "cmd", { "a" => "b", "c" => 1 }, store_response: true
+      command_manager.send_cmd cmd, store_response: true
       command_manager.handle_response(data)
 
       expect(command_manager.pop_response(1, timeout: 0.1)).to eq(data)
-    end
-
-    it "accepts a as_payload able as parameter" do
-      o = Object.new
-
-      def o.as_payload(id)
-        { "a" => "b", "c" => 1, "id" => id }
-      end
-
-      command_manager.send_cmd o
-      actual = JSON.parse(socket.args.first)
-
-      expect(actual).to eq(
-                          { "a" => "b", "c" => 1, "id" => 1 }
-                        )
     end
   end
 
@@ -51,7 +48,7 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
     let(:data) { { "id" => 1, "result" => "test" } }
 
     before do
-      command_manager.send_cmd "cmd", { "a" => "b", "c" => 1 }, store_response: true
+      command_manager.send_cmd cmd, store_response: true
     end
 
     it "returns the response" do
@@ -71,7 +68,7 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
     end
 
     it "raises an error, when the response is not stored" do
-      id = command_manager.send_cmd "cmd", { "a" => "b", "c" => 1 }, store_response: false
+      id = command_manager.send_cmd cmd, store_response: false
 
       expect { command_manager.pop_response id, timeout: 0.1 }.to raise_error(Bidi2pdf::CmdResponseNotStoredError)
     end
@@ -87,7 +84,7 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
         command_manager.handle_response(data)
       end
 
-      response = command_manager.send_cmd_and_wait "cmd", { "a" => "b", "c" => 1 }, timeout: 5
+      response = command_manager.send_cmd_and_wait cmd, timeout: 5
 
       waiting_thread.join
 
@@ -95,7 +92,7 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
     end
 
     it "raises an error, when the timeout period elapses" do
-      expect { command_manager.send_cmd_and_wait "cmd", { "a" => "b", "c" => 1 }, timeout: 0 }.to raise_error(Bidi2pdf::CmdTimeoutError)
+      expect { command_manager.send_cmd_and_wait cmd, timeout: 0 }.to raise_error(Bidi2pdf::CmdTimeoutError)
     end
 
     it "raises an error, when the response is an error" do
@@ -106,7 +103,7 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
         command_manager.handle_response(error_data)
       end
 
-      expect { command_manager.send_cmd_and_wait "cmd", { "a" => "b", "c" => 1 }, timeout: 1 }.to raise_error(Bidi2pdf::CmdError)
+      expect { command_manager.send_cmd_and_wait cmd, timeout: 1 }.to raise_error(Bidi2pdf::CmdError)
 
       waiting_thread.join
     end
@@ -119,7 +116,7 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
       end
 
       block_result = nil
-      command_manager.send_cmd_and_wait "cmd", { "a" => "b", "c" => 1 }, timeout: 5 do |response|
+      command_manager.send_cmd_and_wait cmd, timeout: 5 do |response|
         block_result = response
       end
 

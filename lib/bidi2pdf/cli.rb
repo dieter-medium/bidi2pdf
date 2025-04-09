@@ -122,7 +122,7 @@ module Bidi2pdf
     end
 
     def validate_print_options(opts)
-      Bidi2pdf::Bidi::PrintParametersValidator.validate!(opts)
+      Bidi2pdf::Bidi::Commands::PrintParametersValidator.validate!(opts)
     rescue ArgumentError => e
       raise Thor::Error, "Invalid print option: #{e.message}"
     end
@@ -177,7 +177,6 @@ module Bidi2pdf
     end
 
     def launcher
-      # rubocop:disable Layout/BeginEndAlignment
       @launcher ||= begin
                       username, password = parse_auth(merged_options[:auth]) if merged_options[:auth]
 
@@ -195,7 +194,6 @@ module Bidi2pdf
                         print_options: print_options
                       )
                     end
-      # rubocop:enable Layout/BeginEndAlignment
     end
 
     # rubocop:enable Metrics/AbcSize

@@ -32,6 +32,12 @@ Layout/FirstHashElementIndentation:
 Layout/FirstArrayElementIndentation:
   Enabled: false
 
+Layout/MultilineOperationIndentation:
+  Enabled: false
+
+Layout/BeginEndAlignment:
+  Enabled: false
+
 Layout/ArrayAlignment:
   Enabled: false
 

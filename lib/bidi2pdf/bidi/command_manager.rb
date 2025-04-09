@@ -3,17 +3,26 @@
 module Bidi2pdf
   module Bidi
     class CommandManager
+      class << self
+        def initialize_counter
+          @id = 0
+          @id_mutex = Mutex.new
+        end
+
+        def next_id = @id_mutex.synchronize { @id += 1 }
+      end
+
+      initialize_counter
+
       def initialize(socket, logger:)
         @socket = socket
         @logger = logger
 
-        @id = 0
-        @next_id_mutex = Mutex.new
         @pending_responses = {}
         @initiated_cmds = {}
       end
 
-      def send_cmd(method, params = {}, store_response: false)
+      def send_cmd(cmd, store_response: false)
         id = next_id
 
         if store_response
@@ -22,11 +31,7 @@ module Bidi2pdf
           @initiated_cmds[id] = true
         end
 
-        payload = if method.respond_to? :as_payload
-                    method.as_payload(id)
-                  else
-                    { id: id, method: method, params: params }
-                  end
+        payload = cmd.as_payload(id)
 
         @logger.debug "Sending command: #{redact_sensitive_fields(payload).inspect}"
         @socket.send(payload.to_json)
@@ -34,12 +39,12 @@ module Bidi2pdf
         id
       end
 
-      def send_cmd_and_wait(method, params = {}, timeout: Bidi2pdf.default_timeout)
-        id = send_cmd(method, params, store_response: true)
+      def send_cmd_and_wait(cmd, timeout: Bidi2pdf.default_timeout)
+        id = send_cmd(cmd, store_response: true)
         response = pop_response id, timeout: timeout
 
-        raise_timeout_error(id, method, params) if response.nil?
-        raise CmdError, "Error response: #{response["error"]}" if response["error"]
+        raise_timeout_error(id, cmd) if response.nil?
+        raise CmdError, "Error response: #{response["error"]} #{cmd.inspect}" if response["error"]
 
         block_given? ? yield(response) : response
       ensure
@@ -60,7 +65,7 @@ module Bidi2pdf
             @pending_responses[id]&.push(data)
             return true
           elsif @initiated_cmds.key?(id)
-            @logger.error "Received error: #{response["error"]} for cmd: #{id}" if response["error"]
+            @logger.error "Received error: #{data["error"]} for cmd: #{id}" if data["error"]
 
             return @initiated_cmds.delete(id)
           end
@@ -73,7 +78,7 @@ module Bidi2pdf
 
       def init_queue_for(id) = @pending_responses[id] = Thread::Queue.new
 
-      def next_id = @next_id_mutex.synchronize { @id += 1 }
+      def next_id = self.class.next_id
 
       def redact_sensitive_fields(obj, sensitive_keys = %w[value token password authorization username])
         case obj
@@ -89,8 +94,8 @@ module Bidi2pdf
         end
       end
 
-      def raise_timeout_error(id, method, params)
-        @logger.error "Timeout waiting for response to command #{id}, cmd: #{method}, params: #{redact_sensitive_fields(params).inspect}"
+      def raise_timeout_error(id, cmd)
+        @logger.error "Timeout waiting for response to command #{id}, cmd: #{cmd.inspect}"
 
         raise CmdTimeoutError, "Timeout waiting for response to command ID #{id}"
       end

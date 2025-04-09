@@ -4,7 +4,7 @@ module Bidi2pdf
   module Bidi
     module Commands
       module Base
-        def method_name = raise(NotImplementedError, "Must be implemented in subclass")
+        def method_name = raise(NotImplementedError, "method_name must be implemented in subclass")
 
         def params = {}
 
@@ -38,6 +38,34 @@ module Bidi2pdf
 
         def hash
           [method_name, params].hash
+        end
+
+        def inspect
+          attributes = redact_sensitive_fields({ method_name: method_name, params: params })
+
+          "#<#{self.class}:#{object_id} #{attributes}>"
+        end
+
+        private
+
+        def redact_sensitive_fields(obj, sensitive_keys = %w[value token password authorization username])
+          case obj
+          when Hash
+            obj.transform_values.with_index do |v, idx|
+              k = obj.keys[idx]
+              sensitive_keys.include?(k.to_s.downcase) ? "[REDACTED]" : redact_sensitive_fields(v, sensitive_keys)
+            end
+          when Array
+            obj.map { |item| redact_sensitive_fields(item, sensitive_keys) }
+          else
+            obj
+          end
+        end
+
+        def raise_timeout_error(id, method, params)
+          @logger.error "Timeout waiting for response to command #{id}, cmd: #{method}, params: #{redact_sensitive_fields(params).inspect}"
+
+          raise CmdTimeoutError, "Timeout waiting for response to command ID #{id}"
         end
       end
     end

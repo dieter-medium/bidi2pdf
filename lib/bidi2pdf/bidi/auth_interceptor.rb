@@ -28,15 +28,9 @@ module Bidi2pdf
 
         network_ids << network_id
 
-        client.send_cmd("network.continueWithAuth", {
-          request: network_id,
-          action: "provideCredentials",
-          credentials: {
-            type: "password",
-            username: username,
-            password: password
-          }
-        })
+        cmd = Bidi2pdf::Bidi::Commands::ProvideCredentials.new request: network_id, username: username, password: password
+
+        client.send_cmd(cmd)
       rescue StandardError => e
         Bidi2pdf.logger.error "Error handling auth event: #{e.message}"
         Bidi2pdf.logger.error e.backtrace.join("\n")
@@ -55,10 +49,9 @@ module Bidi2pdf
         Bidi2pdf.logger.error "It seems that the same request is being intercepted multiple times. Check your credentials or the URL you are trying to access. If you are using a proxy, make sure it is configured correctly."
         # rubocop: enable Layout/LineLength
 
-        client.send_cmd("network.continueWithAuth", {
-          request: network_id,
-          action: "cancel"
-        })
+        cmd = Bidi2pdf::Bidi::Commands::CancelAuth.new request: network_id
+
+        client.send_cmd(cmd)
       end
     end
   end

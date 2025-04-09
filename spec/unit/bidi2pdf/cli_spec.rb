@@ -32,8 +32,8 @@ RSpec.describe Bidi2pdf::CLI do
         allow_any_instance_of(Bidi2pdf::Launcher).to receive(:launch)
         allow_any_instance_of(Bidi2pdf::Launcher).to receive(:stop)
 
-        validator = class_double(Bidi2pdf::Bidi::PrintParametersValidator, validate!: true)
-        stub_const("Bidi2pdf::Bidi::PrintParametersValidator", validator)
+        validator = class_double(Bidi2pdf::Bidi::Commands::PrintParametersValidator, validate!: true)
+        stub_const("Bidi2pdf::Bidi::Commands::PrintParametersValidator", validator)
 
         allow_any_instance_of(described_class).to receive(:option_provided?) do |_instance, key|
           %i[scale shrink_to_fit orientation].include?(key)

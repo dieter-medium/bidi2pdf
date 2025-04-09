@@ -47,17 +47,17 @@ module Bidi2pdf
         raise e
       end
 
-      def send_cmd(method, params = {})
+      def send_cmd(cmd)
         raise Bidi2pdf::ClientError, "Client#start must be called before" unless started?
 
-        @command_manager.send_cmd(method, params)
+        @command_manager.send_cmd(cmd)
       end
 
-      def send_cmd_and_wait(method, params = {}, timeout: Bidi2pdf.default_timeout, &block)
+      def send_cmd_and_wait(cmd, timeout: Bidi2pdf.default_timeout, &block)
         raise Bidi2pdf::ClientError, "Client#start must be called before" unless started?
 
-        timed("Command #{method}") do
-          @command_manager.send_cmd_and_wait(method, params, timeout: timeout, &block)
+        timed("Command #{cmd.inspect}") do
+          @command_manager.send_cmd_and_wait(cmd, timeout: timeout, &block)
         end
       end
 
@@ -71,7 +71,8 @@ module Bidi2pdf
 
       def on_event(*names, &block)
         names.each { |name| dispatcher.on_event(name, &block) }
-        send_cmd("session.subscribe", { events: names }) if names.any?
+        cmd = Bidi2pdf::Bidi::Commands::SessionSubscribe.new(events: names)
+        send_cmd(cmd) if names.any?
       end
 
       def remove_message_listener(block) = dispatcher.remove_message_listener(block)

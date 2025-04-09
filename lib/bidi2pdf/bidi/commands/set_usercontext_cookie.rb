@@ -3,29 +3,32 @@
 module Bidi2pdf
   module Bidi
     module Commands
-      class SetCookie
+      class SetUsercontextCookie < SetTabCookie
         include Base
 
-        attr_reader :name, :value, :domain, :path, :secure, :http_only, :same_site, :ttl, :browsing_context_id
+        attr_reader :user_context_id, :source_origin
 
         def initialize(name:,
                        value:,
                        domain:,
-                       browsing_context_id:,
+                       user_context_id:,
+                       source_origin:,
                        path: "/",
                        secure: true,
                        http_only: false,
                        same_site: "strict",
                        ttl: 30)
-          @name = name
-          @value = value
-          @domain = domain
-          @path = path
-          @secure = secure
-          @http_only = http_only
-          @same_site = same_site
-          @ttl = ttl
-          @browsing_context_id = browsing_context_id
+          super(name: name, value: value,
+                domain: domain,
+                path: path,
+                secure: secure,
+                http_only: http_only,
+                same_site: same_site,
+                ttl: ttl,
+                browsing_context_id: nil)
+
+          @user_context_id = user_context_id
+          @source_origin = source_origin
         end
 
         def expiry
@@ -52,8 +55,9 @@ module Bidi2pdf
               expiry: expiry
             },
             partition: {
-              type: "context",
-              context: browsing_context_id
+              type: "storageKey",
+              userContext: user_context_id,
+              sourceOrigin: source_origin
             }
           }.compact
         end

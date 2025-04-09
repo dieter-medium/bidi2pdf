@@ -31,10 +31,8 @@ module Bidi2pdf
       end
 
       def process_interception(_event_response, _navigation_id, network_id, _url)
-        client.send_cmd "network.continueRequest", {
-          request: network_id,
-          headers: headers
-        }
+        cmd = Bidi2pdf::Bidi::Commands::NetworkContinue.new request: network_id, headers: headers
+        client.send_cmd cmd
       end
     end
   end

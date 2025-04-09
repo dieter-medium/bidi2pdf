@@ -9,6 +9,16 @@ RSpec.describe Bidi2pdf::Bidi::Client, :chromedriver, :session do
   let(:session) { create_session session_url }
   let(:websocket_url) { session.websocket_url }
 
+  let(:cmd) do
+    Class.new do
+      include Bidi2pdf::Bidi::Commands::Base
+
+      attr_accessor :cmd
+
+      def method_name = cmd
+    end.new
+  end
+
   before(:all) do
     Bidi2pdf.configure do |config|
       config.logger.level = Logger::DEBUG
@@ -56,23 +66,27 @@ RSpec.describe Bidi2pdf::Bidi::Client, :chromedriver, :session do
       end
 
       it "sends a command and waits for a response" do
-        response = client.send_cmd_and_wait("session.status", timeout: 5)
+        cmd.cmd = "session.status"
+        response = client.send_cmd_and_wait(cmd, timeout: 5)
 
         expect(response).to include("type" => "success")
       end
 
       it "raises an error if the command is invalid" do
-        expect { client.send_cmd_and_wait("invalid", timeout: 5) }.to raise_error(Bidi2pdf::CmdError, /unknown command/)
+        cmd.cmd = "invalid"
+        expect { client.send_cmd_and_wait(cmd, timeout: 5) }.to raise_error(Bidi2pdf::CmdError, /unknown command/)
       end
 
       it "raises an error when the timeout period elapses" do
-        expect { client.send_cmd_and_wait("session.status", timeout: 0) }.to raise_error(Bidi2pdf::CmdTimeoutError)
+        cmd.cmd = "session.status"
+        expect { client.send_cmd_and_wait(cmd, timeout: 0) }.to raise_error(Bidi2pdf::CmdTimeoutError)
       end
     end
 
     context "when the client is not started" do
       it "raises an error if the client is not open" do
-        expect { client.send_cmd_and_wait("session.status", timeout: 0.5) }.to raise_error(Bidi2pdf::ClientError, /start must be called before/)
+        cmd.cmd = "session.status"
+        expect { client.send_cmd_and_wait(cmd, timeout: 0.5) }.to raise_error(Bidi2pdf::ClientError, /start must be called before/)
       end
     end
   end

@@ -14,14 +14,16 @@ module Bidi2pdf
 
       def context_id
         @context_id ||= begin
-          res = client.send_cmd_and_wait("browser.createUserContext", {}) do |response|
-            response["result"]["userContext"]
-          end
+                          res = client.send_cmd_and_wait(Bidi2pdf::Bidi::Commands::BrowserCreateUserContext.new) do |response|
+                            raise "Error creating user context: #{response.inspect}" if response["error"]
 
-          Bidi2pdf.logger.debug "User context created: #{res.inspect}"
+                            response["result"]["userContext"]
+                          end
 
-          res
-        end
+                          Bidi2pdf.logger.debug "User context created: #{res.inspect}"
+
+                          res
+                        end
       end
 
       def set_cookie(
@@ -35,36 +37,28 @@ module Bidi2pdf
         same_site: "strict",
         ttl: 30
       )
-        expiry = Time.now.to_i + ttl
-        client.send_cmd_and_wait("storage.setCookie", {
-          cookie: {
-            name: name,
-            value: {
-              type: "string",
-              value: value
-            },
-            domain: domain,
-            path: path,
-            secure: secure,
-            httpOnly: http_only,
-            sameSite: same_site,
-            expiry: expiry
-          },
-          partition: {
-            type: "storageKey",
-            userContext: context_id,
-            sourceOrigin: source_origin
-          }
-        }) do |response|
+        cmd = Bidi2pdf::Bidi::Commands::SetUsercontextCookie.new(
+          user_context_id: context_id,
+          source_origin: source_origin,
+          name: name,
+          value: value,
+          domain: domain,
+          path: path,
+          secure: secure,
+          http_only: http_only,
+          same_site: same_site,
+          ttl: ttl
+        )
+
+        client.send_cmd_and_wait(cmd) do |response|
           Bidi2pdf.logger.debug "Cookie set: #{response.inspect}"
         end
       end
 
       def create_browser_window
-        client.send_cmd_and_wait("browsingContext.create", {
-          type: "window",
-          userContext: context_id
-        }) do |response|
+        cmd = Bidi2pdf::Bidi::Commands::CreateWindow.new(user_context_id: context_id)
+
+        client.send_cmd_and_wait(cmd) do |response|
           browsing_context_id = response["result"]["context"]
 
           BrowserTab.new(client, browsing_context_id, context_id)

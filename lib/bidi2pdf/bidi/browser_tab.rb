@@ -3,7 +3,6 @@
 require "base64"
 
 require_relative "network_events"
-require_relative "print_parameters_validator"
 require_relative "auth_interceptor"
 require_relative "add_headers_interceptor"
 
@@ -43,7 +42,7 @@ module Bidi2pdf
         same_site: "strict",
         ttl: 30
       )
-        cmd = Bidi2pdf::Bidi::Commands::SetCookie.new(
+        cmd = Bidi2pdf::Bidi::Commands::SetTabCookie.new(
           browsing_context_id: browsing_context_id,
           name: name,
           value: value,
@@ -82,23 +81,16 @@ module Bidi2pdf
         client.on_event("network.responseStarted", "network.responseCompleted", "network.fetchError",
                         &network_events.method(:handle_event))
 
-        client.send_cmd_and_wait("browsingContext.navigate", {
-          url: url,
-          context: browsing_context_id,
-          wait: "complete"
-        }) do |response|
+        cmd = Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new url: url, context: browsing_context_id
+
+        client.send_cmd_and_wait(cmd) do |response|
           Bidi2pdf.logger.debug "Navigated to page url: #{url} response: #{response}"
         end
       end
 
       def execute_script(script)
-        client.send_cmd_and_wait("script.evaluate", {
-          expression: script,
-          target: {
-            context: browsing_context_id
-          },
-          awaitPromise: true
-        }) do |response|
+        cmd = Bidi2pdf::Bidi::Commands::ScriptEvaluate.new context: browsing_context_id, expression: script
+        client.send_cmd_and_wait(cmd) do |response|
           Bidi2pdf.logger.debug "Script Result: #{response.inspect}"
 
           response["result"]
@@ -119,13 +111,10 @@ module Bidi2pdf
         @open = false
       end
 
-      # rubocop:disable Metrics/AbcSize
       def print(outputfile, print_options: { background: true })
-        PrintParametersValidator.validate!(print_options)
+        cmd = Bidi2pdf::Bidi::Commands::BrowsingContextPrint.new context: browsing_context_id, print_options: print_options
 
-        cmd_params = (print_options || {}).merge(context: browsing_context_id)
-
-        client.send_cmd_and_wait("browsingContext.print", cmd_params) do |response|
+        client.send_cmd_and_wait(cmd) do |response|
           if response["result"]
             pdf_base64 = response["result"]["data"]
 
@@ -143,13 +132,13 @@ module Bidi2pdf
         end
       end
 
-      # rubocop:enable Metrics/AbcSize
-
       private
 
       def close_context
-        client.send_cmd_and_wait("browsingContext.close", { context: browsing_context_id }) do |response|
-          Bidi2pdf.logger.debug "Browsing context closed: #{response}"
+        that = self
+        cmd = Bidi2pdf::Bidi::Commands::BrowsingContextClose.new context: browsing_context_id
+        client.send_cmd_and_wait(cmd) do |response|
+          Bidi2pdf.logger.info "Browsing context closed: #{that.browsing_context_id} #{response}"
         end
       end
 
