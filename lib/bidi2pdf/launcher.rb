@@ -21,6 +21,7 @@ module Bidi2pdf
       @wait_network_idle = wait_network_idle
       @print_options = print_options || {}
       @remote_browser_url = remote_browser_url
+      @custom_session = nil
     end
 
     # rubocop:enable Metrics/ParameterLists
@@ -42,13 +43,14 @@ module Bidi2pdf
 
     def stop
       @manager&.stop
+      @custom_session&.close
     end
 
     private
 
     def session
       if @remote_browser_url
-        Bidi::Session.new(session_url: @remote_browser_url, headless: @headless)
+        @custom_session = Bidi::Session.new(session_url: @remote_browser_url, headless: @headless)
       else
         @manager = ChromedriverManager.new(port: @port, headless: @headless)
         @manager.start
