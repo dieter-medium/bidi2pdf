@@ -26,15 +26,25 @@ class ChromedriverContainer < Testcontainers::DockerContainer
     DEFAULT_CHROMEDRIVER_PORT
   end
 
+  # rubocop: disable Metrics/AbcSize
   def build_local_image
+    old_timeout = Docker.options[:read_timeout]
+    Docker.options[:read_timeout] = 60 * 10
+
     Docker::Image.build_from_dir(build_dir, { "t" => image, "dockerfile" => docker_file }) do |lines|
       lines.split("\n").each do |line|
-        if (log = JSON.parse(line)) && log.key?("stream")
-          $stdout.write log["stream"]
-        end
+        next unless (log = JSON.parse(line)) && log.key?("stream")
+        next unless log["stream"] && !(trimmed_stream = log["stream"].strip).empty?
+
+        timestamp = Time.now.strftime("[%Y-%m-%dT%H:%M:%S.%6N]")
+        $stdout.write "#{timestamp} #{trimmed_stream}\n"
       end
     end
+
+    Docker.options[:read_timeout] = old_timeout
   end
+
+  # rubocop: enable  Metrics/AbcSize
 
   # rubocop: disable Metrics/AbcSize
   def start_local_image
