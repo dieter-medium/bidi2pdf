@@ -10,7 +10,7 @@ class DummyClient < Bidi2pdf::Bidi::Client
 
   # rubocop: enable  Lint/MissingSuper
 
-  def send_cmd(cmd, params) end
+  def send_cmd(*params) = @cmd_params = params
 
   def send_cmd_and_wait(*params)
     @cmd_params = params

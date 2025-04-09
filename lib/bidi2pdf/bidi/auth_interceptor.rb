@@ -24,7 +24,7 @@ module Bidi2pdf
       end
 
       def process_interception(_event_response, navigation_id, network_id, url)
-        handle_bad_credentials(navigation_id, network_id, url)
+        return if handled_bad_credentials(navigation_id, network_id, url)
 
         network_ids << network_id
 
@@ -39,8 +39,8 @@ module Bidi2pdf
 
       private
 
-      def handle_bad_credentials(navigation_id, network_id, url)
-        return unless network_ids.include?(network_id)
+      def handled_bad_credentials(navigation_id, network_id, url)
+        return false unless network_ids.include?(network_id)
 
         network_ids.delete(network_id)
 
@@ -52,6 +52,8 @@ module Bidi2pdf
         cmd = Bidi2pdf::Bidi::Commands::CancelAuth.new request: network_id
 
         client.send_cmd(cmd)
+
+        true
       end
     end
   end
