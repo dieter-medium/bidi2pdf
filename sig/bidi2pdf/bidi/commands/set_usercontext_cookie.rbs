@@ -1,0 +1,27 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class SetUsercontextCookie < SetTabCookie
+        include Commands::Base
+
+        attr_reader user_context_id: String
+        attr_reader source_origin: String
+
+        def initialize: (
+            name: String,
+            value: String,
+            domain: String,
+            user_context_id: String,
+            source_origin: String,
+            ?path: String,
+            ?secure: bool,
+            ?http_only: bool,
+            ?same_site: String,
+            ?ttl: Integer
+          ) -> void
+
+        def expiry: () -> Integer
+      end
+    end
+  end
+end

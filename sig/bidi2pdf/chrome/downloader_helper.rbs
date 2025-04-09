@@ -1,9 +1,0 @@
-module Bidi2pdf
-  module Chrome
-    module DownloaderHelper
-      def download_file: (String url, String destination) -> nil
-
-      def extract_zip: (String zip_file, String destination) -> nil
-    end
-  end
-end

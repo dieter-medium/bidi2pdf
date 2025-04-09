@@ -1,0 +1,53 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      # Validates parameters for the BiDi method `browsingContext.print`.
+      #
+      # Allowed structure of the params hash:
+      #
+      # {
+      #   background: Boolean (optional, default: false) – print background graphics,
+      #   margin: {
+      #     top: Float >= 0.0 (optional, default: 1.0),
+      #     bottom: Float >= 0.0 (optional, default: 1.0),
+      #     left: Float >= 0.0 (optional, default: 1.0),
+      #     right: Float >= 0.0 (optional, default: 1.0)
+      #   },
+      #   orientation: "portrait" or "landscape" (optional, default: "portrait"),
+      #   page: {
+      #     width: Float >= 0.0352 (optional, default: 21.59),
+      #     height: Float >= 0.0352 (optional, default: 27.94)
+      #   },
+      #   pageRanges: Array of Integers or Strings (optional),
+      #   scale: Float between 0.1 and 2.0 (optional, default: 1.0),
+      #   shrinkToFit: Boolean (optional, default: true)
+      # }
+      #
+      # This validator checks presence, types, allowed ranges, and values,
+      # and raises ArgumentError with a descriptive message if validation fails.
+      class PrintParametersValidator
+        @params: untyped
+
+        def self.validate!: (untyped params) -> untyped
+
+        def initialize: (untyped params) -> void
+
+        def validate!: () -> true
+
+        private
+
+        def validate_boolean: (untyped key) -> (nil | untyped)
+
+        def validate_orientation: () -> (nil | untyped)
+
+        def validate_scale: () -> (nil | untyped)
+
+        def validate_page_ranges: () -> (nil | untyped)
+
+        def validate_margin: () -> (nil | untyped)
+
+        def validate_page_size: () -> (nil | untyped)
+      end
+    end
+  end
+end

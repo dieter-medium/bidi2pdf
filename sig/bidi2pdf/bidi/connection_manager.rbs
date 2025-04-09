@@ -1,0 +1,17 @@
+module Bidi2pdf
+  module Bidi
+    class ConnectionManager
+      @logger: untyped
+
+      @connected: untyped
+
+      @connection_queue: untyped
+
+      def initialize: (logger: untyped) -> void
+
+      def mark_connected: () -> (nil | untyped)
+
+      def wait_until_open: (timeout: untyped) -> true
+    end
+  end
+end

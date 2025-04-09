@@ -1,0 +1,11 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class CancelAuth
+        include Commands::Base
+
+        def initialize: (request: String) -> void
+      end
+    end
+  end
+end

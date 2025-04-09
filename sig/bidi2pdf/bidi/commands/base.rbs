@@ -1,0 +1,27 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      module Base
+        def method_name: () -> String
+
+        def params: () -> Hash[Symbol, untyped]
+
+        def as_payload: (untyped id) -> Hash[Symbol, untyped]
+
+        def ==: (untyped other) -> bool
+
+        def eql?: (untyped other) -> bool
+
+        def hash: () -> Integer
+
+        def inspect: () -> String
+
+        private
+
+        def redact_sensitive_fields: (untyped obj, Array[String] sensitive_keys) -> untyped
+
+        def raise_timeout_error: (untyped id, String method, Hash[Symbol, untyped] params) -> void
+      end
+    end
+  end
+end

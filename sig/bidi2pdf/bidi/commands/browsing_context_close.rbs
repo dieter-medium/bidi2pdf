@@ -1,0 +1,11 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class BrowsingContextClose
+        include Commands::Base
+
+        def initialize: (context: String) -> void
+      end
+    end
+  end
+end

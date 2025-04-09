@@ -1,0 +1,15 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class SessionSubscribe
+        @events: untyped
+
+        include Base
+
+        attr_reader events: untyped
+
+        def initialize: (events: untyped) -> void
+      end
+    end
+  end
+end

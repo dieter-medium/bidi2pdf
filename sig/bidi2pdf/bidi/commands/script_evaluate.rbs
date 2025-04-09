@@ -1,0 +1,17 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class ScriptEvaluate
+        @expression: untyped
+
+        @context: untyped
+
+        @await_promise: untyped
+
+        include Base
+
+        def initialize: (expression: untyped, context: untyped, ?await_promise: bool) -> void
+      end
+    end
+  end
+end

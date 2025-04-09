@@ -1,0 +1,19 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class CreateWindow
+        @user_context_id: untyped
+
+        @reference_context: untyped
+
+        @background: untyped
+
+        include Base
+
+        def initialize: (?user_context_id: untyped?, ?reference_context: untyped?, ?background: bool) -> void
+
+        def type: () -> "window"
+      end
+    end
+  end
+end

@@ -1,0 +1,41 @@
+module Bidi2pdf
+  module Bidi
+    class CommandManager
+      self.@id: untyped
+
+      self.@id_mutex: untyped
+
+      @socket: untyped
+
+      @logger: untyped
+
+      @pending_responses: untyped
+
+      @initiated_cmds: untyped
+
+      def self.initialize_counter: () -> untyped
+
+      def self.next_id: () -> untyped
+
+      def initialize: (untyped socket, logger: untyped) -> void
+
+      def send_cmd: (untyped cmd, ?store_response: bool) -> untyped
+
+      def send_cmd_and_wait: (untyped cmd, ?timeout: untyped) ?{ (untyped) -> untyped } -> untyped
+
+      def pop_response: (untyped id, timeout: untyped) -> untyped
+
+      def handle_response: (untyped data) -> (true | untyped | false)
+
+      private
+
+      def init_queue_for: (untyped id) -> untyped
+
+      def next_id: () -> untyped
+
+      def redact_sensitive_fields: (untyped obj, ?::Array[untyped] sensitive_keys) -> untyped
+
+      def raise_timeout_error: (untyped id, untyped cmd) -> untyped
+    end
+  end
+end

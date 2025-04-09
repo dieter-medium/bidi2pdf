@@ -1,0 +1,9 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class SessionStatus
+        include Commands::Base
+      end
+    end
+  end
+end

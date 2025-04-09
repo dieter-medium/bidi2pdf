@@ -1,0 +1,15 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class BrowsingContextNavigate
+        include Commands::Base
+
+        def initialize: (
+            url: String,
+            context: String,
+            ?wait: String
+          ) -> void
+      end
+    end
+  end
+end

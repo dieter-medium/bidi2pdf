@@ -1,0 +1,31 @@
+module Bidi2pdf
+  module Bidi
+    module Interceptor
+      @client: untyped
+
+      def self.included: (untyped base) -> untyped
+
+      module ClassMethods
+        def phases: () -> untyped
+
+        def events: () -> untyped
+      end
+
+      def url_patterns: () -> untyped
+
+      def context: () -> untyped
+
+      def process_interception: (untyped _event_response, untyped _navigation_id, untyped _network_id, untyped _url) -> untyped
+
+      def register_with_client: (client: untyped) -> untyped
+
+      def handle_event: (untyped response) -> untyped
+
+      def interceptor_id: () -> untyped
+
+      def client: () -> untyped
+
+      def validate_phases!: () -> untyped
+    end
+  end
+end

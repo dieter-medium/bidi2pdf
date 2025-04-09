@@ -1,0 +1,14 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class BrowsingContextPrint
+        include Commands::Base
+
+        def initialize: (
+            context: String,
+            print_options: Hash[Symbol, untyped]?
+          ) -> void
+      end
+    end
+  end
+end

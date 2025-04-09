@@ -1,0 +1,6 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+    end
+  end
+end
