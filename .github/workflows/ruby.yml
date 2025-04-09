@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+env:
+  SHOW_CONTAINER_LOGS: true
+  DISABLE_CHROME_SANDBOX: true
 
 jobs:
   lint:
@@ -21,31 +24,110 @@ jobs:
           bundle install --jobs 4 --retry 3
           bundle exec rubocop
 
-  test:
+  unit-test:
     needs: lint
     runs-on: ubuntu-latest
-    env:
-      CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
-      SHOW_CONTAINER_LOGS: true
-      DISABLE_CHROME_SANDBOX: true
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
           bundler-cache: true
       - name: Install dependencies
         run: bundle install --jobs 4 --retry 3
-      - name: Run RSpec with coverage
-        run: |
-          COVERAGE=true bundle exec rspec
+      - name: Run Unit Tests
+        run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag unit"
+      - name: Check filesystem
+        run: ls -ltraR coverage/
+      - name: Upload unit coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          include-hidden-files: true
+          path: coverage/
+
+  integration-test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Install dependencies
+        run: bundle install --jobs 4 --retry 3
+      - name: Setup Testcontainers Cloud Client
+        uses: atomicjar/testcontainers-cloud-setup-action@v1
+        with:
+          token: ${{ secrets.TC_CLOUD_TOKEN }}
+      - name: Run Integration Tests
+        run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag integration"
+      - name: Upload integration coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-coverage
+          include-hidden-files: true
+          path: coverage/
+
+  acceptance-test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Install dependencies
+        run: bundle install --jobs 4 --retry 3
+      - name: Setup Testcontainers Cloud Client
+        uses: atomicjar/testcontainers-cloud-setup-action@v1
+        with:
+          token: ${{ secrets.TC_CLOUD_TOKEN }}
+      - name: Run Acceptance Tests
+        run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag acceptance"
+      - name: Upload acceptance coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-coverage
+          include-hidden-files: true
+          path: coverage/
       - name: Upload generated pdf files
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pdf-files
           path: tmp/pdf-files/
+
+  coverage-report:
+    needs:
+      - unit-test
+      - integration-test
+      - acceptance-test
+    runs-on: ubuntu-latest
+    env:
+      CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - name: Install dependencies
+        run: bundle install --jobs 4 --retry 3
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: coverage-artifacts
+      - name: Combine coverage reports
+        run: |
+          mkdir -p coverage
+          ls  -ltraR coverage-artifacts          
+          cp coverage-artifacts/unit-coverage/.resultset.json coverage/unit-resultset.json
+          cp coverage-artifacts/integration-coverage/.resultset.json coverage/integration-resultset.json
+          cp coverage-artifacts/acceptance-coverage/.resultset.json coverage/acceptance-resultset.json
+          bundle exec rake coverage:merge_reports
       - name: Upload coverage to Code Climate
         if: ${{ github.event_name != 'pull_request' }}
         uses: paambaati/codeclimate-action@v3.2.0

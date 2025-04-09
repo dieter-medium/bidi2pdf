@@ -6,6 +6,17 @@ require "simplecov"
 
 if ENV["COVERAGE"]
   SimpleCov.start do
+    command_name "Job #{ENV["GITHUB_JOB"]}" if ENV["GITHUB_JOB"]
+
+    if ENV["CI"]
+      formatter SimpleCov::Formatter::SimpleFormatter
+    else
+      formatter SimpleCov::Formatter::MultiFormatter.new([
+                                                           SimpleCov::Formatter::SimpleFormatter,
+                                                           SimpleCov::Formatter::HTMLFormatter
+                                                         ])
+    end
+
     add_filter "/spec/"
     add_filter "/vendor/"
     # Add any other paths you want to exclude

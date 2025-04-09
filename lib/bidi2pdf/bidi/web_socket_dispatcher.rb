@@ -42,6 +42,8 @@ module Bidi2pdf
 
       def remove_error_listener(block) = socket_events.off(:error, block)
 
+      private
+
       def setup_message_handler
         that = self
 

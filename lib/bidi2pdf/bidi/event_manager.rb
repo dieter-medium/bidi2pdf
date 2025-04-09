@@ -39,6 +39,8 @@ module Bidi2pdf
         end
       end
 
+      private
+
       def log_msg(prefix, data)
         message = truncate_large_values(data)
         Bidi2pdf.logger.debug "#{prefix}: #{message.inspect}"
