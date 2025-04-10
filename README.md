@@ -3,52 +3,58 @@
 [![Gem Version](https://badge.fury.io/rb/bidi2pdf.svg)](https://badge.fury.io/rb/bidi2pdf)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/6425d9893aa3a9ca243e/test_coverage)](https://codeclimate.com/github/dieter-medium/bidi2pdf/test_coverage)
 
-# Bidi2pdf
+---
 
-Bidi2pdf is a Ruby gem that generates high-quality PDFs from web pages using Chrome's BiDi (BiDirectional) protocol. It
-offers precise control over PDF generation with support for modern web technologies.
+# 📄 Bidi2pdf – Bulletproof PDF generation via Chrome's BiDi Protocol
 
-## Features
+**Bidi2pdf** is a powerful Ruby gem that transforms modern web pages into high-fidelity PDFs using Chrome’s *
+*BiDirectional (BiDi)** protocol. Whether you're automating reports, archiving websites, or shipping documentation,
+Bidi2pdf gives you **precision, flexibility, and full control**.
 
-- **Simple CLI** - Generate PDFs with a single command
-- **Rich Configuration** - Customize with cookies, headers, and authentication
-- **Waiting Conditions** - Wait for window loaded or network idle
-- **Headless Support** - Run without a visible browser
-- **Docker Ready** - Easy containerization
-- **Modern Architecture** - Uses Chrome's BiDi protocol for better control
+---
 
-## Installation
+## ✨ Key Features
 
-Add to your application's Gemfile:
+✅ **One-liner CLI** – From URL to PDF in a single command  
+✅ **Full customization** – Inject cookies, headers, auth credentials  
+✅ **Smart waiting** – Wait for complete page load or network idle  
+✅ **Headless support** – Run quietly in the background  
+✅ **Docker-ready** – Plug and play with containers  
+✅ **Modern architecture** – Built on Chrome's next-gen BiDi protocol
+
+---
+
+## 🚀 Installation
+
+### Bundler
 
 ```ruby
 gem 'bidi2pdf'
 ```
 
-Or install manually:
+### Standalone
 
 ```bash
-$ gem install bidi2pdf
+gem install bidi2pdf
 ```
 
-### Dependencies
+### Requirements
 
-- **Ruby**: 3.3 or higher
-- **Bidi2pdf** automatically manages ChromeDriver binaries through
-  the [chromedriver-binary](https://github.com/dieter-medium/chromedriver-binary) gem, which:
-  Downloads and installs the ChromeDriver version matching your installed Chrome/Chromium browser
-  Eliminates the need to manually install or update ChromeDriver
-  Ensures compatibility between Chrome and ChromeDriver versions
+- **Ruby** ≥ 3.3
+- **Chrome/Chromium**
+- Automatic ChromeDriver management via [chromedriver-binary](https://github.com/dieter-medium/chromedriver-binary)
 
-## Usage
+---
 
-### Basic Command Line Usage
+## ⚙️ Basic Usage
+
+### Command-line
 
 ```bash
 bidi2pdf render --url https://example.com --output example.pdf
 ```
 
-### Advanced Options
+### Advanced CLI Options
 
 ```bash
 bidi2pdf render \
@@ -62,14 +68,18 @@ bidi2pdf render \
   --log-level debug
 ```
 
-### Ruby API
+---
+
+## 🧠 Programmatic API
+
+### Classic Approach
 
 ```ruby
 require 'bidi2pdf'
 
 launcher = Bidi2pdf::Launcher.new(
   url: 'https://example.com',
-  output: 'example.pdf', # nil for base64 encoded string as result of launcher.launch
+  output: 'example.pdf',
   cookies: { 'session' => 'abc123' },
   headers: { 'X-API-KEY' => 'token' },
   auth: { username: 'admin', password: 'password' },
@@ -78,132 +88,86 @@ launcher = Bidi2pdf::Launcher.new(
 )
 
 launcher.launch
-
-# see Bidi2pdf::SessionRunner for more options
 ```
 
-#### Step by step
+### DSL – Quick & Clean
 
-```ruby 
+```ruby
 require "bidi2pdf"
 
-# 1. Setup session: Local or Remote?
-# ----------------------------------
-
-# Option A: Remote browser (headless by default)
-# First ensure remote service is running e.g., `docker compose -f docker/docker-compose.yml up -d`
-session = Bidi2pdf::Bidi::Session.new(
-  session_url: "http://localhost:9092/session",
-  headless: true, # usually mandatory for remote sessions
-)
-
-# Option B: Local browser (you control the session lifecycle)
-manager = Bidi2pdf::ChromedriverManager.new(headless: false)
-manager.start
-session = manager.session
-
-session.start
-session.client.on_close { Bidi2pdf.logger.info "WebSocket session closed" }
-
-# 2. Create browser context, window, and tab
-# ------------------------------------------
-browser = session.browser
-user_context = browser.create_user_context
-window = user_context.create_browser_window
-tab = window.create_browser_tab
-
-# 3. Configure session (Optional)
-# -------------------------------
-
-# Set session cookies (if needed)
-tab.set_cookie(
-  name: "auth",
-  value: "secret",
-  domain: "www.example.com",
-  secure: true
-)
-
-# Inject custom API headers (if needed)
-tab.add_headers(
-  url_patterns: [
-    {
-      type: "pattern",
-      protocol: "https",
-      hostname: "www.example.com",
-      port: "443"
-    }
-  ],
-  headers: [
-    { name: "X-API-KEY", value: "12345678" }
-  ]
-)
-
-# Enable basic auth (if needed)
-tab.basic_auth(
-  url_patterns: [
-    {
-      type: "pattern",
-      protocol: "https",
-      hostname: "www.example.com",
-      port: "443"
-    }
-  ],
-  username: "username",
-  password: "secret"
-)
-
-# 4. Open page and wait for loading completion
-# --------------------------------------------
-tab.open_page "https://www.example.com"
-
-# Wait until all network activity completes.
-# CAUTION: be careful with endpoints that constantly poll or stream data
-tab.wait_until_all_finished
-
-# Alternatively, explicitly wait using JavaScript polling (uncomment and customize if needed)
-# tab.execute_script <<-JS
-#   new Promise(resolve => {
-#     const check = () => window.loaded ? resolve('done') : setTimeout(check, 100);
-#     check();
-#   });
-# JS
-
-# 5. Generate PDF from page
-# -------------------------
-# Save PDF directly to file
-tab.print("my.pdf")
-
-# Or handle PDF data in memory
-# tab.print do |base64_encoded_pdf|
-#   pdf_data = Base64.decode64(base64_encoded_pdf)
-#   # ... custom actions (e.g., store in database, send via email)
-# end
-
-# 6. Cleanup resources
-# --------------------
-tab.close
-window.close
-
-session.close if session
-manager&.stop
-
+Bidi2pdf::DSL.with_tab(headless: true) do |tab|
+  tab.open_page("https://example.com")
+  tab.wait_until_all_finished
+  tab.print("example.pdf")
+end
 ```
 
-## Docker Support
+---
 
-Build and run with Docker:
+## 🧬 Deep Integration Example
+
+Get fine-grained control using Chrome sessions, tabs, and BiDi commands:
+
+<details>
+<summary>🔍 Show full example</summary>
+
+```ruby
+require "bidi2pdf"
+
+# 1. Remote or local session?
+session = Bidi2pdf::Bidi::Session.new(
+  session_url: "http://localhost:9092/session",
+  headless: true,
+)
+
+# Alternative: local session via ChromeDriver
+# manager = Bidi2pdf::ChromedriverManager.new(headless: false)
+# manager.start
+# session = manager.session
+
+session.start
+session.client.on_close { puts "WebSocket session closed" }
+
+# 2. Create browser/tab
+browser = session.browser
+context = browser.create_user_context
+window = context.create_browser_window
+tab = window.create_browser_tab
+
+# 3. Inject configuration
+tab.set_cookie(name: "auth", value: "secret", domain: "example.com", secure: true)
+tab.add_headers(url_patterns: [{ type: "pattern", protocol: "https", hostname: "example.com", port: "443" }],
+                headers: [{ name: "X-API-KEY", value: "12345678" }])
+tab.basic_auth(url_patterns: [{ type: "pattern", protocol: "https", hostname: "example.com", port: "443" }],
+               username: "username", password: "secret")
+
+# 4. Render PDF
+tab.open_page "https://example.com"
+tab.wait_until_all_finished
+tab.print("my.pdf")
+
+# 5. Cleanup
+tab.close
+window.close
+session.close
+```
+
+</details>
+
+---
+
+## 🐳 Docker Support
+
+### Build & Run
 
 ```bash
-# Build gem and Docker image
 rake build
 docker build -t bidi2pdf -f docker/Dockerfile .
-
-# Generate PDF using Docker
 docker run -it --rm -v ./output:/reports bidi2pdf \
   bidi2pdf render --url=https://example.com --output /reports/example.pdf
 ```
 
-### Test it with docker compose
+### Docker Compose
 
 ```bash
 rake build
@@ -227,31 +191,42 @@ docker compose -f docker/docker-compose.yml exec app bidi2pdf render --url=http:
 docker compose -f docker/docker-compose.yml down
 ```
 
-## Configuration Options
+---
 
-| Option                 | Description                                                                                                         |
-|------------------------|---------------------------------------------------------------------------------------------------------------------|
-| `--url`                | The URL to render (required)                                                                                        |
-| `--output`             | Output PDF filename (default: output.pdf)                                                                           |
-| `--cookie`             | Cookies in name=value format                                                                                        |
-| `--header`             | HTTP headers in name=value format                                                                                   |
-| `--auth`               | Basic auth credentials (user:pass)                                                                                  |
-| `--headless`           | Run Chrome in headless mode (default: true)                                                                         |
-| `--port`               | Port for ChromeDriver (0 = auto)                                                                                    |
-| `--wait_window_loaded` | Wait for the window to be fully loaded. You need to set a variable `window.loaded`. See ./spec/fixtures/sample.html |
-| `--wait_network_idle`  | Wait for network to be idle                                                                                         |
-| `--log_level`          | Log level (debug, info, warn, error, fatal)                                                                         |
-| `--remote_browser_url` | URL of the remote Chrome instance (default: nil)                                                                    |
-| `--default_timeout`    | Default timeout for operations (default: 60 seconds)                                                                |
+## 🧩 Configuration Options
 
-## Development
+| Flag                   | Description                                |
+|------------------------|--------------------------------------------|
+| `--url`                | Target URL (required)                      |
+| `--output`             | Output PDF file (default: output.pdf)      |
+| `--cookie`             | Set cookie in `name=value` format          |
+| `--header`             | Inject custom header `name=value`          |
+| `--auth`               | Basic auth as `user:pass`                  |
+| `--headless`           | Run Chrome headless (default: true)        |
+| `--port`               | ChromeDriver port (0 = auto)               |
+| `--wait_window_loaded` | Wait until `window.loaded` is set to true  |
+| `--wait_network_idle`  | Wait until network is idle                 |
+| `--log_level`          | Log level: debug, info, warn, error, fatal |
+| `--remote_browser_url` | Connect to remote Chrome session           |
+| `--default_timeout`    | Operation timeout (default: 60s)           |
 
-After checking out the repo:
+---
 
-1. Run `bin/setup` to install dependencies
-2. Run `rake spec` to run the tests
-3. Run `bin/console` for an interactive prompt
+## 🛠 Development
 
-## License
+```bash
+# Setup
+bin/setup
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+# Run tests
+rake spec
+
+# Open interactive console
+bin/console
+```
+
+---
+
+## 📜 License
+
+This project is licensed under the [MIT License](https://opensource.org/licenses/MIT).
