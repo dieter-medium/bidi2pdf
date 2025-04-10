@@ -21,6 +21,23 @@ jobs:
           bundle install --jobs 4 --retry 3
           bundle exec rubocop
 
+  gem-build:
+    needs:
+      - lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Ruby Environment
+        uses: ./.github/actions/setup-ruby
+      - name: Build gem
+        run: |
+          bundle exec rake build
+      - name: Upload gem
+        uses: actions/upload-artifact@v4
+        with:
+          name: bidi2pdf-gem
+          path: pkg/
+
   unit-test:
     needs: lint
     uses: ./.github/workflows/run-rspec-tests.yml
@@ -75,3 +92,4 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
+
