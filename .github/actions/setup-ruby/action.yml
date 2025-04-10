@@ -1,0 +1,14 @@
+name: Setup Ruby
+description: Checks out code, sets up Ruby, and installs dependencies
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.3'
+        bundler-cache: true
+    - name: Install dependencies
+      run: bundle install --jobs 4 --retry 3
+      shell: bash

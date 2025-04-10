@@ -14,11 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
+      - name: Setup Ruby Environment
+        uses: ./.github/actions/setup-ruby
       - name: Lint with RuboCop
         run: |
           bundle install --jobs 4 --retry 3
@@ -26,72 +23,26 @@ jobs:
 
   unit-test:
     needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
-      - name: Install dependencies
-        run: bundle install --jobs 4 --retry 3
-      - name: Run Unit Tests
-        run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag unit"
-      - name: Check filesystem
-        run: ls -ltraR coverage/
-      - name: Upload unit coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-coverage
-          include-hidden-files: true
-          path: coverage/
+    uses: ./.github/workflows/run-rspec-tests.yml
+    with:
+      test_tag: unit
+      artifact_name: unit-coverage
 
   integration-test:
     needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
-      - name: Install dependencies
-        run: bundle install --jobs 4 --retry 3
-      - name: Run Integration Tests
-        run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag integration"
-      - name: Upload integration coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-coverage
-          include-hidden-files: true
-          path: coverage/
+    uses: ./.github/workflows/run-rspec-tests.yml
+    with:
+      test_tag: integration
+      artifact_name: integration-coverage
 
   acceptance-test:
     needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
-      - name: Install dependencies
-        run: bundle install --jobs 4 --retry 3
-      - name: Run Acceptance Tests
-        run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag acceptance"
-      - name: Upload acceptance coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: acceptance-coverage
-          include-hidden-files: true
-          path: coverage/
-      - name: Upload generated pdf files
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: pdf-files
-          path: tmp/pdf-files/
-
+    uses: ./.github/workflows/run-rspec-tests.yml
+    with:
+      test_tag: acceptance
+      artifact_name: acceptance-coverage
+      upload_pdf: true
+  
   coverage-report:
     needs:
       - unit-test
@@ -101,13 +52,8 @@ jobs:
     env:
       CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
-      - name: Install dependencies
-        run: bundle install --jobs 4 --retry 3
+      - name: Setup Ruby Environment
+        uses: ./.github/actions/setup-ruby
       - name: Download all coverage artifacts
         uses: actions/download-artifact@v4
         with:
