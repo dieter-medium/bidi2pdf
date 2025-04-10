@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "chromedriver/binary"
+require "securerandom"
 
 module Bidi2pdf
   class ChromedriverManager
@@ -140,7 +141,7 @@ module Bidi2pdf
 
     def build_cmd
       bin = Chromedriver::Binary::ChromedriverDownloader.driver_path
-      user_data_dir = File.join(Dir.tmpdir, "bidi2pdf", "user_data")
+      user_data_dir = File.join(Dir.tmpdir, "bidi2pdf", "user_data", SecureRandom.hex(8))
 
       cmd = [bin]
       cmd << "--port=#{@port}" unless @port.zero?

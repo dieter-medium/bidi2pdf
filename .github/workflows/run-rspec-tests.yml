@@ -16,6 +16,9 @@ on:
 jobs:
   rspec-tests:
     runs-on: ubuntu-latest
+    env:
+      SHOW_CONTAINER_LOGS: true
+      DISABLE_CHROME_SANDBOX: true
     steps:
       - uses: actions/checkout@v3
       - name: Setup Ruby Environment
