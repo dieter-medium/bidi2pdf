@@ -1,4 +1,4 @@
-FROM ruby:3.3-slim-bookworm
+FROM ruby:3.3
 
 # Install dependencies
 RUN apt-get update && \
