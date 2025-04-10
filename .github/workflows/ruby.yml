@@ -3,8 +3,11 @@ name: Ruby CI
 on:
   push:
     branches: [ main, master ]
+    tags:
+      - 'v**'
   pull_request:
     branches: [ main, master ]
+
 env:
   SHOW_CONTAINER_LOGS: true
   DISABLE_CHROME_SANDBOX: true
