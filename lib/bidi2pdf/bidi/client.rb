@@ -24,14 +24,15 @@ module Bidi2pdf
       def start
         return @socket if started?
 
-        @socket = WebSocket::Client::Simple.connect(ws_url)
+        WebSocket::Client::Simple.connect(ws_url) do |socket|
+          @socket = socket
+          @command_manager = CommandManager.new(@socket, logger: Bidi2pdf.logger)
 
-        @command_manager = CommandManager.new(@socket, logger: Bidi2pdf.logger)
+          dispatcher.on_open { @connection_manager.mark_connected }
+          dispatcher.on_message { |data| handle_response_to_cmd(data) }
+          dispatcher.start_listening
+        end
 
-        dispatcher.on_open { @connection_manager.mark_connected }
-        dispatcher.on_message { |data| handle_response_to_cmd(data) }
-
-        dispatcher.start_listening
         @started = true
 
         @socket
