@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "testcontainers"
 
 RSpec.describe Bidi2pdf::Bidi::AuthInterceptor do
   subject(:interceptor) { described_class.new(username: "test", password: "<PASSWORD>", url_patterns: ["*"], context: "my-id") }

@@ -88,6 +88,13 @@ module Bidi2pdf
         end
       end
 
+      def view_html_page(html_content)
+        base64_encoded = Base64.strict_encode64(html_content)
+        data_url = "data:text/html;charset=utf-8;base64,#{base64_encoded}"
+
+        open_page(data_url)
+      end
+
       def execute_script(script)
         cmd = Bidi2pdf::Bidi::Commands::ScriptEvaluate.new context: browsing_context_id, expression: script
         client.send_cmd_and_wait(cmd) do |response|

@@ -6,6 +6,14 @@ module Bidi2pdf
       class SetTabCookie
         include Base
 
+        class << self
+          attr_writer :time_provider
+
+          def time_provider
+            @time_provider ||= -> { Time.now }
+          end
+        end
+
         attr_reader :name, :value, :domain, :path, :secure, :http_only, :same_site, :ttl, :browsing_context_id
 
         def initialize(name:,
@@ -29,7 +37,7 @@ module Bidi2pdf
         end
 
         def expiry
-          Time.now.to_i + ttl
+          self.class.time_provider.call.to_i + ttl
         end
 
         def method_name

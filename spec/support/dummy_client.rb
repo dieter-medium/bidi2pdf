@@ -17,7 +17,7 @@ class DummyClient < Bidi2pdf::Bidi::Client
     yield response
   end
 
-  def on_event(event)
-    @event_params = [event]
+  def on_event(*names)
+    @event_params = names
   end
 end

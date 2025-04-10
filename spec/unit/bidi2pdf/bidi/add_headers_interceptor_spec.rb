@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "testcontainers"
 
 RSpec.describe Bidi2pdf::Bidi::AddHeadersInterceptor do
   subject(:interceptor) { described_class.new(headers: [{ name: "X-Test", value: "test" }], url_patterns: ["*"], context: "my-id") }

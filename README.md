@@ -143,6 +143,10 @@ tab.basic_auth(url_patterns: [{ type: "pattern", protocol: "https", hostname: "e
 
 # 4. Render PDF
 tab.open_page "https://example.com"
+
+# Alternative: send html code to the browser
+# tab.view_html_page("<html>...</html>")
+
 tab.wait_until_all_finished
 tab.print("my.pdf")
 

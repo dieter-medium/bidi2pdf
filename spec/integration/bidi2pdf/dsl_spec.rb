@@ -11,7 +11,7 @@ RSpec.describe Bidi2pdf::DSL, :chromedriver, :nginx, :session do
   end
 
   after do
-    FileUtils.rm_f(pdf_path)
+    FileUtils.rm_f(tmp_path)
   end
 
   context "with local chrome" do
