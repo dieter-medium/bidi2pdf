@@ -111,7 +111,8 @@ module Bidi2pdf
         @open = false
       end
 
-      def print(outputfile, print_options: { background: true })
+      # rubocop: disable Metrics/AbcSize
+      def print(outputfile = nil, print_options: { background: true }, &block)
         cmd = Bidi2pdf::Bidi::Commands::BrowsingContextPrint.new context: browsing_context_id, print_options: print_options
 
         client.send_cmd_and_wait(cmd) do |response|
@@ -125,12 +126,16 @@ module Bidi2pdf
               Bidi2pdf.logger.info "PDF generated successfully."
             end
 
-            return pdf_base64 unless outputfile
+            block.call(pdf_base64) if block_given?
+
+            return pdf_base64 unless outputfile || block_given?
           else
             Bidi2pdf.logger.error "Error printing: #{response}"
           end
         end
       end
+
+      # rubocop: enable Metrics/AbcSize
 
       private
 
