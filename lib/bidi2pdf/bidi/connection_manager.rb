@@ -27,7 +27,7 @@ module Bidi2pdf
             @connection_queue.pop
           end
         rescue Timeout::Error
-          raise Bidi2pdf::WebsocketError, "WebSocket connection did not open in time"
+          raise Bidi2pdf::WebsocketError, "WebSocket connection did not open in time #{timeout} sec."
         end
 
         true
