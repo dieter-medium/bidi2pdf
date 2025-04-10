@@ -111,7 +111,7 @@ module Bidi2pdf
         @open = false
       end
 
-      # rubocop: disable Metrics/AbcSize
+      # rubocop: disable Metrics/AbcSize, Metrics/PerceivedComplexity
       def print(outputfile = nil, print_options: { background: true }, &block)
         cmd = Bidi2pdf::Bidi::Commands::BrowsingContextPrint.new context: browsing_context_id, print_options: print_options
 
@@ -120,6 +120,8 @@ module Bidi2pdf
             pdf_base64 = response["result"]["data"]
 
             if outputfile
+              raise PrintError, "Folder does not exist: #{File.dirname(outputfile)}" unless File.directory?(File.dirname(outputfile))
+
               File.binwrite(outputfile, Base64.decode64(pdf_base64))
               Bidi2pdf.logger.info "PDF saved as '#{outputfile}'."
             else
@@ -135,7 +137,7 @@ module Bidi2pdf
         end
       end
 
-      # rubocop: enable Metrics/AbcSize
+      # rubocop: enable Metrics/AbcSize, Metrics/PerceivedComplexity
 
       private
 

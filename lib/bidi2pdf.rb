@@ -4,6 +4,7 @@ require_relative "bidi2pdf/utils"
 require_relative "bidi2pdf/process_tree"
 require_relative "bidi2pdf/launcher"
 require_relative "bidi2pdf/bidi/session"
+require_relative "bidi2pdf/dsl"
 
 require "logger"
 
@@ -22,8 +23,10 @@ module Bidi2pdf
 
   class CmdTimeoutError < ClientError; end
 
+  class PrintError < Error; end
+
   @logger = Logger.new($stdout)
-  @logger.level = Logger::DEBUG
+  @logger.level = Logger::INFO
 
   @default_timeout = 60
 
