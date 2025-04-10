@@ -7,9 +7,10 @@ require_relative "bidi/session"
 module Bidi2pdf
   class Launcher
     # rubocop:disable Metrics/ParameterLists
-    def initialize(url:, output:, cookies:, headers:, auth:, headless: true, port: 0, wait_window_loaded: false,
+    def initialize(url:, inputfile:, output:, cookies:, headers:, auth:, headless: true, port: 0, wait_window_loaded: false,
                    wait_network_idle: false, print_options: {}, remote_browser_url: nil)
       @url = url
+      @inputfile = inputfile
       @port = port
       @headless = headless
       @output = output
@@ -30,6 +31,7 @@ module Bidi2pdf
       runner = SessionRunner.new(
         session: session,
         url: @url,
+        inputfile: @inputfile,
         output: @output,
         cookies: @cookies,
         headers: @headers,

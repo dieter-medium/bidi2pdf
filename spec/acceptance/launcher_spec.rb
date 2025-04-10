@@ -7,6 +7,7 @@ RSpec.describe "PDF Generation", :nginx do
   subject(:launcher) do
     Bidi2pdf::Launcher.new(
       url: url,
+      inputfile: nil,
       output: output,
       cookies: cookies,
       headers: headers,
@@ -131,6 +132,39 @@ RSpec.describe "PDF Generation", :nginx do
 
     it "I can see the expected content in my generated PDF" do
       pdf_data = Base64.decode64(launcher.launch)
+
+      with_pdf_debug(pdf_data) do
+        io = StringIO.new(pdf_data)
+
+        PDF::Reader.open(io) do |reader|
+          text = reader.pages.map(&:text).join
+          expect(text).to include("PDF Rendering Sample")
+        end
+      end
+    end
+  end
+
+  describe "As a user with a local html file" do
+    subject(:launcher) do
+      Bidi2pdf::Launcher.new(
+        url: nil,
+        inputfile: fixture_file("sample.html"),
+        output: output,
+        cookies: cookies,
+        headers: headers,
+        auth: auth,
+        remote_browser_url: @chromedriver_manager.session_url,
+        headless: true,
+        wait_window_loaded: false, # the assets have relative paths and are not loaded, so we can't wait for the event
+        wait_network_idle: true,
+        print_options: print_options
+      )
+    end
+
+    it "I can generate a PDF file" do
+      pdf_data = Base64.decode64(launcher.launch)
+
+      sleep 10
 
       with_pdf_debug(pdf_data) do
         io = StringIO.new(pdf_data)

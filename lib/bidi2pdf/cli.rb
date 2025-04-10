@@ -31,6 +31,10 @@ module Bidi2pdf
     USAGE
 
     option :url, desc: "The URL to render"
+    # of course, it's possible to render a local file via: --url file:///path/to/the/file.html
+    # but this should showcase the scenario that you render a string within ruby as pdf without the need
+    # to store it on disc
+    option :html_file, desc: "The local HTML file to render"
     option :output, default: "output.pdf", desc: "Filename for the output PDF", aliases: "-o"
     option :cookie, type: :array, default: [], banner: "name=value", desc: "One or more cookies", aliases: "-C"
     option :header, type: :array, default: [], banner: "name=value", desc: "One or more custom headers", aliases: "-H"
@@ -63,7 +67,7 @@ module Bidi2pdf
     def render
       load_config
 
-      validate_required_options! :url
+      validate_required_options!
 
       configure
 
@@ -115,9 +119,11 @@ module Bidi2pdf
       YAML.load_file(options[:config]).transform_keys(&:to_sym)
     end
 
-    def validate_required_options!(*keys)
-      keys.each do |key|
-        raise Thor::Error, "Missing required option: --#{key.to_s.tr("_", "-")}" unless merged_options[key]
+    def validate_required_options!
+      if merged_options[:url].nil? && merged_options[:html_file].nil?
+        raise Thor::Error, "Missing required option --url or --html_file needs to be specified"
+      elsif merged_options[:html_file] && !File.readable?(merged_options[:html_file])
+        raise Thor::Error, "HTML file '#{merged_options[:html_file]}' not found or not readable"
       end
     end
 
@@ -182,6 +188,7 @@ module Bidi2pdf
 
                       Bidi2pdf::Launcher.new(
                         url: merged_options[:url],
+                        inputfile: merged_options[:hmtl_file],
                         output: merged_options[:output],
                         cookies: parse_key_values(merged_options[:cookie]),
                         headers: parse_key_values(merged_options[:header]),

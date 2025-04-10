@@ -23,7 +23,7 @@ RSpec.describe Bidi2pdf::CLI do
       it "raises a Thor::Error" do
         expect do
           cli_runner.invoke(:render)
-        end.to raise_error(Thor::Error, /Missing required option: --url/)
+        end.to raise_error(Thor::Error, /Missing required option --url.*/)
       end
     end
 

@@ -2,10 +2,11 @@
 
 module Bidi2pdf
   class SessionRunner
-    def initialize(session:, url:, output:, cookies: {}, headers: {}, auth: {}, wait_window_loaded: false,
+    def initialize(session:, url:, inputfile:, output:, cookies: {}, headers: {}, auth: {}, wait_window_loaded: false,
                    wait_network_idle: false, print_options: {})
       @session = session
       @url = url
+      @inputfile = inputfile
       @output = output
       @cookies = cookies || {}
       @headers = headers || {}
@@ -75,7 +76,13 @@ module Bidi2pdf
       @session.status
       @session.user_contexts
 
-      @tab.open_page(@url)
+      if @url
+        @tab.open_page(@url)
+      else
+        Bidi2pdf.logger.info "Loading HTML file #{@inputfile}"
+        data = File.read(@inputfile)
+        @tab.view_html_page(data)
+      end
 
       if @wait_network_idle
         Bidi2pdf.logger.info "Waiting for network idle"
