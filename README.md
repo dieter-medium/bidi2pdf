@@ -162,14 +162,35 @@ session.close
 
 ## 🐳 Docker Support
 
-### Build & Run
+### 🛠️ Build & Run Locally
 
 ```bash
+# Prepare the environment
 rake build
+
+# Build the Docker image
 docker build -t bidi2pdf -f docker/Dockerfile .
-docker run -it --rm -v ./output:/reports bidi2pdf \
+
+# Run the container and generate a PDF
+docker run -it --rm \
+  -v ./output:/reports \
+  bidi2pdf \
+  bidi2pdf render --url=https://example.com --output /reports/example.pdf
+
+```
+
+### ⚡ Use the Prebuilt Image (Recommended for Fast Start)
+
+Grab it directly from [Docker Hub](https://hub.docker.com/r/dieters877565/bidi2pdf)
+
+```bash
+docker run -it --rm \
+  -v ./output:/reports \
+  dieters877565/bidi2pdf:main \
   bidi2pdf render --url=https://example.com --output /reports/example.pdf
 ```
+
+✅ Tip: Mount your local directory (e.g. ./output) to /reports in the container to easily access the generated PDFs.
 
 ### Docker Compose
 
