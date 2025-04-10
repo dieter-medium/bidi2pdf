@@ -82,6 +82,113 @@ launcher.launch
 # see Bidi2pdf::SessionRunner for more options
 ```
 
+#### Step by step
+
+```ruby 
+require "bidi2pdf"
+
+# 1. Setup session: Local or Remote?
+# ----------------------------------
+
+# Option A: Remote browser (headless by default)
+# First ensure remote service is running e.g., `docker compose -f docker/docker-compose.yml up -d`
+session = Bidi2pdf::Bidi::Session.new(
+  session_url: "http://localhost:9092/session",
+  headless: true, # usually mandatory for remote sessions
+)
+
+# Option B: Local browser (you control the session lifecycle)
+manager = Bidi2pdf::ChromedriverManager.new(headless: false)
+manager.start
+session = manager.session
+
+session.start
+session.client.on_close { Bidi2pdf.logger.info "WebSocket session closed" }
+
+# 2. Create browser context, window, and tab
+# ------------------------------------------
+browser = session.browser
+user_context = browser.create_user_context
+window = user_context.create_browser_window
+tab = window.create_browser_tab
+
+# 3. Configure session (Optional)
+# -------------------------------
+
+# Set session cookies (if needed)
+tab.set_cookie(
+  name: "auth",
+  value: "secret",
+  domain: "www.example.com",
+  secure: true
+)
+
+# Inject custom API headers (if needed)
+tab.add_headers(
+  url_patterns: [
+    {
+      type: "pattern",
+      protocol: "https",
+      hostname: "www.example.com",
+      port: "443"
+    }
+  ],
+  headers: [
+    { name: "X-API-KEY", value: "12345678" }
+  ]
+)
+
+# Enable basic auth (if needed)
+tab.basic_auth(
+  url_patterns: [
+    {
+      type: "pattern",
+      protocol: "https",
+      hostname: "www.example.com",
+      port: "443"
+    }
+  ],
+  username: "username",
+  password: "secret"
+)
+
+# 4. Open page and wait for loading completion
+# --------------------------------------------
+tab.open_page "https://www.example.com"
+
+# Wait until all network activity completes.
+# CAUTION: be careful with endpoints that constantly poll or stream data
+tab.wait_until_all_finished
+
+# Alternatively, explicitly wait using JavaScript polling (uncomment and customize if needed)
+# tab.execute_script <<-JS
+#   new Promise(resolve => {
+#     const check = () => window.loaded ? resolve('done') : setTimeout(check, 100);
+#     check();
+#   });
+# JS
+
+# 5. Generate PDF from page
+# -------------------------
+# Save PDF directly to file
+tab.print("my.pdf")
+
+# Or handle PDF data in memory
+# tab.print do |base64_encoded_pdf|
+#   pdf_data = Base64.decode64(base64_encoded_pdf)
+#   # ... custom actions (e.g., store in database, send via email)
+# end
+
+# 6. Cleanup resources
+# --------------------
+tab.close
+window.close
+
+session.close if session
+manager&.stop
+
+```
+
 ## Docker Support
 
 Build and run with Docker:
