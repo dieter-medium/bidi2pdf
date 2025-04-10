@@ -19,6 +19,7 @@ if ENV["COVERAGE"]
 
     add_filter "/spec/"
     add_filter "/vendor/"
+    add_filter "lib/bidi2pdf/version.rb"
     # Add any other paths you want to exclude
 
     add_group "Lib", "lib"
