@@ -3,13 +3,14 @@
 require "base64"
 
 require_relative "network_events"
+require_relative "logger_events"
 require_relative "auth_interceptor"
 require_relative "add_headers_interceptor"
 
 module Bidi2pdf
   module Bidi
     class BrowserTab
-      attr_reader :client, :browsing_context_id, :user_context_id, :tabs, :network_events, :open
+      attr_reader :client, :browsing_context_id, :user_context_id, :tabs, :network_events, :open, :logger_events
 
       def initialize(client, browsing_context_id, user_context_id)
         @client = client
@@ -17,6 +18,7 @@ module Bidi2pdf
         @user_context_id = user_context_id
         @tabs = []
         @network_events = NetworkEvents.new browsing_context_id
+        @logger_events = LoggerEvents.new browsing_context_id
         @open = true
       end
 
@@ -80,6 +82,9 @@ module Bidi2pdf
       def open_page(url)
         client.on_event("network.responseStarted", "network.responseCompleted", "network.fetchError",
                         &network_events.method(:handle_event))
+
+        client.on_event("log.entryAdded",
+                        &logger_events.method(:handle_event))
 
         cmd = Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new url: url, context: browsing_context_id
 

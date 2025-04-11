@@ -175,6 +175,24 @@
 <script>
     window.loaded = false; // make it global
 
+    // for testing console log within specs
+    console.log("Hello from spec!");
+    console.info("Hello from spec!");
+    console.warn("Hello from spec!");
+    console.error("Hello from spec!");
+    console.debug("Hello from spec!");
+    console.trace("Hello from spec!");
+    console.count("counter-label-1");
+    console.count("counter-label-1");
+    console.count("counter-label-1");
+    console.countReset("counter-label-1");
+    console.dir({a: 1, b: 2});
+
+    console.group("group-label-1");
+    console.log("Hello from spec!");
+
+    console.info({a: 1, b: 2});
+
     class PageJsReadyHandler extends Paged.Handler {
         constructor(chunker, polisher, caller) {
             super(chunker, polisher, caller);

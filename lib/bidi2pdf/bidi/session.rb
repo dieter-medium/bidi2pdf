@@ -10,7 +10,7 @@ require_relative "user_context"
 module Bidi2pdf
   module Bidi
     class Session
-      SUBSCRIBE_EVENTS = %w[log script].freeze
+      SUBSCRIBE_EVENTS = %w[script].freeze
       DEFAULT_CHROME_ARGS = %w[--disable-gpu --disable-popup-blocking --disable-hang-monitor].freeze
 
       attr_reader :session_uri, :started, :chrome_args

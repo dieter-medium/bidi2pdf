@@ -66,7 +66,12 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
 
     it "registers an event handler for the network events" do
       browser_tab.open_page("https://example.com")
-      expect(client.event_params).to include("network.responseStarted", "network.responseCompleted", "network.fetchError")
+      expect(client.event_params(0)).to include("network.responseStarted", "network.responseCompleted", "network.fetchError")
+    end
+
+    it "registers an event handler for the log events" do
+      browser_tab.open_page("https://example.com")
+      expect(client.event_params(1)).to include("log.entryAdded")
     end
   end
 
