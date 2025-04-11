@@ -3,7 +3,8 @@
 module Bidi2pdf
   module Bidi
     class NetworkEvent
-      attr_reader :id, :url, :state, :start_timestamp, :end_timestamp, :timing
+      attr_reader :id, :url, :state, :start_timestamp, :end_timestamp, :timing, :http_status_code,
+                  :http_method, :bytes_received
 
       STATE_MAP = {
         "network.responseStarted" => "started",
@@ -11,18 +12,22 @@ module Bidi2pdf
         "network.fetchError" => "error"
       }.freeze
 
-      def initialize(id:, url:, timestamp:, timing:, state:)
+      def initialize(id:, url:, timestamp:, timing:, state:, http_status_code: nil, http_method: nil)
         @id = id
         @url = url
         @start_timestamp = timestamp
         @timing = timing
         @state = map_state(state)
+        @http_status_code = http_status_code
+        @http_method = http_method
       end
 
-      def update_state(new_state, timestamp: nil, timing: nil)
+      def update_state(new_state, timestamp: nil, timing: nil, http_status_code: nil, bytes_received: nil)
         @state = map_state(new_state)
         @end_timestamp = timestamp if timestamp
         @timing = timing if timing
+        @http_status_code = http_status_code if http_status_code
+        @bytes_received = bytes_received if bytes_received
       end
 
       def map_state(state)
@@ -44,10 +49,23 @@ module Bidi2pdf
       def in_progress? = state == "started"
 
       def to_s
-        took_str = duration_seconds ? "took #{duration_seconds} sec" : "in progress"
-        "#<NetworkEvent id=#{@id} url=#{@url} state=#{@state} " \
-          "start=#{format_timestamp(@start_timestamp)} " \
-          "end=#{format_timestamp(@end_timestamp)} #{took_str}>"
+        took_str = duration_seconds ? "#{duration_seconds.round(2)} sec" : "in progress"
+        http_status = @http_status_code ? "HTTP #{@http_status_code}" : "HTTP (N/A)"
+        start_str = format_timestamp(@start_timestamp) || "N/A"
+        end_str = format_timestamp(@end_timestamp) || "N/A"
+        method_str = @http_method || "N/A"
+        bytes_str = @bytes_received ? "#{@bytes_received} bytes" : "0 bytes"
+
+        "#<NetworkEvent " \
+          "id=#{@id.inspect}, " \
+          "method=#{method_str.inspect}, " \
+          "url=#{@url.inspect}, " \
+          "state=#{@state.inspect}, " \
+          "#{http_status}, " \
+          "bytes_received=#{bytes_str}, " \
+          "start=#{start_str}, " \
+          "end=#{end_str}, " \
+          "duration=#{took_str}>"
       end
     end
   end

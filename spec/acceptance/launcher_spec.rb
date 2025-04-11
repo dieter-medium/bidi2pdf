@@ -31,6 +31,8 @@ RSpec.describe "PDF Generation", :nginx do
   before(:all) do
     Bidi2pdf.configure do |config|
       config.logger.level = Logger::INFO
+      config.network_events_logger.level = Logger::INFO
+
       Chromedriver::Binary.configure { |c| c.logger.level = Logger::INFO }
     end
 
@@ -58,6 +60,10 @@ RSpec.describe "PDF Generation", :nginx do
 
   after(:all) do
     @chromedriver_manager&.stop
+
+    Bidi2pdf.configure do |config|
+      config.network_events_logger.level = Logger::FATAL
+    end
 
     Chromedriver::Binary.configure do |config|
       current_dir = config.install_dir

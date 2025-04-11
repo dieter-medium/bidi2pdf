@@ -72,6 +72,7 @@ module Bidi2pdf
       )
     end
 
+    # rubocop: disable Metrics/AbcSize
     def run_flow
       @session.status
       @session.user_contexts
@@ -89,6 +90,8 @@ module Bidi2pdf
         @tab.wait_until_all_finished
       end
 
+      @tab.log_network_traffic
+
       if @wait_window_loaded
         Bidi2pdf.logger.info "Waiting for window to be loaded"
         @tab.execute_script <<-EOF_SCRIPT
@@ -101,6 +104,8 @@ module Bidi2pdf
       @tab.close
       @window.close
     end
+
+    # rubocop: enable Metrics/AbcSize
 
     def uri
       @uri ||= URI(@url)

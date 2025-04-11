@@ -26,12 +26,14 @@ module Bidi2pdf
   class PrintError < Error; end
 
   @logger = Logger.new($stdout)
+  @network_events_logger = Logger.new($stdout)
   @logger.level = Logger::INFO
+  @network_events_logger.level = Logger::FATAL
 
   @default_timeout = 60
 
   class << self
-    attr_accessor :logger, :default_timeout
+    attr_accessor :logger, :default_timeout, :network_events_logger
 
     # Allow configuration through a block
     def configure

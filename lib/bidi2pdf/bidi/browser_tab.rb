@@ -113,6 +113,10 @@ module Bidi2pdf
         network_events.wait_until_all_finished(timeout: timeout, poll_interval: poll_interval)
       end
 
+      def log_network_traffic
+        network_events.log_network_traffic
+      end
+
       def close
         return unless open
 

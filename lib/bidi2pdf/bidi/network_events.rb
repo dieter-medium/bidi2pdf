@@ -1,15 +1,17 @@
 # frozen_string_literal: true
 
 require_relative "network_event"
+require_relative "network_event_formatter"
 
 module Bidi2pdf
   module Bidi
     class NetworkEvents
-      attr_reader :context_id, :events
+      attr_reader :context_id, :events, :network_event_formatter
 
       def initialize(context_id)
         @context_id = context_id
         @events = {}
+        @network_event_formatter = NetworkEventFormatter.new
       end
 
       def handle_event(data)
@@ -30,10 +32,14 @@ module Bidi2pdf
         return unless event && event["request"]
 
         request = event["request"]
+        response = event["response"]
+        http_status_code = response&.dig("status")
+        bytes_received = response&.dig("bytesReceived")
 
         id = request["request"]
         url = request["url"]
         timing = request["timings"]
+        http_method = request["method"]
 
         timestamp = event["timestamp"]
 
@@ -43,10 +49,11 @@ module Bidi2pdf
             url: url,
             timestamp: timestamp,
             timing: timing,
-            state: method
+            state: method,
+            http_method: http_method
           )
         elsif events.key?(id)
-          events[id].update_state(method, timestamp: timestamp, timing: timing)
+          events[id].update_state(method, timestamp: timestamp, timing: timing, http_status_code: http_status_code, bytes_received: bytes_received)
         else
           Bidi2pdf.logger.warn "Received response for unknown request ID: #{id}, URL: #{url}"
         end
@@ -56,6 +63,12 @@ module Bidi2pdf
 
       def all_events
         events.values.sort_by(&:start_timestamp)
+      end
+
+      def log_network_traffic
+        all_events.each do |event|
+          network_event_formatter.log event
+        end
       end
 
       def wait_until_all_finished(timeout: 10, poll_interval: 0.1)
