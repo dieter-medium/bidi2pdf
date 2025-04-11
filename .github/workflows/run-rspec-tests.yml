@@ -15,6 +15,9 @@ on:
 
 jobs:
   rspec-tests:
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
     env:
       SHOW_CONTAINER_LOGS: true
