@@ -105,6 +105,15 @@ jobs:
       - gem-build
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant:
+          - name: default
+            file: ./docker/Dockerfile
+            suffix: ""
+          - name: slim
+            file: ./docker/Dockerfile.slim
+            suffix: "-slim"
     permissions:
       packages: write
       contents: read
@@ -120,6 +129,9 @@ jobs:
           name: bidi2pdf-gem
           path: pkg
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
@@ -131,14 +143,18 @@ jobs:
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
           images: dieters877565/bidi2pdf
+          tags: |
+            type=ref,event=branch,suffix=${{matrix.variant.suffix}}
+            type=semver,pattern={{version}}${{matrix.variant.suffix}}
 
       - name: Build and push Docker image
         id: push
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
         with:
           context: .
-          file: ./docker/Dockerfile
+          file: ${{ matrix.variant.file }}
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 

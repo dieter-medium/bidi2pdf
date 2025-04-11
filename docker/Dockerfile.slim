@@ -1,4 +1,37 @@
-FROM ruby:3.3
+FROM ruby:3.3-slim AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
+RUN apt-get update && apt-get upgrade && \
+    apt-get install -y --no-install-recommends \
+    chromium \
+    libglib2.0-0 \
+    libnss3 \
+    libxss1 \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libdrm2 \
+    curl \
+    unzip \
+    xvfb \
+    build-essential \
+    libpq-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy your gem into container
+COPY ./pkg/bidi2pdf-*.gem ./
+
+RUN gem install ./bidi2pdf-*.gem
+
+
+# Stage 2
+
+FROM ruby:3.3-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -18,6 +51,8 @@ RUN apt-get update && apt-get upgrade &&\
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
+COPY --from=builder /usr/local/bundle /usr/local/bundle
+
 # Create a non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -m -d /home/appuser appuser
 
@@ -31,13 +66,10 @@ RUN mkdir -p /home/appuser/.webdrivers && ln -s /usr/bin/chromedriver /home/appu
 # Set working directory
 WORKDIR /app
 
-# Copy your gem into container
-COPY ./pkg/bidi2pdf-*.gem ./
-
-RUN gem install ./bidi2pdf-*.gem && \
-    chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
 
 CMD ["/usr/bin/bash"]
+

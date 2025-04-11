@@ -186,7 +186,7 @@ Grab it directly from [Docker Hub](https://hub.docker.com/r/dieters877565/bidi2p
 ```bash
 docker run -it --rm \
   -v ./output:/reports \
-  dieters877565/bidi2pdf:main \
+  dieters877565/bidi2pdf:main-slim \
   bidi2pdf render --url=https://example.com --output /reports/example.pdf
 ```
 
