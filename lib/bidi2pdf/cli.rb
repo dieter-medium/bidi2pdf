@@ -51,6 +51,7 @@ module Bidi2pdf
     option :log_level,
            type: :string,
            default: "info", enum: %w[debug info warn error fatal unknown], desc: "Set log level"
+    option :log_network_traffic, type: :boolean, default: false, desc: "Log network traffic", aliases: "-n"
 
     option :background, type: :boolean, default: true, desc: "Print background graphics"
     option :margin_top, type: :numeric, default: 1.0, desc: "Top margin in inches"
@@ -63,6 +64,12 @@ module Bidi2pdf
     option :page_ranges, type: :array, desc: "Page ranges to print (e.g., 1-2 4 6)"
     option :scale, type: :numeric, default: 1.0, desc: "Scale between 0.1 and 2.0"
     option :shrink_to_fit, type: :boolean, default: true, desc: "Shrink content to fit page"
+
+    class << self
+      def exit_on_failure?
+        true
+      end
+    end
 
     def render
       load_config
@@ -208,6 +215,9 @@ module Bidi2pdf
     def configure
       Bidi2pdf.configure do |config|
         config.logger.level = log_level
+
+        config.network_events_logger.level = Logger::INFO if merged_options[:log_network_traffic]
+
         config.default_timeout = merged_options[:default_timeout]
 
         Chromedriver::Binary.configure do |c|
