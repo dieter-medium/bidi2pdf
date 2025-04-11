@@ -1,6 +1,13 @@
 name: Ruby CI
 
 on:
+  workflow_dispatch:
+    inputs:
+      dockerImageTag:
+        description: 'Docker image tag'
+        required: false
+        type: string
+  
   push:
     branches: [ main, master ]
     tags:
@@ -144,6 +151,7 @@ jobs:
         with:
           images: dieters877565/bidi2pdf
           tags: |
+            type=raw,value=${{ inputs.dockerImageTag }},enable=${{ inputs.dockerImageTag != '' }}
             type=ref,event=branch,suffix=${{matrix.variant.suffix}}
             type=semver,pattern={{version}}${{matrix.variant.suffix}}
 
