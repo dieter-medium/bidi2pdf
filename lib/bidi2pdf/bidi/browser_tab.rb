@@ -7,11 +7,57 @@ require_relative "logger_events"
 require_relative "auth_interceptor"
 require_relative "add_headers_interceptor"
 
+# Represents a browser tab for managing interactions and communication
+# using the Bidi2pdf library. This class provides methods for creating
+# browser tabs, managing cookies, navigating to URLs, executing scripts,
+# and handling network events.
+#
+# @example Creating a browser tab
+#   browser_tab = Bidi2pdf::Bidi::BrowserTab.new(client, browsing_context_id, user_context_id)
+#   browser_tab.create_browser_tab
+#
+# @example Navigating to a URL
+#   browser_tab.navigate_to("http://example.com")
+#
+# @example Setting a cookie
+#   browser_tab.set_cookie(
+#     name: "session",
+#     value: "abc123",
+#     domain: "example.com"
+#   )
+#
+# @param [Object] client The WebSocket client for communication.
+# @param [String] browsing_context_id The ID of the browsing context.
+# @param [String] user_context_id The ID of the user context.
 module Bidi2pdf
   module Bidi
     class BrowserTab
-      attr_reader :client, :browsing_context_id, :user_context_id, :tabs, :network_events, :open, :logger_events
+      # @return [Object] The WebSocket client.
+      attr_reader :client
 
+      # @return [String] The browsing context ID.
+      attr_reader :browsing_context_id
+
+      # @return [String] The user context ID.
+      attr_reader :user_context_id
+
+      # @return [Array<BrowserTab>] The list of tabs.
+      attr_reader :tabs
+
+      # @return [NetworkEvents] The network events handler.
+      attr_reader :network_events
+
+      # @return [Boolean] Whether the tab is open.
+      attr_reader :open
+
+      # @return [LoggerEvents] The logger events handler.
+      attr_reader :logger_events
+
+      # Initializes a new browser tab.
+      #
+      # @param [Object] client The WebSocket client for communication.
+      # @param [String] browsing_context_id The ID of the browsing context.
+      # @param [String] user_context_id The ID of the user context.
       def initialize(client, browsing_context_id, user_context_id)
         @client = client
         @browsing_context_id = browsing_context_id
@@ -22,6 +68,9 @@ module Bidi2pdf
         @open = true
       end
 
+      # Creates a new browser tab.
+      #
+      # @return [BrowserTab] The newly created browser tab.
       def create_browser_tab
         cmd = Bidi2pdf::Bidi::Commands::CreateTab.new(user_context_id: user_context_id)
         client.send_cmd_and_wait(cmd) do |response|
@@ -34,6 +83,16 @@ module Bidi2pdf
         end
       end
 
+      # Sets a cookie in the browser tab.
+      #
+      # @param [String] name The name of the cookie.
+      # @param [String] value The value of the cookie.
+      # @param [String] domain The domain for the cookie.
+      # @param [String] path The path for the cookie. Defaults to "/".
+      # @param [Boolean] secure Whether the cookie is secure. Defaults to true.
+      # @param [Boolean] http_only Whether the cookie is HTTP-only. Defaults to false.
+      # @param [String] same_site The SameSite attribute for the cookie. Defaults to "strict".
+      # @param [Integer] ttl The time-to-live for the cookie in seconds. Defaults to 30.
       def set_cookie(
         name:,
         value:,
@@ -60,6 +119,11 @@ module Bidi2pdf
         end
       end
 
+      # Adds headers to requests in the browser tab.
+      #
+      # @param [Hash] headers The headers to add.
+      # @param [Array<String>] url_patterns The URL patterns to match.
+      # @return [AddHeadersInterceptor] The interceptor instance.
       def add_headers(
         headers:,
         url_patterns:
@@ -71,6 +135,12 @@ module Bidi2pdf
         ).tap { |interceptor| interceptor.register_with_client(client: client) }
       end
 
+      # Configures basic authentication for requests in the browser tab.
+      #
+      # @param [String] username The username for authentication.
+      # @param [String] password The password for authentication.
+      # @param [Array<String>] url_patterns The URL patterns to match.
+      # @return [AuthInterceptor] The interceptor instance.
       def basic_auth(username:, password:, url_patterns:)
         AuthInterceptor.new(
           context: browsing_context_id,
@@ -79,6 +149,9 @@ module Bidi2pdf
         ).tap { |interceptor| interceptor.register_with_client(client: client) }
       end
 
+      # Navigates the browser tab to a specified URL.
+      #
+      # @param [String] url The URL to navigate to.
       def navigate_to(url)
         client.on_event("network.beforeRequestSent", "network.responseStarted", "network.responseCompleted", "network.fetchError",
                         &network_events.method(:handle_event))
@@ -93,6 +166,9 @@ module Bidi2pdf
         end
       end
 
+      # Renders HTML content in the browser tab.
+      #
+      # @param [String] html_content The HTML content to render.
       def render_html_content(html_content)
         base64_encoded = Base64.strict_encode64(html_content)
         data_url = "data:text/html;charset=utf-8;base64,#{base64_encoded}"
@@ -100,6 +176,10 @@ module Bidi2pdf
         navigate_to(data_url)
       end
 
+      # Executes a script in the browser tab.
+      #
+      # @param [String] script The script to execute.
+      # @return [Object] The result of the script execution.
       def execute_script(script)
         cmd = Bidi2pdf::Bidi::Commands::ScriptEvaluate.new context: browsing_context_id, expression: script
         client.send_cmd_and_wait(cmd) do |response|
@@ -109,10 +189,20 @@ module Bidi2pdf
         end
       end
 
+      # Waits until the network is idle in the browser tab.
+      #
+      # @param [Integer] timeout The timeout duration in seconds. Defaults to 10.
+      # @param [Float] poll_interval The polling interval in seconds. Defaults to 0.1.
       def wait_until_network_idle(timeout: 10, poll_interval: 0.1)
         network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
       end
 
+      # Logs network traffic in the browser tab.
+      #
+      # @param [Symbol] format The format for logging (:console or :pdf). Defaults to :console.
+      # @param [String, nil] output The output file for PDF logging. Defaults to nil.
+      # @param [Hash] print_options Options for printing. Defaults to { background: true }.
+      # @yield [pdf_base64] A block to handle the PDF content.
       def log_network_traffic(format: :console, output: nil, print_options: { background: true }, &)
         format = format.to_sym
 
@@ -134,6 +224,7 @@ module Bidi2pdf
         end
       end
 
+      # Closes the browser tab and its associated resources.
       def close
         return unless open
 
@@ -144,7 +235,13 @@ module Bidi2pdf
         @open = false
       end
 
-      # rubocop: disable Metrics/AbcSize, Metrics/PerceivedComplexity
+      # Prints the content of the browser tab.
+      #
+      # @param [String, nil] outputfile The output file for the PDF. Defaults to nil.
+      # @param [Hash] print_options Options for printing. Defaults to { background: true }.
+      # @yield [pdf_base64] A block to handle the PDF content.
+      # @return [String, nil] The base64-encoded PDF content, or nil if outputfile or block is provided.
+      # rubocop:disable Metrics/AbcSize, Metrics/PerceivedComplexity
       def print(outputfile = nil, print_options: { background: true }, &block)
         cmd = Bidi2pdf::Bidi::Commands::BrowsingContextPrint.new context: browsing_context_id, print_options: print_options
 
@@ -170,10 +267,11 @@ module Bidi2pdf
         end
       end
 
-      # rubocop: enable Metrics/AbcSize, Metrics/PerceivedComplexity
+      # rubocop:enable Metrics/AbcSize, Metrics/PerceivedComplexity
 
       private
 
+      # Closes the browsing context.
       def close_context
         that = self
         cmd = Bidi2pdf::Bidi::Commands::BrowsingContextClose.new context: browsing_context_id
@@ -182,6 +280,7 @@ module Bidi2pdf
         end
       end
 
+      # Removes event listeners for the browser tab.
       def remove_event_listeners
         Bidi2pdf.logger.debug "Network events: #{network_events.all_events.map(&:to_s)}"
 
@@ -189,6 +288,7 @@ module Bidi2pdf
                                      &network_events.method(:handle_event)
       end
 
+      # Closes all tabs associated with the browser tab.
       def close_tabs
         tabs.each do |tab|
           tab.close

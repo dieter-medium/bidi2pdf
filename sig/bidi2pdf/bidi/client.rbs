@@ -34,7 +34,7 @@ module Bidi2pdf
 
       def wait_until_open: (?timeout: untyped) -> untyped
 
-      def send_cmd: (untyped method, ?::Hash[untyped, untyped] params) -> untyped
+      def send_cmd: (Bidi2pdf::Bidi::Commands::Base cmd) -> untyped
 
       # rubocop:disable Metrics/AbcSize
       def send_cmd_and_wait: (untyped method, ?::Hash[untyped, untyped] params, ?timeout: untyped) ?{ (untyped) -> untyped } -> untyped

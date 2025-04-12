@@ -1,6 +1,38 @@
 # frozen_string_literal: true
 
 module Bidi2pdf
+  # Represents a runner for managing browser sessions and executing tasks
+  # using the Bidi2pdf library. This class handles the setup, configuration,
+  # and execution of browser-related workflows, including navigation, cookie
+  # management, and printing.
+  #
+  # @example Running a session
+  #   session_runner = Bidi2pdf::SessionRunner.new(
+  #     session: session,
+  #     url: "http://example.com",
+  #     inputfile: "input.html",
+  #     output: "output.pdf",
+  #     cookies: { "key" => "value" },
+  #     headers: { "Authorization" => "Bearer token" },
+  #     auth: { username: "user", password: "pass" },
+  #     wait_window_loaded: true,
+  #     wait_network_idle: true,
+  #     print_options: { landscape: true },
+  #     network_log_format: :json
+  #   )
+  #   session_runner.run
+  #
+  # @param [Object] session The browser session object to use.
+  # @param [String, nil] url The URL to navigate to in the browser session.
+  # @param [String, nil] inputfile The path to the input file to be processed if no URL is provided.
+  # @param [String, nil] output The path to the output file to be generated.
+  # @param [Hash] cookies A hash of cookies to set in the browser session. Defaults to an empty hash.
+  # @param [Hash] headers A hash of HTTP headers to include in the browser session. Defaults to an empty hash.
+  # @param [Hash, nil] auth Authentication credentials (e.g., username and password). Defaults to an empty hash.
+  # @param [Boolean] wait_window_loaded Whether to wait for the window to fully load. Defaults to false.
+  # @param [Boolean] wait_network_idle Whether to wait for the network to become idle. Defaults to false.
+  # @param [Hash] print_options Options for printing the page. Defaults to an empty hash.
+  # @param [Symbol] network_log_format The format for network logs. Defaults to :console.
   class SessionRunner
     # rubocop: disable Metrics/ParameterLists
     def initialize(session:, url:, inputfile:, output:, cookies: {}, headers: {}, auth: {}, wait_window_loaded: false,
