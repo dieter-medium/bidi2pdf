@@ -87,7 +87,7 @@ module Bidi2pdf
 
       if @wait_network_idle
         Bidi2pdf.logger.info "Waiting for network idle"
-        @tab.wait_until_all_finished
+        @tab.wait_until_network_idle
       end
 
       @tab.log_network_traffic

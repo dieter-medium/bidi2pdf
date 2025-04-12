@@ -97,7 +97,7 @@ require "bidi2pdf"
 
 Bidi2pdf::DSL.with_tab(headless: true) do |tab|
   tab.open_page("https://example.com")
-  tab.wait_until_all_finished
+  tab.wait_until_network_idle
   tab.print("example.pdf")
 end
 ```
@@ -147,7 +147,7 @@ tab.open_page "https://example.com"
 # Alternative: send html code to the browser
 # tab.view_html_page("<html>...</html>")
 
-tab.wait_until_all_finished
+tab.wait_until_network_idle
 tab.print("my.pdf")
 
 # 5. Cleanup

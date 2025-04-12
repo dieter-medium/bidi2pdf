@@ -109,8 +109,8 @@ module Bidi2pdf
         end
       end
 
-      def wait_until_all_finished(timeout: 10, poll_interval: 0.1)
-        network_events.wait_until_all_finished(timeout: timeout, poll_interval: poll_interval)
+      def wait_until_network_idle(timeout: 10, poll_interval: 0.1)
+        network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
       end
 
       def log_network_traffic
