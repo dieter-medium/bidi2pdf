@@ -5,7 +5,7 @@ ARG CHROMEDRIVER_PORT=3000
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies
-RUN apt-get update && apt-get upgrade && \
+RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends\
     chromium \
     libglib2.0-0 \

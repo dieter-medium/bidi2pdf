@@ -3,7 +3,7 @@ FROM ruby:3.3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies
-RUN apt-get update && apt-get upgrade &&\
+RUN apt-get update && apt-get upgrade -y &&\
     apt-get install -y --no-install-recommends\
     chromium chromium-driver\
     libglib2.0-0 \
