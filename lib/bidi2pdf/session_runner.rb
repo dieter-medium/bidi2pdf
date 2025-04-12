@@ -2,8 +2,9 @@
 
 module Bidi2pdf
   class SessionRunner
+    # rubocop: disable Metrics/ParameterLists
     def initialize(session:, url:, inputfile:, output:, cookies: {}, headers: {}, auth: {}, wait_window_loaded: false,
-                   wait_network_idle: false, print_options: {})
+                   wait_network_idle: false, print_options: {}, network_log_format: :console)
       @session = session
       @url = url
       @inputfile = inputfile
@@ -14,7 +15,10 @@ module Bidi2pdf
       @wait_window_loaded = wait_window_loaded
       @wait_network_idle = wait_network_idle
       @print_options = print_options || {}
+      @network_log_format = network_log_format
     end
+
+    # rubocop: enable Metrics/ParameterLists
 
     def run
       @session.start
@@ -90,7 +94,8 @@ module Bidi2pdf
         @tab.wait_until_network_idle
       end
 
-      @tab.log_network_traffic
+      log_output_file = (@output || "report").sub(/\.pdf$/, "-network.pdf") # only need, when html output
+      @tab.log_network_traffic format: @network_log_format, output: log_output_file
 
       if @wait_window_loaded
         Bidi2pdf.logger.info "Waiting for window to be loaded"

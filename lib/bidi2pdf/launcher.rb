@@ -8,7 +8,7 @@ module Bidi2pdf
   class Launcher
     # rubocop:disable Metrics/ParameterLists
     def initialize(url:, inputfile:, output:, cookies:, headers:, auth:, headless: true, port: 0, wait_window_loaded: false,
-                   wait_network_idle: false, print_options: {}, remote_browser_url: nil)
+                   wait_network_idle: false, print_options: {}, remote_browser_url: nil, network_log_format: :console)
       @url = url
       @inputfile = inputfile
       @port = port
@@ -23,6 +23,7 @@ module Bidi2pdf
       @print_options = print_options || {}
       @remote_browser_url = remote_browser_url
       @custom_session = nil
+      @network_log_format = network_log_format
     end
 
     # rubocop:enable Metrics/ParameterLists
@@ -38,7 +39,8 @@ module Bidi2pdf
         auth: @auth,
         wait_window_loaded: @wait_window_loaded,
         wait_network_idle: @wait_network_idle,
-        print_options: @print_options
+        print_options: @print_options,
+        network_log_format: @network_log_format
       )
       runner.run
     end

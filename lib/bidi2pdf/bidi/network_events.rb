@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "network_event"
-require_relative "network_event_formatter"
+require_relative "network_event_formatters"
 
 module Bidi2pdf
   module Bidi
@@ -11,7 +11,7 @@ module Bidi2pdf
       def initialize(context_id)
         @context_id = context_id
         @events = {}
-        @network_event_formatter = NetworkEventFormatter.new
+        @network_event_formatter = NetworkEventFormatters::NetworkEventConsoleFormatter.new
       end
 
       def handle_event(data)
@@ -43,7 +43,7 @@ module Bidi2pdf
 
         timestamp = event["timestamp"]
 
-        if method == "network.responseStarted"
+        if method == "network.beforeRequestSent"
           events[id] ||= NetworkEvent.new(
             id: id,
             url: url,
@@ -65,9 +65,15 @@ module Bidi2pdf
         events.values.sort_by(&:start_timestamp)
       end
 
-      def log_network_traffic
-        all_events.each do |event|
-          network_event_formatter.log event
+      def log_network_traffic(format: :console)
+        format = format.to_sym
+
+        if format == :console
+          NetworkEventFormatters::NetworkEventConsoleFormatter.new.log all_events
+        elsif format == :html
+          NetworkEventFormatters::NetworkEventHtmlFormatter.new.render(all_events)
+        else
+          raise ArgumentError, "Unknown network event format: #{format}"
         end
       end
 

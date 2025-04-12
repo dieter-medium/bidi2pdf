@@ -52,6 +52,11 @@ module Bidi2pdf
            type: :string,
            default: "info", enum: %w[debug info warn error fatal unknown], desc: "Set log level"
     option :log_network_traffic, type: :boolean, default: false, desc: "Log network traffic", aliases: "-n"
+    option :network_log_format,
+           type: :string,
+           default: "console",
+           enum: %w[console pdf],
+           desc: "Choose network log format: console or pdf", aliases: "-f"
 
     option :background, type: :boolean, default: true, desc: "Print background graphics"
     option :margin_top, type: :numeric, default: 1.0, desc: "Top margin in inches"
@@ -205,7 +210,8 @@ module Bidi2pdf
                         headless: merged_options[:headless],
                         wait_window_loaded: merged_options[:wait_window_loaded],
                         wait_network_idle: merged_options[:wait_network_idle],
-                        print_options: print_options
+                        print_options: print_options,
+                        network_log_format: merged_options[:network_log_format]
                       )
                     end
     end

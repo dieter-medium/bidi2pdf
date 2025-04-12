@@ -80,7 +80,7 @@ module Bidi2pdf
       end
 
       def navigate_to(url)
-        client.on_event("network.responseStarted", "network.responseCompleted", "network.fetchError",
+        client.on_event("network.beforeRequestSent", "network.responseStarted", "network.responseCompleted", "network.fetchError",
                         &network_events.method(:handle_event))
 
         client.on_event("log.entryAdded",
@@ -113,8 +113,25 @@ module Bidi2pdf
         network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
       end
 
-      def log_network_traffic
-        network_events.log_network_traffic
+      def log_network_traffic(format: :console, output: nil, print_options: { background: true }, &block)
+        format = format.to_sym
+
+        if format == :console
+          network_events.log_network_traffic format: :console
+        elsif format == :pdf
+          html_content = network_events.log_network_traffic format: :html
+
+          return unless html_content
+
+          logging_tab = create_browser_tab
+
+          logging_tab.render_html_content(html_content)
+          logging_tab.wait_until_network_idle
+
+          logging_tab.print(output, print_options: print_options, &block)
+
+          logging_tab.close
+        end
       end
 
       def close

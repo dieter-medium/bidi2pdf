@@ -16,7 +16,8 @@ RSpec.describe "PDF Generation", :nginx do
       headless: true,
       wait_window_loaded: true,
       wait_network_idle: true,
-      print_options: print_options
+      print_options: print_options,
+      network_log_format: :pdf
     )
   end
 
