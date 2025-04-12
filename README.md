@@ -96,7 +96,7 @@ launcher.launch
 require "bidi2pdf"
 
 Bidi2pdf::DSL.with_tab(headless: true) do |tab|
-  tab.open_page("https://example.com")
+  tab.navigate_to("https://example.com")
   tab.wait_until_network_idle
   tab.print("example.pdf")
 end
@@ -142,10 +142,10 @@ tab.basic_auth(url_patterns: [{ type: "pattern", protocol: "https", hostname: "e
                username: "username", password: "secret")
 
 # 4. Render PDF
-tab.open_page "https://example.com"
+tab.navigate_to "https://example.com"
 
 # Alternative: send html code to the browser
-# tab.view_html_page("<html>...</html>")
+# tab.render_html_content("<html>...</html>")
 
 tab.wait_until_network_idle
 tab.print("my.pdf")

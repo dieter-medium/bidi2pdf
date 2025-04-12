@@ -78,11 +78,11 @@ module Bidi2pdf
       @session.user_contexts
 
       if @url
-        @tab.open_page(@url)
+        @tab.navigate_to(@url)
       else
         Bidi2pdf.logger.info "Loading HTML file #{@inputfile}"
         data = File.read(@inputfile)
-        @tab.view_html_page(data)
+        @tab.render_html_content(data)
       end
 
       if @wait_network_idle

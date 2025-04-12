@@ -57,27 +57,27 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
     end
   end
 
-  describe "#open_page" do
+  describe "#navigate_to" do
     it "sends the openPage command to the client" do
-      browser_tab.open_page("https://example.com")
+      browser_tab.navigate_to("https://example.com")
 
       expect(client.cmd_params.first).to eq(Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new(url: "https://example.com", context: browsing_context_id))
     end
 
     it "registers an event handler for the network events" do
-      browser_tab.open_page("https://example.com")
+      browser_tab.navigate_to("https://example.com")
       expect(client.event_params(0)).to include("network.responseStarted", "network.responseCompleted", "network.fetchError")
     end
 
     it "registers an event handler for the log events" do
-      browser_tab.open_page("https://example.com")
+      browser_tab.navigate_to("https://example.com")
       expect(client.event_params(1)).to include("log.entryAdded")
     end
   end
 
-  describe "#view_html_page" do
+  describe "#render_html_content" do
     it "sends the openPage command to the client" do
-      browser_tab.view_html_page("<html></html>")
+      browser_tab.render_html_content("<html></html>")
 
       expect(client.cmd_params.first).to eq(Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new(url: "data:text/html;charset=utf-8;base64,PGh0bWw+PC9odG1sPg==", context: browsing_context_id))
     end

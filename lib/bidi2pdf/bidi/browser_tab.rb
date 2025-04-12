@@ -79,7 +79,7 @@ module Bidi2pdf
         ).tap { |interceptor| interceptor.register_with_client(client: client) }
       end
 
-      def open_page(url)
+      def navigate_to(url)
         client.on_event("network.responseStarted", "network.responseCompleted", "network.fetchError",
                         &network_events.method(:handle_event))
 
@@ -93,11 +93,11 @@ module Bidi2pdf
         end
       end
 
-      def view_html_page(html_content)
+      def render_html_content(html_content)
         base64_encoded = Base64.strict_encode64(html_content)
         data_url = "data:text/html;charset=utf-8;base64,#{base64_encoded}"
 
-        open_page(data_url)
+        navigate_to(data_url)
       end
 
       def execute_script(script)
