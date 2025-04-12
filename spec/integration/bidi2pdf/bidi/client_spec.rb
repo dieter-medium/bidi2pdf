@@ -25,6 +25,12 @@ RSpec.describe Bidi2pdf::Bidi::Client, :chromedriver, :session do
     end
   end
 
+  after(:all) do
+    Bidi2pdf.configure do |config|
+      config.logger.level = Logger::INFO
+    end
+  end
+
   after do
     client.close
     session.close
