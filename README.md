@@ -7,8 +7,8 @@
 
 # 📄 Bidi2pdf – Bulletproof PDF generation via Chrome's BiDi Protocol
 
-**Bidi2pdf** is a powerful Ruby gem that transforms modern web pages into high-fidelity PDFs using Chrome’s *
-*BiDirectional (BiDi)** protocol. Whether you're automating reports, archiving websites, or shipping documentation,
+**Bidi2pdf** is a powerful Ruby gem that transforms modern web pages into high-fidelity PDFs using Chrome’s
+**BiDirectional (BiDi)** protocol. Whether you're automating reports, archiving websites, or shipping documentation,
 Bidi2pdf gives you **precision, flexibility, and full control**.
 
 ---
@@ -20,7 +20,9 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 ✅ **Smart waiting** – Wait for complete page load or network idle  
 ✅ **Headless support** – Run quietly in the background  
 ✅ **Docker-ready** – Plug and play with containers  
-✅ **Modern architecture** – Built on Chrome's next-gen BiDi protocol
+✅ **Modern architecture** – Built on Chrome's next-gen BiDi protocol  
+✅ **Network logging** – Know which requests fail during rendering  
+✅ **Console log capture** – See what goes wrong inside the browser
 
 ---
 
