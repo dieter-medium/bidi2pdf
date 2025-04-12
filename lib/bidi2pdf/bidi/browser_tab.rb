@@ -113,7 +113,7 @@ module Bidi2pdf
         network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
       end
 
-      def log_network_traffic(format: :console, output: nil, print_options: { background: true }, &block)
+      def log_network_traffic(format: :console, output: nil, print_options: { background: true }, &)
         format = format.to_sym
 
         if format == :console
@@ -128,7 +128,7 @@ module Bidi2pdf
           logging_tab.render_html_content(html_content)
           logging_tab.wait_until_network_idle
 
-          logging_tab.print(output, print_options: print_options, &block)
+          logging_tab.print(output, print_options: print_options, &)
 
           logging_tab.close
         end

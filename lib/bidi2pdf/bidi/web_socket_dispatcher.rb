@@ -22,15 +22,15 @@ module Bidi2pdf
 
       # Add listeners
 
-      def on_message(&block) = socket_events.on(:message, &block)
+      def on_message(&) = socket_events.on(:message, &)
 
-      def on_event(name, &block) = session_events.on(name, &block)
+      def on_event(name, &) = session_events.on(name, &)
 
-      def on_open(&block) = socket_events.on(:open, &block)
+      def on_open(&) = socket_events.on(:open, &)
 
-      def on_close(&block) = socket_events.on(:close, &block)
+      def on_close(&) = socket_events.on(:close, &)
 
-      def on_error(&block) = socket_events.on(:error, &block)
+      def on_error(&) = socket_events.on(:error, &)
 
       def remove_message_listener(block) = socket_events.off(:message, block)
 

@@ -10,16 +10,16 @@ module DefaultDirsHelper
     RSpec.configuration.fixture_dir
   end
 
-  def fixture_file(*args)
-    File.join(fixture_dir, *args)
+  def fixture_file(*)
+    File.join(fixture_dir, *)
   end
 
   def tmp_dir
     RSpec.configuration.tmp_dir
   end
 
-  def tmp_file(*args)
-    File.join(tmp_dir, *args)
+  def tmp_file(*)
+    File.join(tmp_dir, *)
   end
 
   def random_tmp_dir(*dirs, prefix: "tmp_")

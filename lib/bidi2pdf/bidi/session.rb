@@ -79,8 +79,8 @@ module Bidi2pdf
 
       private
 
-      def send_cmd(command, &block)
-        client&.send_cmd_and_wait(command, &block)
+      def send_cmd(command, &)
+        client&.send_cmd_and_wait(command, &)
       end
 
       # rubocop: disable Metrics/AbcSize

@@ -62,13 +62,13 @@ module Bidi2pdf
         end
       end
 
-      def on_message(&block) = dispatcher.on_message(&block)
+      def on_message(&) = dispatcher.on_message(&)
 
-      def on_open(&block) = dispatcher.on_open(&block)
+      def on_open(&) = dispatcher.on_open(&)
 
-      def on_close(&block) = dispatcher.on_close(&block)
+      def on_close(&) = dispatcher.on_close(&)
 
-      def on_error(&block) = dispatcher.on_error(&block)
+      def on_error(&) = dispatcher.on_error(&)
 
       def on_event(*names, &block)
         names.each { |name| dispatcher.on_event(name, &block) }
