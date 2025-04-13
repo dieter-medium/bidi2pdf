@@ -26,7 +26,10 @@ RSpec.configure do |config|
     end
 
     if chromedriver_tests_present?
-      config.chromedriver_container = start_chromedriver_container(File.join(config.docker_dir, ".."))
+      config.chromedriver_container = start_chromedriver_container(
+        build_dir: File.join(config.docker_dir, ".."),
+        fixture_dir: config.fixture_dir
+      )
 
       puts "🚀 chromedriver container started for tests"
     end
@@ -67,10 +70,15 @@ def test_of_kind_present?(type)
   RSpec.world.filtered_examples.values.flatten.any? { |example| example.metadata[type] }
 end
 
-def start_chromedriver_container(build_dir)
+def start_chromedriver_container(build_dir:, fixture_dir:)
   container = ChromedriverContainer.new(ChromedriverContainer::DEFAULT_IMAGE,
                                         build_dir: build_dir,
                                         docker_file: "docker/Dockerfile.chromedriver")
+                                   .with_filesystem_binds(
+                                     {
+                                       fixture_dir => "/var/www/html"
+                                     }
+                                   )
 
   container.start_local_image
 

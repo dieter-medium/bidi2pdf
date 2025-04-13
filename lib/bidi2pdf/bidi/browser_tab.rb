@@ -6,6 +6,7 @@ require_relative "network_events"
 require_relative "logger_events"
 require_relative "auth_interceptor"
 require_relative "add_headers_interceptor"
+require_relative "js_logger_helper"
 
 # Represents a browser tab for managing interactions and communication
 # using the Bidi2pdf library. This class provides methods for creating
@@ -32,6 +33,8 @@ require_relative "add_headers_interceptor"
 module Bidi2pdf
   module Bidi
     class BrowserTab
+      include JsLoggerHelper
+
       # @return [Object] The WebSocket client.
       attr_reader :client
 
@@ -189,6 +192,32 @@ module Bidi2pdf
         end
       end
 
+      # Injects a JavaScript script element into the page, either from a URL or with inline content.
+      #
+      # @param [String, nil] url The URL of the script to load (optional).
+      # @param [String, nil] content The JavaScript content to inject (optional).
+      # @param [String, nil] id The ID attribute for the script element (optional).
+      # @return [Object] The result from the script creation promise.
+      def inject_script(url: nil, content: nil, id: nil)
+        script_code = generate_script_element_code(url: url, content: content, id: id)
+        response = execute_script(script_code)
+
+        if response
+          if response["type"] == "exception"
+            handle_injection_exception(response, url)
+          elsif response["type"] == "success"
+            Bidi2pdf.logger.debug "Script injected successfully: #{response.inspect}"
+            response
+          else
+            Bidi2pdf.logger.warn "Script injected unknown state: #{response.inspect}"
+            response
+          end
+        else
+          Bidi2pdf.logger.error "Failed to inject script: #{url || content}"
+          raise ScriptInjectionError, "Failed to inject script: #{url || content}"
+        end
+      end
+
       # Waits until the network is idle in the browser tab.
       #
       # @param [Integer] timeout The timeout duration in seconds. Defaults to 10.
@@ -270,6 +299,65 @@ module Bidi2pdf
       # rubocop:enable Metrics/AbcSize, Metrics/PerceivedComplexity
 
       private
+
+      def handle_injection_exception(response, url)
+        exception = response["exceptionDetails"]
+        error_text = exception["text"]
+        line = exception["lineNumber"]
+        column = exception["columnNumber"]
+
+        # Extract stack trace information if available
+        stack_info = format_stack_trace(exception["stackTrace"])
+        script_source = url ? "URL: #{url}" : "inline content"
+        error_message = "Script injection failed (#{script_source}): #{error_text} at line #{line}:#{column}\n#{stack_info}"
+
+        Bidi2pdf.logger.error error_message
+        raise ScriptInjectionError, error_message
+      end
+
+      # Generates JavaScript code for creating a script element with given parameters.
+      #
+      # @param [String, nil] url The URL of the script to load (optional).
+      # @param [String, nil] content The JavaScript content for the script (optional).
+      # @param [String, nil] id The ID attribute for the script element (optional).
+      # @return [String] JavaScript code that creates a script element.
+      def generate_script_element_code(url: nil, content: nil, id: nil)
+        js_src_part = ""
+        js_src_part = <<~SRC if url
+          script.src = '#{url}';
+          script.addEventListener(
+            'load',
+            () => {
+              resolve(script);
+            },
+            {once: true},
+          );
+        SRC
+
+        <<~JS
+          new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+
+            #{content ? "script.text = #{content.to_json};" : ""}
+
+            script.addEventListener(
+              'error',
+              event => {
+                reject(new Error(event.message ?? 'Could not load script'));
+              },
+              {once: true},
+            );
+
+            #{id ? "script.id = '#{id}';" : ""}
+            #{js_src_part}
+
+            document.head.appendChild(script);
+
+            #{url ? "" : "resolve(script);"}
+          });
+        JS
+      end
 
       # Closes the browsing context.
       def close_context

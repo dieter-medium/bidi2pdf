@@ -149,6 +149,12 @@ tab.navigate_to "https://example.com"
 # Alternative: send html code to the browser
 # tab.render_html_content("<html>...</html>")
 
+# Inject JavaScript if, needed
+# as an url
+# tab.inject_script "https://example.com/script.js" 
+# or inline
+# tab.inject_script "console.log('Hello from injected script!')"
+
 tab.wait_until_network_idle
 tab.print("my.pdf")
 
