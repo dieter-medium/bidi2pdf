@@ -27,6 +27,8 @@ module Bidi2pdf
 
   class ScriptInjectionError < Error; end
 
+  class StyleInjectionError < Error; end
+
   @logger = Logger.new($stdout)
   @logger.level = Logger::INFO
 

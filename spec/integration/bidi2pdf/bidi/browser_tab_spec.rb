@@ -92,4 +92,38 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :session do
       end
     end
   end
+
+  describe "#inject_style" do
+    before do
+      browser_tab.navigate_to "file:///var/www/html/simple.html"
+    end
+
+    context "when a style is injected" do
+      it "injects the given style" do
+        browser_tab.inject_style content: <<~CSS, id: 1
+          body {
+            background-color: red;
+          }
+        CSS
+
+        response = browser_tab.execute_script("result = window.getComputedStyle(document.body).backgroundColor;", wrap_in_promise: true)
+
+        expect(response.dig("result", "value")).to eq("rgb(255, 0, 0)")
+      end
+    end
+
+    context "when a style file is loaded from an url" do
+      it "loads a remote style" do
+        browser_tab.inject_style url: "file:///var/www/html/simple.css", id: 1
+
+        response = browser_tab.execute_script("result = window.getComputedStyle(document.body).backgroundColor;", wrap_in_promise: true)
+
+        expect(response.dig("result", "value")).to eq("rgb(0, 0, 255)")
+      end
+
+      it "raises an error when the style file is not found" do
+        expect { browser_tab.inject_style url: "file:///var/www/html/does-not-exists.css", id: 1 }.to raise_error(Bidi2pdf::StyleInjectionError)
+      end
+    end
+  end
 end

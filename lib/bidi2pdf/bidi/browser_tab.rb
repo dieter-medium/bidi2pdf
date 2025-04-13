@@ -181,9 +181,35 @@ module Bidi2pdf
 
       # Executes a script in the browser tab.
       #
-      # @param [String] script The script to execute.
+      # This method allows you to execute JavaScript code within the context of the browser tab.
+      # Optionally, the script can be wrapped in a JavaScript Promise to handle asynchronous operations.
+      #
+      # @param [String] script The JavaScript code to execute.
+      #   - This can be any valid JavaScript code that you want to run in the browser tab.
+      # @param [Boolean] wrap_in_promise Whether to wrap the script in a Promise. Defaults to false.
+      #   - If true, the script will be wrapped in a Promise to handle asynchronous execution.
+      #   - Use this option when the script involves asynchronous operations like network requests.
+      #     You can use the predefined variable result to store the result of the script.
       # @return [Object] The result of the script execution.
-      def execute_script(script)
+      #   - If the script executes successfully, the result of the last evaluated expression is returned.
+      #   - If the script fails, an error or exception details may be returned.
+      def execute_script(script, wrap_in_promise: false)
+        if wrap_in_promise
+          script = <<~JS
+            new Promise((resolve, reject) => {
+              try {
+                let result;
+
+                #{script}
+
+                resolve(result);
+              } catch (error) {
+                reject(error);
+              }
+            });
+          JS
+        end
+
         cmd = Bidi2pdf::Bidi::Commands::ScriptEvaluate.new context: browsing_context_id, expression: script
         client.send_cmd_and_wait(cmd) do |response|
           Bidi2pdf.logger.debug "Script Result: #{response.inspect}"
@@ -204,7 +230,7 @@ module Bidi2pdf
 
         if response
           if response["type"] == "exception"
-            handle_injection_exception(response, url)
+            handle_injection_exception(response, url, ScriptInjectionError)
           elsif response["type"] == "success"
             Bidi2pdf.logger.debug "Script injected successfully: #{response.inspect}"
             response
@@ -215,6 +241,32 @@ module Bidi2pdf
         else
           Bidi2pdf.logger.error "Failed to inject script: #{url || content}"
           raise ScriptInjectionError, "Failed to inject script: #{url || content}"
+        end
+      end
+
+      # Injects a CSS style element into the page, either from a URL or with inline content.
+      #
+      # @param [String, nil] url The URL of the stylesheet to load (optional).
+      # @param [String, nil] content The CSS content to inject (optional).
+      # @param [String, nil] id The ID attribute for the style element (optional).
+      # @return [Object] The result from the style creation promise.
+      def inject_style(url: nil, content: nil, id: nil)
+        style_code = generate_style_element_code(url: url, content: content, id: id)
+        response = execute_script(style_code)
+
+        if response
+          if response["type"] == "exception"
+            handle_injection_exception(response, url, StyleInjectionError)
+          elsif response["type"] == "success"
+            Bidi2pdf.logger.debug "Style injected successfully: #{response.inspect}"
+            response
+          else
+            Bidi2pdf.logger.warn "Style injection unknown state: #{response.inspect}"
+            response
+          end
+        else
+          Bidi2pdf.logger.error "Failed to inject style: #{url || content}"
+          raise StyleInjectionError, "Failed to inject style: #{url || content}"
         end
       end
 
@@ -300,7 +352,7 @@ module Bidi2pdf
 
       private
 
-      def handle_injection_exception(response, url)
+      def handle_injection_exception(response, url, exception_class)
         exception = response["exceptionDetails"]
         error_text = exception["text"]
         line = exception["lineNumber"]
@@ -312,7 +364,7 @@ module Bidi2pdf
         error_message = "Script injection failed (#{script_source}): #{error_text} at line #{line}:#{column}\n#{stack_info}"
 
         Bidi2pdf.logger.error error_message
-        raise ScriptInjectionError, error_message
+        raise exception_class, error_message
       end
 
       # Generates JavaScript code for creating a script element with given parameters.
@@ -357,6 +409,65 @@ module Bidi2pdf
             #{url ? "" : "resolve(script);"}
           });
         JS
+      end
+
+      # Generates JavaScript code for creating a style element with given parameters.
+      #
+      # @param [String, nil] url The URL of the stylesheet to load (optional).
+      # @param [String, nil] content The CSS content for the style (optional).
+      # @param [String, nil] id The ID attribute for the style element (optional).
+      # @return [String] JavaScript code that creates a style element.
+      def generate_style_element_code(url: nil, content: nil, id: nil)
+        if url
+          # For external stylesheets, create a link element
+          <<~JS
+            new Promise((resolve, reject) => {
+              const link = document.createElement('link');
+              link.rel = 'stylesheet';
+              link.type = 'text/css';
+              link.href = '#{url}';
+            #{"  "}
+              #{id ? "link.id = '#{id}';" : ""}
+            #{"  "}
+              link.addEventListener(
+                'load',
+                () => {
+                  resolve(link);
+                },
+                {once: true}
+              );
+            #{"  "}
+              link.addEventListener(
+                'error',
+                event => {
+                  reject(new Error(event.message ?? 'Could not load stylesheet'));
+                },
+                {once: true}
+              );
+            #{"  "}
+              document.head.appendChild(link);
+            });
+          JS
+        else
+          # For inline styles, create a style element
+          <<~JS
+            new Promise((resolve, reject) => {
+              try {
+                const style = document.createElement('style');
+                style.type = 'text/css';
+            #{"    "}
+                #{id ? "style.id = '#{id}';" : ""}
+            #{"    "}
+                #{content ? "style.textContent = #{content.to_json};" : ""}
+            #{"    "}
+                document.head.appendChild(style);
+                resolve(style);
+              } catch (error) {
+                reject(error);
+              }
+            });
+          JS
+        end
       end
 
       # Closes the browsing context.

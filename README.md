@@ -155,6 +155,12 @@ tab.navigate_to "https://example.com"
 # or inline
 # tab.inject_script "console.log('Hello from injected script!')"
 
+# Inject CSS if needed
+# as an url
+# tab.inject_style url: "https://example.com/simple.css"
+# or inline
+# tab.inject_style content: "body { background-color: red; }"
+
 tab.wait_until_network_idle
 tab.print("my.pdf")
 
