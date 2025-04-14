@@ -5,6 +5,8 @@ require "securerandom"
 
 module Bidi2pdf
   class ChromedriverManager
+    include Chromedriver::Binary::Platform
+
     attr_reader :port, :pid, :started
 
     def initialize(port: 0, headless: true)
@@ -23,11 +25,7 @@ module Bidi2pdf
       cmd = build_cmd
       Bidi2pdf.logger.info "Starting Chromedriver with command: #{cmd}"
 
-      r, w = IO.pipe
-      @pid = Process.spawn(cmd, out: w, err: w)
-      w.close # close writer in parent
-
-      parse_port_from_output(r)
+      spawn_process(cmd)
 
       Bidi2pdf.logger.info "Started Chromedriver on port #{@port}, PID #{@pid}"
       wait_until_chromedriver_ready
@@ -70,6 +68,30 @@ module Bidi2pdf
     end
 
     private
+
+    def spawn_process(cmd)
+      r, w = IO.pipe
+
+      options = {
+        out: w,
+        err: w,
+        close_others: true,
+        chdir: Dir.tmpdir
+      }
+
+      if platform == "win"
+        options[:new_pgroup] = true
+      else
+        options[:pgroup] = true
+      end
+
+      env = {}
+
+      @pid = Process.spawn(env, cmd, **options)
+      w.close # close writer in parent
+
+      parse_port_from_output(r)
+    end
 
     def detect_zombie_processes(old_childprocesses)
       Bidi2pdf.logger.debug "Old child processes for #{@pid}: #{old_childprocesses.map(&:pid).join(", ")}"
@@ -114,7 +136,7 @@ module Bidi2pdf
       Bidi2pdf::ProcessTree.new(@pid).children(@pid).tap do |_child_processes|
         Bidi2pdf.logger.info "Stopping Chromedriver (PID #{@pid})"
 
-        Process.kill("TERM", @pid)
+        Process.kill("TERM", -@pid) # - meanskill linux pgroup
       end
     rescue Errno::ESRCH
       Bidi2pdf.logger.debug "Process already gone"
