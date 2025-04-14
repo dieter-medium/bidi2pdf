@@ -29,6 +29,7 @@ if ENV["COVERAGE"]
 end
 
 require "bidi2pdf"
+require "rspec-benchmark"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -54,6 +55,8 @@ RSpec.configure do |config|
   config.define_derived_metadata(file_path: %r{/spec/acceptance/}) do |metadata|
     metadata[:acceptance] = true
   end
+
+  config.include RSpec::Benchmark::Matchers, benchmark: true
 end
 
 require_relative "support/default_dirs_helper" # just to ensure that the folder definitions are loaded first

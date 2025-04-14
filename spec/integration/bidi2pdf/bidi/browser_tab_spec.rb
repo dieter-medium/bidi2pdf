@@ -43,6 +43,48 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :session do
     session.close
   end
 
+  describe "#print" do
+    let(:tmp_path) { random_tmp_dir }
+
+    before do
+      FileUtils.mkdir_p(tmp_path)
+    end
+
+    after do
+      Dir.glob("#{tmp_path}/*").each do |file|
+        next if File.directory?(file)
+
+        file_size = File.size(file)
+        file_name = File.basename(file)
+        file_type = File.extname(file)
+
+        puts "Generated file: #{file_name} (#{file_size} bytes, type: #{file_type})"
+      end
+
+      FileUtils.rm_f(tmp_path)
+    end
+
+    it "I can generate a PDF file in less than 5 seconds", :benchmark do
+      id = 0
+      expect do
+        pdf_path = File.join(tmp_path, "#{id += 1}-test.pdf")
+        new_user_context = browser.create_user_context
+        new_browser_window = new_user_context.create_browser_window
+        new_browser_tab = new_browser_window.create_browser_tab
+
+        new_browser_tab.navigate_to "file:///var/www/html/simple.html"
+
+        new_browser_tab.print(pdf_path)
+
+        nil
+      ensure
+        new_browser_tab&.close
+        new_browser_window&.close
+        new_user_context&.close
+      end.to perform_under(600).ms.warmup(1).times.sample(10).times
+    end
+  end
+
   describe "#inject_script" do
     before do
       # a website is required to inject a script
