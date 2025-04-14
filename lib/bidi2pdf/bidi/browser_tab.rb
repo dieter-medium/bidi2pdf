@@ -278,6 +278,20 @@ module Bidi2pdf
         network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
       end
 
+      # Waits until the page is fully loaded in the browser tab.
+      #
+      # This method executes a JavaScript script that checks if the page
+      # has finished loading.
+      #
+      # @param [String] check_script The JavaScript code to check if the page is loaded.
+      #   - Defaults to a script that polls the `window.loaded` property.
+      # @return [Object] The result of the script execution.
+      #   - If the page is loaded successfully, the Promise resolves with the value `'done'`.
+      #   - If the script fails, an error or exception details may be returned.
+      def wait_until_page_loaded(check_script: "new Promise(resolve => { const check = () => window.loaded ? resolve('done') : setTimeout(check, 100); check(); });")
+        execute_script check_script
+      end
+
       # Logs network traffic in the browser tab.
       #
       # @param [Symbol] format The format for logging (:console or :pdf). Defaults to :console.

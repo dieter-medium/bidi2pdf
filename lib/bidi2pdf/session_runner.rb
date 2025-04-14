@@ -132,9 +132,7 @@ module Bidi2pdf
 
       if @wait_window_loaded
         Bidi2pdf.logger.info "Waiting for window to be loaded"
-        @tab.execute_script <<-EOF_SCRIPT
-            new Promise(resolve => { const check = () => window.loaded ? resolve('done') : setTimeout(check, 100); check(); });
-        EOF_SCRIPT
+        @tab.wait_until_page_loaded
       end
 
       @tab.print(@output, print_options: @print_options)
