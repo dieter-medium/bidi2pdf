@@ -71,6 +71,7 @@ module Bidi2pdf
 
       @window = window
       @tab = tab
+      @user_context = user_context
 
       add_cookies(tab)
 
@@ -140,6 +141,7 @@ module Bidi2pdf
     ensure
       @tab.close
       @window.close
+      @user_context.close
     end
 
     # rubocop: enable Metrics/AbcSize

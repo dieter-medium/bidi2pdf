@@ -13,6 +13,7 @@ module Bidi2pdf
       require_relative "commands/get_user_contexts"
       require_relative "commands/script_evaluate"
       require_relative "commands/browser_create_user_context"
+      require_relative "commands/browser_remove_user_context"
       require_relative "commands/browser_close"
       require_relative "commands/browsing_context_close"
       require_relative "commands/browsing_context_navigate"

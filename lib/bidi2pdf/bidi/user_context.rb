@@ -105,6 +105,27 @@ module Bidi2pdf
           BrowserTab.new(client, browsing_context_id, context_id)
         end
       end
+
+      # Closes the user context.
+      #
+      # This method removes the user context from the browser, effectively cleaning up
+      # any associated resources. If the user context does not exist, the method does nothing.
+      #
+      # @return [nil]
+      # @raise [RuntimeError] If an error occurs while removing the user context.
+      def close
+        return unless context_id
+
+        res = client.send_cmd_and_wait(Bidi2pdf::Bidi::Commands::BrowserRemoveUserContext.new(user_context_id: context_id)) do |response|
+          raise "Error removing user context: #{response.inspect}" if response["error"]
+
+          response["result"]
+        end
+
+        Bidi2pdf.logger.debug "User context deleted: #{res.inspect}"
+
+        @context_id = nil
+      end
     end
   end
 end

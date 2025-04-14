@@ -167,6 +167,7 @@ tab.print("my.pdf")
 # 5. Cleanup
 tab.close
 window.close
+context.close
 session.close
 ```
 

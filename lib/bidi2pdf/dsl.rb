@@ -67,6 +67,7 @@ module Bidi2pdf
       ensure
         tab&.close
         window&.close
+        context&.close
         session&.close
         manager&.stop
       end
