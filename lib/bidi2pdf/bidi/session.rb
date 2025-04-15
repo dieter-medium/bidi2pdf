@@ -96,6 +96,8 @@ module Bidi2pdf
         rescue CmdTimeoutError
           Bidi2pdf.logger.error "Session end command timed out. Retrying... (#{attempt + 1})"
         end
+      ensure
+        @started = false
       end
 
       # Retrieves user contexts for the session.

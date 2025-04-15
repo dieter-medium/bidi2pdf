@@ -7,13 +7,15 @@ module Bidi2pdf
   class ChromedriverManager
     include Chromedriver::Binary::Platform
 
-    attr_reader :port, :pid, :started
+    attr_reader :port, :pid, :started, :headless, :chrome_args, :shutdown_mutex
 
-    def initialize(port: 0, headless: true)
+    def initialize(port: 0, headless: true, chrome_args: Bidi::Session::DEFAULT_CHROME_ARGS)
       @port = port
       @headless = headless
       @session = nil
       @started = false
+      @chrome_args = chrome_args
+      @shutdown_mutex ||= Mutex.new
     end
 
     def start
@@ -38,7 +40,7 @@ module Bidi2pdf
     def session
       return unless @started
 
-      @session ||= Bidi::Session.new(session_url: session_url, headless: @headless)
+      @session ||= Bidi::Session.new(session_url: session_url, headless: @headless, chrome_args: @chrome_args)
     end
 
     def session_url
@@ -48,23 +50,26 @@ module Bidi2pdf
     end
 
     def stop(timeout: 5)
-      return unless @pid
+      shutdown_mutex.synchronize do
+        return unless @pid
 
-      @started = false
+        @started = false
 
-      close_session
+        close_session
 
-      debug_show_all_children
+        debug_show_all_children
 
-      old_childprocesses = term_chromedriver
+        old_childprocesses = term_chromedriver
 
-      detect_zombie_processes old_childprocesses
+        detect_zombie_processes old_childprocesses
 
-      return unless process_alive?
+        return unless process_alive?
 
-      kill_chromedriver timeout: timeout
-    ensure
-      @pid = nil
+        kill_chromedriver timeout: timeout
+      ensure
+        @pid = nil
+        @started = false
+      end
     end
 
     private
