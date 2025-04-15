@@ -52,7 +52,7 @@ module Bidi2pdf
 
         WebSocket::Client::Simple.connect(ws_url) do |socket|
           @socket = socket
-          @command_manager = CommandManager.new(@socket, logger: Bidi2pdf.logger)
+          @command_manager = CommandManager.new(@socket)
 
           dispatcher.on_open { @connection_manager.mark_connected }
           dispatcher.on_message { |data| handle_response_to_cmd(data) }
@@ -171,14 +171,7 @@ module Bidi2pdf
       #
       # @param [Hash] data The response data.
       def handle_response_to_cmd(data)
-        handled = @command_manager.handle_response(data)
-        return if handled
-
-        if data["error"]
-          Bidi2pdf.logger.error "Error response: #{data["error"].inspect}"
-        else
-          Bidi2pdf.logger.warn "Unknown response: #{data.inspect}"
-        end
+        @command_manager.handle_response(data)
       end
     end
   end

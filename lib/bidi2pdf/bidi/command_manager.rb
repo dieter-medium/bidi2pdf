@@ -14,9 +14,8 @@ module Bidi2pdf
 
       initialize_counter
 
-      def initialize(socket, logger:)
+      def initialize(socket)
         @socket = socket
-        @logger = logger
 
         @pending_responses = {}
         @initiated_cmds = {}
@@ -25,30 +24,40 @@ module Bidi2pdf
       def send_cmd(cmd, store_response: false)
         id = next_id
 
-        if store_response
-          init_queue_for id
-        else
-          @initiated_cmds[id] = true
+        Bidi2pdf.notification_service.instrument("send_cmd.bidi2pdf", id: id, cmd: cmd) do |instrumentation_payload|
+          if store_response
+            init_queue_for id
+          else
+            @initiated_cmds[id] = true
+          end
+
+          payload = cmd.as_payload(id)
+
+          instrumentation_payload[:cmd_payload] = payload
+
+          @socket.send(payload.to_json)
         end
-
-        payload = cmd.as_payload(id)
-
-        @logger.debug "Sending command: #{redact_sensitive_fields(payload).inspect}"
-        @socket.send(payload.to_json)
 
         id
       end
 
-      def send_cmd_and_wait(cmd, timeout: Bidi2pdf.default_timeout)
-        id = send_cmd(cmd, store_response: true)
-        response = pop_response id, timeout: timeout
+      def send_cmd_and_wait(cmd, timeout: Bidi2pdf.default_timeout, &block)
+        Bidi2pdf.notification_service.instrument("send_cmd_and_wait.bidi2pdf", cmd: cmd, timeout: timeout) do |instrumentation_payload|
+          id = send_cmd(cmd, store_response: true)
 
-        raise_timeout_error(id, cmd) if response.nil?
-        raise CmdError, "Error response: #{response["error"]} #{cmd.inspect}" if response["error"]
+          instrumentation_payload[:id] = id
 
-        block_given? ? yield(response) : response
-      ensure
-        @pending_responses.delete(id)
+          response = pop_response id, timeout: timeout
+
+          instrumentation_payload[:response] = response
+
+          raise CmdTimeoutError, "Timeout waiting for response to command ID #{id}" if response.nil?
+          raise CmdError, "Error response: #{response["error"]} #{cmd.inspect}" if response["error"]
+
+          block ? block.call(response) : response
+        ensure
+          @pending_responses.delete(id)
+        end
       end
 
       def pop_response(id, timeout:)
@@ -60,18 +69,27 @@ module Bidi2pdf
       end
 
       def handle_response(data)
-        if (id = data["id"])
-          if @pending_responses.key?(id)
-            @pending_responses[id]&.push(data)
-            return true
-          elsif @initiated_cmds.key?(id)
-            @logger.error "Received error: #{data["error"]} for cmd: #{id}" if data["error"]
+        Bidi2pdf.notification_service.instrument("handle_response.bidi2pdf", data: data) do |instrumentation_payload|
+          instrumentation_payload[:error] = data["error"] if data["error"]
 
-            return @initiated_cmds.delete(id)
+          if (id = data["id"])
+            instrumentation_payload[:handled] = true
+            instrumentation_payload[:id] = id
+
+            if @pending_responses.key?(id)
+              @pending_responses[id]&.push(data)
+              return true
+            elsif @initiated_cmds.key?(id)
+              @initiated_cmds.delete(id)
+
+              return true
+            end
           end
-        end
 
-        false
+          instrumentation_payload[:handled] = false
+
+          false
+        end
       end
 
       private
@@ -79,26 +97,6 @@ module Bidi2pdf
       def init_queue_for(id) = @pending_responses[id] = Thread::Queue.new
 
       def next_id = self.class.next_id
-
-      def redact_sensitive_fields(obj, sensitive_keys = %w[value token password authorization username])
-        case obj
-        when Hash
-          obj.transform_values.with_index do |v, idx|
-            k = obj.keys[idx]
-            sensitive_keys.include?(k.to_s.downcase) ? "[REDACTED]" : redact_sensitive_fields(v, sensitive_keys)
-          end
-        when Array
-          obj.map { |item| redact_sensitive_fields(item, sensitive_keys) }
-        else
-          obj
-        end
-      end
-
-      def raise_timeout_error(id, cmd)
-        @logger.error "Timeout waiting for response to command #{id}, cmd: #{cmd.inspect}"
-
-        raise CmdTimeoutError, "Timeout waiting for response to command ID #{id}"
-      end
     end
   end
 end

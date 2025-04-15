@@ -3,10 +3,9 @@
 require "spec_helper"
 
 RSpec.describe Bidi2pdf::Bidi::CommandManager do
-  subject(:command_manager) { described_class.new socket, logger: logger }
+  subject(:command_manager) { described_class.new socket }
 
   let(:socket) { DummySocket.new }
-  let(:logger) { Logger.new($stdout) }
   let(:cmd) do
     Class.new do
       include Bidi2pdf::Bidi::Commands::Base
