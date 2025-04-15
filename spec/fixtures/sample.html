@@ -4,7 +4,38 @@
     <meta charset="UTF-8"/>
     <title>Golden Sample PDF</title>
 
-    <script src="./paged.polyfill-4.3.js"></script>
+    <script>
+        window.loaded = false; // make it global
+
+        window.PagedConfig = {
+            auto: false,
+            after: (flow) => {
+            },
+        };
+
+        function initPaged() {
+            console.log("Paged library is ready");
+
+            // Initialize your Paged handlers here
+
+            class PageJsReadyHandler extends Paged.Handler {
+                constructor(chunker, polisher, caller) {
+                    super(chunker, polisher, caller);
+                }
+
+                afterRendered(pages) {
+                    window.loaded = true;
+                    console.info("✅ Paged.js has rendered everything!");
+                }
+            }
+
+            Paged.registerHandlers(PageJsReadyHandler);
+
+            window.PagedPolyfill.preview();
+        }
+    </script>
+
+    <script src="./paged.polyfill-4.3.js" onload="initPaged()" async></script>
 
     <!-- No Favicon -->
     <link rel="icon" href="data:,">
@@ -173,8 +204,6 @@
 </main>
 
 <script>
-    window.loaded = false; // make it global
-
     // for testing console log within specs
     console.log("Hello from spec!");
     console.info("Hello from spec!");
@@ -192,19 +221,6 @@
     console.log("Hello from spec!");
 
     console.info({a: 1, b: 2});
-
-    class PageJsReadyHandler extends Paged.Handler {
-        constructor(chunker, polisher, caller) {
-            super(chunker, polisher, caller);
-        }
-
-        afterRendered(pages) {
-            window.loaded = true;
-            console.info("✅ Paged.js has rendered everything!");
-        }
-    }
-
-    Paged.registerHandlers(PageJsReadyHandler);
 </script>
 
 
