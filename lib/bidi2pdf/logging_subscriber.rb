@@ -9,6 +9,9 @@ module Bidi2pdf
       Bidi2pdf::Notifications.subscribe("handle_response.bidi2pdf", &method(:handle_response))
       Bidi2pdf::Notifications.subscribe("send_cmd.bidi2pdf", &method(:send_cmd))
       Bidi2pdf::Notifications.subscribe("send_cmd_and_wait.bidi2pdf", &method(:send_cmd_and_wait))
+      Bidi2pdf::Notifications.subscribe("session_close.bidi2pdf", &method(:session_close))
+      Bidi2pdf::Notifications.subscribe("network_idle.bidi2pdf", &method(:network_idle))
+      Bidi2pdf::Notifications.subscribe("page_loaded.bidi2pdf", &method(:page_loaded))
     end
 
     def handle_response(event)
@@ -33,6 +36,35 @@ module Bidi2pdf
 
       payload = redact_sensitive_fields(event.payload[:cmd]&.params || {})
       logger.error "Error sending command: #{payload} (#{event.duration.round(1)}ms) - #{event.payload[:exception].inspect}"
+    end
+
+    def session_close(event)
+      return unless event.payload[:error]
+
+      logger.error "Session close error: #{event.payload[:error].inspect}, attempt: #{event.payload[:attempt]}, retry: #{event.payload[:retry]}"
+    end
+
+    # rubocop:disable Metrics/AbcSize,  Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    def network_idle(event)
+      return unless logger.info?
+
+      requests = event.payload[:requests]
+      transfered = requests.map { |request| request.bytes_received || 0 }.sum
+      status_counts = requests
+                        .group_by { |evt| evt.http_status_code || 0 }
+                        .transform_keys { |code| code.zero? || code.nil? ? "pending" : code.to_s }
+                        .transform_values(&:count)
+                        .map { |code, count| "#{code}: #{count}" }
+                        .join(", ")
+
+      logger.info "Network was idle after #{event.duration.round(1)}ms, #{requests.size} requests, " \
+                    "transferred #{transfered} bytes (status codes: #{status_counts})"
+    end
+
+    # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+
+    def page_loaded(event)
+      logger.info "Page loaded: #{event.duration.round(1)}ms"
     end
 
     private

@@ -83,22 +83,32 @@ module Bidi2pdf
       end
 
       # Closes the session and cleans up resources.
+      # rubocop:disable Metrics/AbcSize
       def close
         return unless started?
 
         2.times do |attempt|
-          client&.send_cmd_and_wait(Bidi2pdf::Bidi::Commands::SessionEnd.new, timeout: 1) do |response|
-            Bidi2pdf.logger.info "Session ended: #{response}"
+          success = Bidi2pdf.notification_service.instrument("session_close.bidi2pdf", { session_uri: session_uri.to_s, attempt: attempt + 1 }) do |payload|
+            client&.send_cmd_and_wait(Bidi2pdf::Bidi::Commands::SessionEnd.new, timeout: 1) do |response|
+              payload[:response] = response
+              cleanup
+            end
 
-            cleanup
+            true
+          rescue CmdTimeoutError => e
+            payload[:error] = e
+            payload[:retry] = attempt < 1 # whether we'll retry again
+
+            false
           end
-          break
-        rescue CmdTimeoutError
-          Bidi2pdf.logger.error "Session end command timed out. Retrying... (#{attempt + 1})"
+
+          break if success
         end
       ensure
         @started = false
       end
+
+      # rubocop: enable Metrics/AbcSize
 
       # Retrieves user contexts for the session.
       def user_contexts

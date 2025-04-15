@@ -156,16 +156,8 @@ module Bidi2pdf
       #
       # @param [String] url The URL to navigate to.
       def navigate_to(url)
-        client.on_event("network.beforeRequestSent", "network.responseStarted", "network.responseCompleted", "network.fetchError",
-                        &network_events.method(:handle_event))
-
-        client.on_event("log.entryAdded",
-                        &logger_events.method(:handle_event))
-
-        cmd = Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new url: url, context: browsing_context_id
-
-        client.send_cmd_and_wait(cmd) do |response|
-          Bidi2pdf.logger.debug "Navigated to page url: #{url} response: #{response}"
+        Bidi2pdf.notification_service.instrument("navigate_to.bidi2pdf", url: url) do
+          navigate_with_listeners url
         end
       end
 
@@ -173,10 +165,15 @@ module Bidi2pdf
       #
       # @param [String] html_content The HTML content to render.
       def render_html_content(html_content)
-        base64_encoded = Base64.strict_encode64(html_content)
-        data_url = "data:text/html;charset=utf-8;base64,#{base64_encoded}"
+        Bidi2pdf.notification_service.instrument("render_html_content.bidi2pdf", url: "data:text/html") do |instrumentation_payload|
+          base64_encoded = Base64.strict_encode64(html_content)
 
-        navigate_to(data_url)
+          instrumentation_payload[:data] = base64_encoded
+
+          data_url = "data:text/html;charset=utf-8;base64,#{base64_encoded}"
+
+          navigate_with_listeners data_url
+        end
       end
 
       # Executes a script in the browser tab.
@@ -194,27 +191,29 @@ module Bidi2pdf
       #   - If the script executes successfully, the result of the last evaluated expression is returned.
       #   - If the script fails, an error or exception details may be returned.
       def execute_script(script, wrap_in_promise: false)
-        if wrap_in_promise
-          script = <<~JS
-            new Promise((resolve, reject) => {
-              try {
-                let result;
+        Bidi2pdf.notification_service.instrument("execute_script.bidi2pdf") do
+          if wrap_in_promise
+            script = <<~JS
+              new Promise((resolve, reject) => {
+                try {
+                  let result;
 
-                #{script}
+                  #{script}
 
-                resolve(result);
-              } catch (error) {
-                reject(error);
-              }
-            });
-          JS
-        end
+                  resolve(result);
+                } catch (error) {
+                  reject(error);
+                }
+              });
+            JS
+          end
 
-        cmd = Bidi2pdf::Bidi::Commands::ScriptEvaluate.new context: browsing_context_id, expression: script
-        client.send_cmd_and_wait(cmd) do |response|
-          Bidi2pdf.logger.debug "Script Result: #{response.inspect}"
+          cmd = Bidi2pdf::Bidi::Commands::ScriptEvaluate.new context: browsing_context_id, expression: script
+          client.send_cmd_and_wait(cmd) do |response|
+            Bidi2pdf.logger.debug "Script Result: #{response.inspect}"
 
-          response["result"]
+            response["result"]
+          end
         end
       end
 
@@ -275,7 +274,11 @@ module Bidi2pdf
       # @param [Integer] timeout The timeout duration in seconds. Defaults to 10.
       # @param [Float] poll_interval The polling interval in seconds. Defaults to 0.1.
       def wait_until_network_idle(timeout: 10, poll_interval: 0.1)
-        network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
+        Bidi2pdf.notification_service.instrument("network_idle.bidi2pdf") do |instrumentation_payload|
+          network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
+
+          instrumentation_payload[:requests] = network_events.all_events.dup
+        end
       end
 
       # Waits until the page is fully loaded in the browser tab.
@@ -289,7 +292,9 @@ module Bidi2pdf
       #   - If the page is loaded successfully, the Promise resolves with the value `'done'`.
       #   - If the script fails, an error or exception details may be returned.
       def wait_until_page_loaded(check_script: "new Promise(resolve => { const check = () => window.loaded ? resolve('done') : setTimeout(check, 100); check(); });")
-        execute_script check_script
+        Bidi2pdf.notification_service.instrument("page_loaded.bidi2pdf") do
+          execute_script check_script
+        end
       end
 
       # Logs network traffic in the browser tab.
@@ -338,26 +343,32 @@ module Bidi2pdf
       # @return [String, nil] The base64-encoded PDF content, or nil if outputfile or block is provided.
       # rubocop:disable Metrics/AbcSize, Metrics/PerceivedComplexity
       def print(outputfile = nil, print_options: { background: true }, &block)
-        cmd = Bidi2pdf::Bidi::Commands::BrowsingContextPrint.new context: browsing_context_id, print_options: print_options
+        Bidi2pdf.notification_service.instrument("print.bidi2pdf") do |instrumentation_payload|
+          cmd = Bidi2pdf::Bidi::Commands::BrowsingContextPrint.new context: browsing_context_id, print_options: print_options
 
-        client.send_cmd_and_wait(cmd) do |response|
-          if response["result"]
-            pdf_base64 = response["result"]["data"]
+          instrumentation_payload[:cmd] = cmd
 
-            if outputfile
-              raise PrintError, "Folder does not exist: #{File.dirname(outputfile)}" unless File.directory?(File.dirname(outputfile))
+          client.send_cmd_and_wait(cmd) do |response|
+            if response["result"]
+              pdf_base64 = response["result"]["data"]
 
-              File.binwrite(outputfile, Base64.decode64(pdf_base64))
-              Bidi2pdf.logger.info "PDF saved as '#{outputfile}'."
+              instrumentation_payload[:pdf_base64] = pdf_base64
+
+              if outputfile
+                raise PrintError, "Folder does not exist: #{File.dirname(outputfile)}" unless File.directory?(File.dirname(outputfile))
+
+                File.binwrite(outputfile, Base64.decode64(pdf_base64))
+                Bidi2pdf.logger.info "PDF saved as '#{outputfile}'."
+              else
+                Bidi2pdf.logger.info "PDF generated successfully."
+              end
+
+              block.call(pdf_base64) if block_given?
+
+              return pdf_base64 unless outputfile || block_given?
             else
-              Bidi2pdf.logger.info "PDF generated successfully."
+              Bidi2pdf.logger.error "Error printing: #{response}"
             end
-
-            block.call(pdf_base64) if block_given?
-
-            return pdf_base64 unless outputfile || block_given?
-          else
-            Bidi2pdf.logger.error "Error printing: #{response}"
           end
         end
       end
@@ -365,6 +376,28 @@ module Bidi2pdf
       # rubocop:enable Metrics/AbcSize, Metrics/PerceivedComplexity
 
       private
+
+      def navigate_with_listeners(url)
+        register_event_listeners
+
+        cmd = Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new url: url, context: browsing_context_id
+
+        client.send_cmd_and_wait(cmd) do |response|
+          Bidi2pdf.logger.debug "Navigated to page url: #{url} response: #{response}"
+        end
+      end
+
+      def register_event_listeners
+        return if @event_handlers_registered
+
+        @event_handlers_registered = true
+
+        client.on_event("network.beforeRequestSent", "network.responseStarted", "network.responseCompleted", "network.fetchError",
+                        &network_events.method(:handle_event))
+
+        client.on_event("log.entryAdded",
+                        &logger_events.method(:handle_event))
+      end
 
       def handle_injection_exception(response, url, exception_class)
         exception = response["exceptionDetails"]

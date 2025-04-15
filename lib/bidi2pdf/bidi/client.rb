@@ -30,8 +30,6 @@ module Bidi2pdf
     #
     # @param [String] ws_url The WebSocket URL to connect to.
     class Client
-      include Bidi2pdf::Utils
-
       # @return [String] The WebSocket URL.
       attr_reader :ws_url
 
@@ -97,12 +95,10 @@ module Bidi2pdf
       # @param [Integer] timeout The timeout duration in seconds.
       # @yield [response] A block to handle the response.
       # @raise [Bidi2pdf::ClientError] If the client has not started.
-      def send_cmd_and_wait(cmd, timeout: Bidi2pdf.default_timeout, &block)
+      def send_cmd_and_wait(cmd, timeout: Bidi2pdf.default_timeout, &)
         raise Bidi2pdf::ClientError, "Client#start must be called before" unless started?
 
-        timed("Command #{cmd.inspect}") do
-          @command_manager.send_cmd_and_wait(cmd, timeout: timeout, &block)
-        end
+        @command_manager.send_cmd_and_wait(cmd, timeout: timeout, &)
       end
 
       # Registers a callback for incoming WebSocket messages.

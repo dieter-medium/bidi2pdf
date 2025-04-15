@@ -44,6 +44,9 @@ Layout/ArrayAlignment:
 Layout/LineLength:
   Enabled: false
 
+Layout/LineEndStringConcatenationIndentation:
+  Enabled: false
+
 RSpec/MultipleMemoizedHelpers:
   Max: 10
 
