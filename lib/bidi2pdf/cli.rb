@@ -51,6 +51,11 @@ module Bidi2pdf
     option :log_level,
            type: :string,
            default: "info", enum: %w[debug info warn error fatal unknown], desc: "Set log level"
+    verbosity_levels = Bidi2pdf::VerboseLogger::VERBOSITY_LEVELS.keys.sort_by { |k| Bidi2pdf::VerboseLogger::VERBOSITY_LEVELS[k] }
+    option :verbosity,
+           type: :string,
+           default: verbosity_levels.first, enum: Bidi2pdf::VerboseLogger::VERBOSITY_LEVELS.keys.sort_by { |k| Bidi2pdf::VerboseLogger::VERBOSITY_LEVELS[k] }.map(&:to_s),
+           desc: "Set debug verbosity level", aliases: "-v"
     option :log_network_traffic, type: :boolean, default: false, desc: "Log network traffic", aliases: "-n"
     option :network_log_format,
            type: :string,
@@ -216,11 +221,11 @@ module Bidi2pdf
                     end
     end
 
-    # rubocop:enable Metrics/AbcSize
-
     def configure
       Bidi2pdf.configure do |config|
         config.logger.level = log_level
+
+        config.logger.verbosity = merged_options[:verbosity]
 
         config.network_events_logger.level = Logger::INFO if merged_options[:log_network_traffic]
 
@@ -231,6 +236,8 @@ module Bidi2pdf
         end
       end
     end
+
+    # rubocop: enable Metrics/MethodLength
 
     def log_level
       case merged_options[:log_level]
@@ -266,3 +273,4 @@ module Bidi2pdf
     end
   end
 end
+# rubocop:enable Metrics/AbcSize

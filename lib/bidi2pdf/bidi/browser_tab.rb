@@ -81,7 +81,7 @@ module Bidi2pdf
 
           BrowserTab.new(client, tab_browsing_context_id, user_context_id).tap do |tab|
             tabs << tab
-            Bidi2pdf.logger.debug "Created new browser tab: #{tab.inspect}"
+            Bidi2pdf.logger.debug1 "Created new browser tab: #{tab.inspect}"
           end
         end
       end
@@ -118,7 +118,7 @@ module Bidi2pdf
           ttl: ttl
         )
         client.send_cmd_and_wait(cmd) do |response|
-          Bidi2pdf.logger.debug "Cookie set: #{response.inspect}"
+          Bidi2pdf.logger.debug1 "Cookie set: #{response.inspect}"
         end
       end
 
@@ -210,7 +210,7 @@ module Bidi2pdf
 
           cmd = Bidi2pdf::Bidi::Commands::ScriptEvaluate.new context: browsing_context_id, expression: script
           client.send_cmd_and_wait(cmd) do |response|
-            Bidi2pdf.logger.debug "Script Result: #{response.inspect}"
+            Bidi2pdf.logger.debug2 "Script Result: #{response.inspect}"
 
             response["result"]
           end
@@ -231,7 +231,7 @@ module Bidi2pdf
           if response["type"] == "exception"
             handle_injection_exception(response, url, ScriptInjectionError)
           elsif response["type"] == "success"
-            Bidi2pdf.logger.debug "Script injected successfully: #{response.inspect}"
+            Bidi2pdf.logger.debug1 "Script injected successfully: #{response.inspect}"
             response
           else
             Bidi2pdf.logger.warn "Script injected unknown state: #{response.inspect}"
@@ -257,7 +257,7 @@ module Bidi2pdf
           if response["type"] == "exception"
             handle_injection_exception(response, url, StyleInjectionError)
           elsif response["type"] == "success"
-            Bidi2pdf.logger.debug "Style injected successfully: #{response.inspect}"
+            Bidi2pdf.logger.debug1 "Style injected successfully: #{response.inspect}"
             response
           else
             Bidi2pdf.logger.warn "Style injection unknown state: #{response.inspect}"
@@ -528,7 +528,7 @@ module Bidi2pdf
 
       # Removes event listeners for the browser tab.
       def remove_event_listeners
-        Bidi2pdf.logger.debug "Network events: #{network_events.all_events.map(&:to_s)}"
+        Bidi2pdf.logger.debug2 "Network events: #{network_events.all_events.map(&:to_s)}"
 
         client.remove_event_listener "network.responseStarted", "network.responseCompleted", "network.fetchError",
                                      &network_events.method(:handle_event)

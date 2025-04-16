@@ -126,7 +126,7 @@ module Bidi2pdf
       Bidi2pdf::ProcessTree.new(@pid).traverse do |process, level|
         indent = "  " * level
         prefix = level.zero? ? "" : "└─ "
-        Bidi2pdf.logger.debug "#{indent}#{prefix}PID #{process.pid} (#{process.name})"
+        Bidi2pdf.logger.debug2 "#{indent}#{prefix}PID #{process.pid} (#{process.name})"
       end
     end
 
@@ -186,7 +186,7 @@ module Bidi2pdf
     def parse_port_from_output(io, timeout: 5)
       Thread.new do
         io.each_line do |line|
-          Bidi2pdf.logger.debug line.chomp
+          Bidi2pdf.logger.debug1 line.chomp
 
           next unless line =~ /ChromeDriver was started successfully on port (\d+)/
 

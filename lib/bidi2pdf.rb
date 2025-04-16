@@ -6,6 +6,7 @@ require_relative "bidi2pdf/bidi/session"
 require_relative "bidi2pdf/dsl"
 require_relative "bidi2pdf/notifications"
 require_relative "bidi2pdf/notifications/logging_subscriber"
+require_relative "bidi2pdf/verbose_logger"
 
 require "logger"
 
@@ -40,22 +41,13 @@ module Bidi2pdf
     end
   end
 
-  @logger = Logger.new($stdout)
-  @logger.level = Logger::INFO
-
-  @network_events_logger = Logger.new($stdout)
-  @network_events_logger.level = Logger::FATAL
-
-  @browser_console_logger = Logger.new($stdout)
-  @browser_console_logger.level = Logger::WARN
-
   @default_timeout = 60
 
   @notification_service = Notifications
 
   class << self
-    attr_accessor :default_timeout, :network_events_logger, :browser_console_logger, :notification_service
-    attr_reader :logging_subscriber, :logger
+    attr_accessor :default_timeout, :notification_service
+    attr_reader :logging_subscriber, :logger, :network_events_logger, :browser_console_logger
 
     # Allow configuration through a block
     def configure
@@ -72,8 +64,15 @@ module Bidi2pdf
     # rubocop:enable Naming/MemoizedInstanceVariableName
 
     def logger=(new_logger)
-      @logger = new_logger
-      @logging_subscriber.logger = new_logger
+      @logger = Bidi2pdf::VerboseLogger.new new_logger
+    end
+
+    def network_events_logger=(new_network_events_logger)
+      @network_events_logger = Bidi2pdf::VerboseLogger.new(new_network_events_logger)
+    end
+
+    def browser_console_logger=(new_browser_console_logger)
+      @browser_console_logger = Bidi2pdf::VerboseLogger.new(new_browser_console_logger)
     end
 
     def logging_subscriber=(new_logging_subscriber)
@@ -81,4 +80,13 @@ module Bidi2pdf
       @logging_subscriber = new_logging_subscriber
     end
   end
+
+  self.logger = Logger.new($stdout)
+  logger.level = Logger::INFO
+
+  self.network_events_logger = Logger.new($stdout)
+  network_events_logger.level = Logger::FATAL
+
+  self.browser_console_logger = Logger.new($stdout)
+  browser_console_logger.level = Logger::WARN
 end

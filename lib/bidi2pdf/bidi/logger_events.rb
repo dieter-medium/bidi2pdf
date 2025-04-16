@@ -22,7 +22,7 @@ module Bidi2pdf
           handle_response(method, event)
         else
           # this should be Bidi2pdf.logger and not Bidi2pdf.browser_console_logger
-          Bidi2pdf.logger.debug "Ignoring Log event: #{method}, context_id: #{context_id}, params: #{event}"
+          Bidi2pdf.logger.debug2 "Ignoring Log event: #{method}, context_id: #{context_id}, params: #{event}"
         end
       rescue StandardError => e
         # this should be Bidi2pdf.logger and not Bidi2pdf.browser_console_logger
@@ -69,7 +69,7 @@ module Bidi2pdf
 
       def resolve_log_level(js_level)
         case js_level
-        when "info", "warn", "error"
+        when "info", "warn", "error", "trace"
           js_level.to_sym
         else
           :debug

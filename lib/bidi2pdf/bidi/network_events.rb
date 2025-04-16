@@ -21,7 +21,7 @@ module Bidi2pdf
         if event["context"] == context_id
           handle_response(method, event)
         else
-          Bidi2pdf.logger.debug "Ignoring Network event: #{method}, #{context_id}, params: #{event}"
+          Bidi2pdf.logger.debug3 "Ignoring Network event: #{method}, #{context_id}, params: #{event}"
         end
       rescue StandardError => e
         Bidi2pdf.logger.error "Error handling network event: #{e.message}"

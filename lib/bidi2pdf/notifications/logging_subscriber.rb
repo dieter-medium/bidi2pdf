@@ -35,7 +35,9 @@ module Bidi2pdf
       end
 
       def send_cmd(event)
-        logger.debug do
+        logger.debug "Sending command: #{event.payload[:cmd].method_name} id: ##{event.payload[:cmd_payload][:id]}"
+
+        logger.debug1 do
           payload = redact_sensitive_fields(event.payload[:cmd_payload])
           "Sending command: #{payload.inspect} (#{event.duration.round(1)}ms)"
         end

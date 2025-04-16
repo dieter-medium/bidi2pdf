@@ -46,7 +46,7 @@ module Bidi2pdf
         url = event_response["request"]["url"]
 
         # Log the interception
-        Bidi2pdf.logger.debug "Interceptor #{interceptor_id} handling event: #{navigation_id}/#{network_id}/#{url}"
+        Bidi2pdf.logger.debug1 "Interceptor #{interceptor_id} handling event: #{navigation_id}/#{network_id}/#{url}"
 
         process_interception(event_response, navigation_id, network_id, url)
       rescue StandardError => e
