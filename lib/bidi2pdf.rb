@@ -41,13 +41,9 @@ module Bidi2pdf
     end
   end
 
-  @default_timeout = 60
-
-  @notification_service = Notifications
-
   class << self
-    attr_accessor :default_timeout, :notification_service
-    attr_reader :logging_subscriber, :logger, :network_events_logger, :browser_console_logger
+    attr_accessor :default_timeout, :enable_default_logging_subscriber
+    attr_reader :logging_subscriber, :logger, :network_events_logger, :browser_console_logger, :notification_service
 
     # Allow configuration through a block
     def configure
@@ -56,12 +52,9 @@ module Bidi2pdf
       init
     end
 
-    # rubocop:disable Naming/MemoizedInstanceVariableName
     def init
-      @logging_subscriber ||= Notifications::LoggingSubscriber.new(logger: logger)
+      self.logging_subscriber = (Notifications::LoggingSubscriber.new(logger: logger) if enable_default_logging_subscriber)
     end
-
-    # rubocop:enable Naming/MemoizedInstanceVariableName
 
     def logger=(new_logger)
       @logger = Bidi2pdf::VerboseLogger.new new_logger
@@ -79,14 +72,28 @@ module Bidi2pdf
       @logging_subscriber&.unsubscribe
       @logging_subscriber = new_logging_subscriber
     end
+
+    def notification_service=(new_notification_service)
+      @logging_subscriber&.unsubscribe
+
+      @notification_service = new_notification_service
+    end
   end
 
-  self.logger = Logger.new($stdout)
-  logger.level = Logger::INFO
+  configure do |config|
+    config.logger = Logger.new($stdout)
+    config.logger.level = Logger::INFO
 
-  self.network_events_logger = Logger.new($stdout)
-  network_events_logger.level = Logger::FATAL
+    config.network_events_logger = Logger.new($stdout)
+    config.network_events_logger.level = Logger::FATAL
 
-  self.browser_console_logger = Logger.new($stdout)
-  browser_console_logger.level = Logger::WARN
+    config.browser_console_logger = Logger.new($stdout)
+    config.browser_console_logger.level = Logger::WARN
+
+    config.enable_default_logging_subscriber = true
+
+    config.default_timeout = 60
+
+    config.notification_service = Notifications
+  end
 end
