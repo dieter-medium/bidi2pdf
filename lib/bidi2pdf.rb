@@ -5,7 +5,7 @@ require_relative "bidi2pdf/launcher"
 require_relative "bidi2pdf/bidi/session"
 require_relative "bidi2pdf/dsl"
 require_relative "bidi2pdf/notifications"
-require_relative "bidi2pdf/logging_subscriber"
+require_relative "bidi2pdf/notifications/logging_subscriber"
 
 require "logger"
 
@@ -54,11 +54,31 @@ module Bidi2pdf
   @notification_service = Notifications
 
   class << self
-    attr_accessor :logger, :default_timeout, :network_events_logger, :browser_console_logger, :notification_service
+    attr_accessor :default_timeout, :network_events_logger, :browser_console_logger, :notification_service
+    attr_reader :logging_subscriber, :logger
 
     # Allow configuration through a block
     def configure
       yield self if block_given?
+
+      init
+    end
+
+    # rubocop:disable Naming/MemoizedInstanceVariableName
+    def init
+      @logging_subscriber ||= Notifications::LoggingSubscriber.new(logger: logger)
+    end
+
+    # rubocop:enable Naming/MemoizedInstanceVariableName
+
+    def logger=(new_logger)
+      @logger = new_logger
+      @logging_subscriber.logger = new_logger
+    end
+
+    def logging_subscriber=(new_logging_subscriber)
+      @logging_subscriber&.unsubscribe
+      @logging_subscriber = new_logging_subscriber
     end
   end
 end

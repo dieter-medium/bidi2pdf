@@ -77,7 +77,7 @@ module Bidi2pdf
         end
       end
 
-      def wait_until_network_idle(timeout: 10, poll_interval: 0.1)
+      def wait_until_network_idle(timeout: 10, poll_interval: 0.01)
         start_time = Time.now
 
         loop do
