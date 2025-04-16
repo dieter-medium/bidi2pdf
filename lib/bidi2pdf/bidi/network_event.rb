@@ -67,6 +67,21 @@ module Bidi2pdf
           "end=#{end_str}, " \
           "duration=#{took_str}>"
       end
+
+      def dup
+        self.class.new(
+          id: @id,
+          url: @url,
+          timestamp: @start_timestamp,
+          timing: @timing&.dup,
+          state: @state,
+          http_status_code: @http_status_code,
+          http_method: @http_method
+        ).tap do |duped|
+          duped.instance_variable_set(:@end_timestamp, @end_timestamp)
+          duped.instance_variable_set(:@bytes_received, @bytes_received)
+        end
+      end
     end
   end
 end

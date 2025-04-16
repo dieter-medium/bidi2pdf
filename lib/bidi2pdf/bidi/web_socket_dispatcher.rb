@@ -52,10 +52,10 @@ module Bidi2pdf
           method = data["method"]
 
           if method
-            Bidi2pdf.logger.debug2 "Dispatching session event: #{method}"
+            Bidi2pdf.logger.debug3 "Dispatching session event: #{method}"
             that.session_events.dispatch(method, data)
           else
-            Bidi2pdf.logger.debug2 "Dispatching socket message"
+            Bidi2pdf.logger.debug3 "Dispatching socket message"
             that.socket_events.dispatch(:message, data)
           end
         end

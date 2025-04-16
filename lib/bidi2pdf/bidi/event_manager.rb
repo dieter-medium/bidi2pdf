@@ -43,7 +43,7 @@ module Bidi2pdf
 
       def log_msg(prefix, data)
         message = truncate_large_values(data)
-        Bidi2pdf.logger.debug2 "#{prefix}: #{message.inspect}"
+        Bidi2pdf.logger.debug3 "#{prefix}: #{message.inspect}"
       end
 
       # rubocop: disable all

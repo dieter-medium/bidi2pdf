@@ -13,6 +13,7 @@ module Bidi2pdf
         Bidi2pdf::Notifications.subscribe("session_close.bidi2pdf", &method(:session_close))
         Bidi2pdf::Notifications.subscribe("network_idle.bidi2pdf", &method(:network_idle))
         Bidi2pdf::Notifications.subscribe("page_loaded.bidi2pdf", &method(:page_loaded))
+        Bidi2pdf::Notifications.subscribe("network_event_received.bidi2pdf", &method(:network_event_received))
       end
 
       def unsubscribe
@@ -22,6 +23,7 @@ module Bidi2pdf
         Bidi2pdf::Notifications.unsubscribe("session_close.bidi2pdf", &method(:session_close))
         Bidi2pdf::Notifications.unsubscribe("network_idle.bidi2pdf", &method(:network_idle))
         Bidi2pdf::Notifications.unsubscribe("page_loaded.bidi2pdf", &method(:page_loaded))
+        Bidi2pdf::Notifications.unsubscribe("network_event_received.bidi2pdf", &method(:network_event_received))
       end
 
       def handle_response(event)
@@ -56,7 +58,28 @@ module Bidi2pdf
         logger.error "Session close error: #{event.payload[:error].inspect}, attempt: #{event.payload[:attempt]}, retry: #{event.payload[:retry]}"
       end
 
-      # rubocop:disable Metrics/AbcSize,  Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+      # rubocop: disable Metrics/AbcSize
+      def network_event_received(event)
+        return unless logger.debug2?
+
+        msg = case event.payload[:method]
+              when "network.beforeRequestSent"
+                "Request url '#{event.payload[:url]}' started"
+
+              when "network.responseStarted"
+                nil
+              when "network.responseCompleted"
+                "Request url '#{event.payload[:url]}' completed"
+              when "network.fetchError"
+                "Request url '#{event.payload[:url]}' error."
+              else
+                "Unknown network event: #{event.payload[:method]} for url '#{event.payload[:url]}'"
+              end
+
+        logger.debug2 msg if msg
+      end
+
+      # rubocop:disable  Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       def network_idle(event)
         return unless logger.info?
 

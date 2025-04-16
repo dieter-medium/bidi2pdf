@@ -27,7 +27,7 @@ module Bidi2pdf
         Bidi2pdf.logger.error "Error handling network event: #{e.message}"
       end
 
-      # rubocop:disable Metrics/AbcSize
+      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
       def handle_response(method, event)
         return unless event && event["request"]
 
@@ -43,23 +43,33 @@ module Bidi2pdf
 
         timestamp = event["timestamp"]
 
-        if method == "network.beforeRequestSent"
-          events[id] ||= NetworkEvent.new(
-            id: id,
-            url: url,
-            timestamp: timestamp,
-            timing: timing,
-            state: method,
-            http_method: http_method
-          )
-        elsif events.key?(id)
-          events[id].update_state(method, timestamp: timestamp, timing: timing, http_status_code: http_status_code, bytes_received: bytes_received)
-        else
-          Bidi2pdf.logger.warn "Received response for unknown request ID: #{id}, URL: #{url}"
+        Bidi2pdf.notification_service.instrument("network_event_received.bidi2pdf",
+                                                 {
+                                                   id: id,
+                                                   method: method,
+                                                   url: url,
+                                                   http_status_code: http_status_code
+                                                 }) do |instrumentation_payload|
+          if method == "network.beforeRequestSent"
+            events[id] ||= NetworkEvent.new(
+              id: id,
+              url: url,
+              timestamp: timestamp,
+              timing: timing,
+              state: method,
+              http_method: http_method
+            )
+          elsif events.key?(id)
+            events[id].update_state(method, timestamp: timestamp, timing: timing, http_status_code: http_status_code, bytes_received: bytes_received)
+          else
+            Bidi2pdf.logger.warn "Received response for unknown request ID: #{id}, URL: #{url}"
+          end
+
+          instrumentation_payload[:event] = events[id]&.dup
         end
       end
 
-      # rubocop:enable Metrics/AbcSize
+      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
       def all_events
         events.values.sort_by(&:start_timestamp)
