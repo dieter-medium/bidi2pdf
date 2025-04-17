@@ -54,6 +54,15 @@ module Bidi2pdf
 
     def init
       self.logging_subscriber = (Notifications::LoggingSubscriber.new(logger: logger) if enable_default_logging_subscriber)
+      begin
+        require "websocket-native"
+
+        logger.debug "websocket-native available; use enhance performance."
+      rescue LoadError => e
+        raise unless e.message =~ /websocket-native/
+
+        logger.warn "websocket-native not available; installing it may enhance performance."
+      end
     end
 
     def logger=(new_logger)

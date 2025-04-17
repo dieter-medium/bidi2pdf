@@ -73,6 +73,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "testcontainers", "~> 0.2"
   spec.add_development_dependency "testcontainers-nginx", "~> 0.2"
   spec.add_development_dependency "unicode_utils", "~> 1.4"
+  spec.add_development_dependency "websocket-native", "~> 1.0"
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
