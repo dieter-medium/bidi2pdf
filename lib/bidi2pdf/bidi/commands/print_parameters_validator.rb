@@ -17,6 +17,7 @@ module Bidi2pdf
       #   },
       #   orientation: "portrait" or "landscape" (optional, default: "portrait"),
       #   page: {
+      #     format: String (optional, use either format or width/height),
       #     width: Float >= 0.0352 (optional, default: 21.59),
       #     height: Float >= 0.0352 (optional, default: 27.94)
       #   },
@@ -97,11 +98,14 @@ module Bidi2pdf
           end
         end
 
+        # rubocop: disable Metrics/CyclomaticComplexity
         def validate_page_size
           return unless @params.key?(:page)
 
           page = @params[:page]
           raise ArgumentError, ":page must be a Hash" unless page.is_a?(Hash)
+
+          Bidi2pdf.translate_paper_format @params[:page][:format] if @params[:page][:format]
 
           %i[width height].each do |dim|
             next unless page.key?(dim)
@@ -109,6 +113,7 @@ module Bidi2pdf
             val = page[dim]
             raise ArgumentError, "page[:#{dim}] must be a float >= 0.0352" unless val.is_a?(Numeric) && val >= 0.0352
           end
+          # rubocop: enable Metrics/CyclomaticComplexity
         end
       end
     end

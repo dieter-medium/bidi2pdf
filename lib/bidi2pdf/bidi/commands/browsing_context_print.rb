@@ -13,6 +13,10 @@ module Bidi2pdf
           @print_options = print_options || { background: true }
 
           PrintParametersValidator.validate!(@print_options)
+
+          return unless @print_options[:page]&.key?(:format)
+
+          @print_options[:page] = Bidi2pdf.translate_paper_format @print_options[:page][:format]
         end
 
         def params

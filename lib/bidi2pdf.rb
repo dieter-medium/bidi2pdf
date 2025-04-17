@@ -11,6 +11,20 @@ require_relative "bidi2pdf/verbose_logger"
 require "logger"
 
 module Bidi2pdf
+  PAPER_FORMATS_CM = {
+    letter: { width: 21.59, height: 27.94 },
+    legal: { width: 21.59, height: 35.56 },
+    tabloid: { width: 27.94, height: 43.18 },
+    ledger: { width: 43.18, height: 27.94 },
+    a0: { width: 84.1, height: 118.9 },
+    a1: { width: 59.4, height: 84.1 },
+    a2: { width: 42.0, height: 59.4 },
+    a3: { width: 29.7, height: 42.0 },
+    a4: { width: 21.0, height: 29.7 },
+    a5: { width: 14.8, height: 21.0 },
+    a6: { width: 10.5, height: 14.8 }
+  }.freeze
+
   class Error < StandardError; end
 
   class SessionNotStartedError < Error; end
@@ -63,6 +77,19 @@ module Bidi2pdf
 
         logger.warn "websocket-native not available; installing it may enhance performance."
       end
+    end
+
+    def translate_paper_format(format)
+      format = format.to_s.downcase.to_sym
+
+      dim = PAPER_FORMATS_CM[format]
+
+      raise ArgumentError, "Invalid paper format: #{format}" unless dim
+
+      width = dim[:width] || 0
+      height = dim[:height] || 0
+
+      { width: width, height: height }
     end
 
     def logger=(new_logger)
