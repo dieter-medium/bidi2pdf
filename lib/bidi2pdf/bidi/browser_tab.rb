@@ -291,7 +291,11 @@ module Bidi2pdf
       # @return [Object] The result of the script execution.
       #   - If the page is loaded successfully, the Promise resolves with the value `'done'`.
       #   - If the script fails, an error or exception details may be returned.
-      def wait_until_page_loaded(check_script: "new Promise(resolve => { const check = () => window.loaded ? resolve('done') : setTimeout(check, 100); check(); });")
+      def wait_until_page_loaded(check_script: nil)
+        check_script ||= <<~JS
+          new Promise(resolve => { const check = () => window.loaded ? resolve('done') : setTimeout(check, 100); check(); });
+        JS
+
         Bidi2pdf.notification_service.instrument("page_loaded.bidi2pdf") do
           execute_script check_script
         end
