@@ -7,7 +7,7 @@ module Bidi2pdf
       class NetworkEventConsoleFormatter
         include NetworkEventFormatterUtils
 
-        attr_reader :color_enabled
+        attr_reader :color_enabled, :logger
 
         # ANSI styles
         RESET = "\e[0m"
@@ -19,12 +19,13 @@ module Bidi2pdf
         CYAN = "\e[36m"
         GRAY = "\e[90m"
 
-        def initialize(color: true)
+        def initialize(color: true, logger: Bidi2pdf.network_events_logger)
           @color_enabled = color
+          @logger = logger
         end
 
         def log(events)
-          events.each { |event| pretty_log(event).each_line { |line| Bidi2pdf.network_events_logger.info(line.chomp) } }
+          events.each { |event| pretty_log(event).each_line { |line| logger.info(line.chomp) } }
         end
 
         def pretty_log(event)
