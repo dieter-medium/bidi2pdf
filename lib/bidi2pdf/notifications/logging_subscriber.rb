@@ -80,6 +80,10 @@ module Bidi2pdf
         logger.info "Page loaded: #{event.duration.round(1)}ms"
       end
 
+      def print(event)
+        logger.info "Page printed: #{event.duration.round(1)}ms"
+      end
+
       private
 
       def redact_sensitive_fields(obj, sensitive_keys = %w[value token password authorization username])
@@ -102,7 +106,7 @@ module Bidi2pdf
 
       attr_accessor :logger
 
-      # rubocop: disable Metrics/AbcSize, Metrics/CyclomaticComplexity
+      # rubocop: disable Metrics/AbcSize, Metrics/CyclomaticComplexity,  Metrics/PerceivedComplexity
       def initialize(logger: Logger.new($stdout))
         @logger = logger
         Bidi2pdf.notification_service&.subscribe("handle_response.bidi2pdf", &method(:handle_response))
@@ -112,6 +116,7 @@ module Bidi2pdf
         Bidi2pdf.notification_service&.subscribe("network_idle.bidi2pdf", &method(:network_idle))
         Bidi2pdf.notification_service&.subscribe("page_loaded.bidi2pdf", &method(:page_loaded))
         Bidi2pdf.notification_service&.subscribe("network_event_received.bidi2pdf", &method(:network_event_received))
+        Bidi2pdf.notification_service&.subscribe("print.bidi2pdf", &method(:network_event_received))
       end
 
       def unsubscribe
@@ -122,9 +127,10 @@ module Bidi2pdf
         Bidi2pdf.notification_service&.unsubscribe("network_idle.bidi2pdf", &method(:network_idle))
         Bidi2pdf.notification_service&.unsubscribe("page_loaded.bidi2pdf", &method(:page_loaded))
         Bidi2pdf.notification_service&.unsubscribe("network_event_received.bidi2pdf", &method(:network_event_received))
+        Bidi2pdf.notification_service&.unsubscribe("print.bidi2pdf", &method(:network_event_received))
       end
 
-      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity
+      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity,  Metrics/PerceivedComplexity
     end
   end
 end
