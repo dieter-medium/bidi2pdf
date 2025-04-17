@@ -1,17 +1,16 @@
 # frozen_string_literal: true
 
 require_relative "network_event"
-require_relative "js_logger_helper"
+require_relative "browser_console_logger"
 
 module Bidi2pdf
   module Bidi
     class LoggerEvents
-      include JsLoggerHelper
-
-      attr_reader :context_id
+      attr_reader :context_id, :browser_console_logger
 
       def initialize(context_id)
         @context_id = context_id
+        @browser_console_logger = BrowserConsoleLogger.new(Bidi2pdf.browser_console_logger)
       end
 
       def handle_event(data)
@@ -34,37 +33,24 @@ module Bidi2pdf
         text = event["text"]
         args = event["args"] || []
         stack_trace = event["stackTrace"]
-        timestamp = format_timestamp(event["timestamp"])
-        prefix = log_prefix(timestamp)
+        timestamp = event["timestamp"]
 
-        log_message(level, prefix, text)
-        log_args(prefix, args)
-        log_stack_trace(prefix, stack_trace) if stack_trace && level == :error
-      end
+        Bidi2pdf.notification_service.instrument("browser_console_log_received.bidi2pdf",
+                                                 {
+                                                   level: level,
+                                                   text: text,
+                                                   args: args,
+                                                   stack_trace: stack_trace,
+                                                   timestamp: timestamp
+                                                 })
 
-      private
-
-      def log_message(level, prefix, text)
-        return unless text
-
-        Bidi2pdf.browser_console_logger.send(level, "#{prefix} #{text}")
-      end
-
-      def log_args(prefix, args)
-        return if args.empty?
-
-        Bidi2pdf.browser_console_logger.debug("#{prefix} Args: #{args.inspect}")
-      end
-
-      def log_stack_trace(prefix, trace)
-        formatted_trace = format_stack_trace(trace)
-        Bidi2pdf.browser_console_logger.error("#{prefix} Stack trace captured:\n#{formatted_trace}")
-      end
-
-      def format_timestamp(timestamp)
-        return "N/A" unless timestamp
-
-        Time.at(timestamp.to_f / 1000).utc.strftime("%Y-%m-%d %H:%M:%S.%L UTC")
+        browser_console_logger.builder
+                              .with_level(level)
+                              .with_timestamp(timestamp)
+                              .with_text(text)
+                              .with_args(args)
+                              .with_stack_trace(stack_trace)
+                              .log_event
       end
 
       def resolve_log_level(js_level)
@@ -74,10 +60,6 @@ module Bidi2pdf
         else
           :debug
         end
-      end
-
-      def log_prefix(timestamp)
-        "[#{timestamp}][Browser Console Log]"
       end
     end
   end

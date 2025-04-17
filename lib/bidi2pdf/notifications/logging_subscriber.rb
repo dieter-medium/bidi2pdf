@@ -102,29 +102,29 @@ module Bidi2pdf
 
       attr_accessor :logger
 
-      # rubocop: disable Metrics/AbcSize
+      # rubocop: disable Metrics/AbcSize, Metrics/CyclomaticComplexity
       def initialize(logger: Logger.new($stdout))
         @logger = logger
-        Bidi2pdf.notification_service.subscribe("handle_response.bidi2pdf", &method(:handle_response))
-        Bidi2pdf.notification_service.subscribe("send_cmd.bidi2pdf", &method(:send_cmd))
-        Bidi2pdf.notification_service.subscribe("send_cmd_and_wait.bidi2pdf", &method(:send_cmd_and_wait))
-        Bidi2pdf.notification_service.subscribe("session_close.bidi2pdf", &method(:session_close))
-        Bidi2pdf.notification_service.subscribe("network_idle.bidi2pdf", &method(:network_idle))
-        Bidi2pdf.notification_service.subscribe("page_loaded.bidi2pdf", &method(:page_loaded))
-        Bidi2pdf.notification_service.subscribe("network_event_received.bidi2pdf", &method(:network_event_received))
+        Bidi2pdf.notification_service&.subscribe("handle_response.bidi2pdf", &method(:handle_response))
+        Bidi2pdf.notification_service&.subscribe("send_cmd.bidi2pdf", &method(:send_cmd))
+        Bidi2pdf.notification_service&.subscribe("send_cmd_and_wait.bidi2pdf", &method(:send_cmd_and_wait))
+        Bidi2pdf.notification_service&.subscribe("session_close.bidi2pdf", &method(:session_close))
+        Bidi2pdf.notification_service&.subscribe("network_idle.bidi2pdf", &method(:network_idle))
+        Bidi2pdf.notification_service&.subscribe("page_loaded.bidi2pdf", &method(:page_loaded))
+        Bidi2pdf.notification_service&.subscribe("network_event_received.bidi2pdf", &method(:network_event_received))
       end
 
       def unsubscribe
-        Bidi2pdf.notification_service.unsubscribe("handle_response.bidi2pdf", &method(:handle_response))
-        Bidi2pdf.notification_service.unsubscribe("send_cmd.bidi2pdf", &method(:send_cmd))
-        Bidi2pdf.notification_service.unsubscribe("send_cmd_and_wait.bidi2pdf", &method(:send_cmd_and_wait))
-        Bidi2pdf.notification_service.unsubscribe("session_close.bidi2pdf", &method(:session_close))
-        Bidi2pdf.notification_service.unsubscribe("network_idle.bidi2pdf", &method(:network_idle))
-        Bidi2pdf.notification_service.unsubscribe("page_loaded.bidi2pdf", &method(:page_loaded))
-        Bidi2pdf.notification_service.unsubscribe("network_event_received.bidi2pdf", &method(:network_event_received))
+        Bidi2pdf.notification_service&.unsubscribe("handle_response.bidi2pdf", &method(:handle_response))
+        Bidi2pdf.notification_service&.unsubscribe("send_cmd.bidi2pdf", &method(:send_cmd))
+        Bidi2pdf.notification_service&.unsubscribe("send_cmd_and_wait.bidi2pdf", &method(:send_cmd_and_wait))
+        Bidi2pdf.notification_service&.unsubscribe("session_close.bidi2pdf", &method(:session_close))
+        Bidi2pdf.notification_service&.unsubscribe("network_idle.bidi2pdf", &method(:network_idle))
+        Bidi2pdf.notification_service&.unsubscribe("page_loaded.bidi2pdf", &method(:page_loaded))
+        Bidi2pdf.notification_service&.unsubscribe("network_event_received.bidi2pdf", &method(:network_event_received))
       end
 
-      # rubocop:enable Metrics/AbcSize
+      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity
     end
   end
 end
