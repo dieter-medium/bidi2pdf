@@ -6,22 +6,13 @@ require "securerandom"
 
 RSpec.shared_examples "a PDF downloader" do
   it "creates the downloaded file with correct content" do
-    io = StringIO.new(Base64.decode64(launcher.launch))
+    expected_pages_as_text = @golden_sample_text
 
-    PDF::Reader.open(io) do |reader|
-      actual_text = reader.pages.map(&:text)
-      expected_text = @golden_sample_text
-
-      expect(actual_text).to match_pdf_text(expected_text)
-    end
+    expect(launcher.launch).to match_pdf_text(expected_pages_as_text)
   end
 
   it "creates the downloaded file with correct page count" do
-    io = StringIO.new(Base64.decode64(launcher.launch))
-
-    PDF::Reader.open(io) do |reader|
-      expect(reader.page_count).to eql(@golden_sample_pages)
-    end
+    expect(launcher.launch).to have_pdf_page_count(@golden_sample_pages)
   end
 
   context "with file creation" do
@@ -34,9 +25,7 @@ RSpec.shared_examples "a PDF downloader" do
     it "creates pdf file" do
       launcher.launch
 
-      PDF::Reader.open(output) do |reader|
-        expect(reader.page_count).to eql(@golden_sample_pages)
-      end
+      expect(output).to have_pdf_page_count(@golden_sample_pages)
     end
   end
 end

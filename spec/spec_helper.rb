@@ -29,6 +29,7 @@ if ENV["COVERAGE"]
 end
 
 require "bidi2pdf"
+require "bidi2pdf/test_helpers"
 require "rspec-benchmark"
 
 RSpec.configure do |config|
@@ -36,6 +37,12 @@ RSpec.configure do |config|
   config.example_status_persistence_file_path = ".rspec_status"
 
   config.order = :random
+
+  # Seed global randomization in this process using the `--seed` CLI option.
+  # Setting this allows you to use `--seed` to deterministically reproduce
+  # test failures related to randomization by passing the same `--seed` value
+  # as the one that triggered the failure.
+  Kernel.srand config.seed
 
   # Disable RSpec exposing methods globally on `Module` and `main`
   config.disable_monkey_patching!

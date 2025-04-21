@@ -81,21 +81,21 @@ RSpec.describe "PDF Generation", :nginx do
     let(:url) { nginx_url "/basic/sample.html" }
     let(:auth) { { username: "admin", password: "secret" } }
 
-    include_examples "a PDF downloader"
+    it_behaves_like "a PDF downloader"
   end
 
   describe "As a user with an API key" do
     let(:url) { nginx_url "/header/sample.html" }
     let(:headers) { { "x-api-key" => "secret" } }
 
-    include_examples "a PDF downloader"
+    it_behaves_like "a PDF downloader"
   end
 
   describe "As a user with an authentication cookie" do
     let(:url) { nginx_url "/cookie/sample.html" }
     let(:cookies) { { "auth" => "secret" } }
 
-    include_examples "a PDF downloader"
+    it_behaves_like "a PDF downloader"
   end
 
   describe "As a user who needs custom PDF formatting" do
