@@ -21,12 +21,12 @@ require_relative "../pdf_text_sanitizer"
 #   to handle your specific PDF processing logic.
 RSpec::Matchers.define :match_pdf_text do |expected|
   match do |actual|
-    PDFTextSanitizer.match?(actual, expected)
+    Bidi2pdf::TestHelpers::PDFTextSanitizer.match?(actual, expected)
   end
 
   failure_message do |actual|
-    cleaned_actual = PDFTextSanitizer.clean_pages(actual)
-    cleaned_expected = PDFTextSanitizer.clean_pages(expected)
+    cleaned_actual = Bidi2pdf::TestHelpers::PDFTextSanitizer.clean_pages(actual)
+    cleaned_expected = Bidi2pdf::TestHelpers::PDFTextSanitizer.clean_pages(expected)
 
     <<~MSG
       PDF text did not match.

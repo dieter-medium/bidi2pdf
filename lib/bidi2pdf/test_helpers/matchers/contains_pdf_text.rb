@@ -23,11 +23,11 @@ RSpec::Matchers.define :contains_pdf_text do |expected|
   end
 
   match do |actual|
-    PDFTextSanitizer.contains?(actual, expected, @page_number)
+    Bidi2pdf::TestHelpers::PDFTextSanitizer.contains?(actual, expected, @page_number)
   end
 
   failure_message do |actual|
-    pages = PDFTextSanitizer.clean_pages(actual)
+    pages = Bidi2pdf::TestHelpers::PDFTextSanitizer.clean_pages(actual)
 
     return "Document does not contain page #{@page_number}" if @page_number && !(@page_number && @page_number <= pages.size)
 
