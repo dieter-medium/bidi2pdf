@@ -2,6 +2,7 @@
 
 require "testcontainers"
 require "testcontainers/nginx"
+require "bidi2pdf/test_helpers/testcontainers/chromedriver_container"
 require_relative "nginx_test_helper"
 require_relative "chromedriver_test_helper"
 require_relative "session_test_helper"
@@ -70,15 +71,18 @@ def test_of_kind_present?(type)
   RSpec.world.filtered_examples.values.flatten.any? { |example| example.metadata[type] }
 end
 
+# alias the long class name
+ChromedriverTestcontainer = Bidi2pdf::TestHelpers::Testcontainers::ChromedriverContainer
+
 def start_chromedriver_container(build_dir:, fixture_dir:)
-  container = ChromedriverContainer.new(ChromedriverContainer::DEFAULT_IMAGE,
-                                        build_dir: build_dir,
-                                        docker_file: "docker/Dockerfile.chromedriver")
-                                   .with_filesystem_binds(
-                                     {
-                                       fixture_dir => "/var/www/html"
-                                     }
-                                   )
+  container = ChromedriverTestcontainer.new(ChromedriverTestcontainer::DEFAULT_IMAGE,
+                                            build_dir: build_dir,
+                                            docker_file: "docker/Dockerfile.chromedriver")
+                                       .with_filesystem_binds(
+                                         {
+                                           fixture_dir => "/var/www/html"
+                                         }
+                                       )
 
   container.start
 
