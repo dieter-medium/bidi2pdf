@@ -413,9 +413,14 @@ module Bidi2pdf
           Bidi2pdf.logger.debug "Navigated to page url: #{url} response: #{response}"
         end
       rescue Bidi2pdf::CmdError => e
-        case e.response["message"]
+        msg = e.response["message"]
+        case msg
+        when /^net::ERR_INVALID_AUTH_CREDENTIALS/
+          raise NavigationAuthError.new(url, msg)
+        when /^net::ERR_NAME_NOT_RESOLVED/
+          raise NavigationDNSError.new(url, msg)
         when /^net::/
-          raise NavigationError, "Connection error: #{url} #{e.response["message"]}"
+          raise NavigationError, "Connection error: #{url} #{msg}"
         else
           raise e
         end

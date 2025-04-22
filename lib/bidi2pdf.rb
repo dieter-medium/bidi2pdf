@@ -66,6 +66,23 @@ module Bidi2pdf
 
   class NavigationError < Error; end
 
+  class NavigationAuthError < NavigationError
+    attr_reader :url
+
+    def initialize(url, message = nil)
+      @url = url
+      super("Navigation to #{url} failed due to authentication error. #{message}")
+    end
+  end
+
+  class NavigationTimeoutError < NavigationError; end
+
+  class NavigationNotFoundError < NavigationError; end
+
+  class NavigationDNSError < NavigationError; end
+
+  # Global configuration for Bidi2pdf
+
   class << self
     attr_accessor :default_timeout, :enable_default_logging_subscriber
     attr_reader :logging_subscriber, :logger, :network_events_logger, :browser_console_logger, :notification_service
