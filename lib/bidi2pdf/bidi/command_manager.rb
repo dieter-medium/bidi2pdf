@@ -5,11 +5,10 @@ module Bidi2pdf
     class CommandManager
       class << self
         def initialize_counter
-          @id = 0
-          @id_mutex = Mutex.new
+          @id = Concurrent::AtomicFixnum.new(0)
         end
 
-        def next_id = @id_mutex.synchronize { @id += 1 }
+        def next_id = @id.increment
       end
 
       initialize_counter

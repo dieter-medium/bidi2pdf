@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "concurrent-ruby"
+require "logger"
+
 require_relative "bidi2pdf/process_tree"
 require_relative "bidi2pdf/launcher"
 require_relative "bidi2pdf/bidi/session"
@@ -7,8 +10,6 @@ require_relative "bidi2pdf/dsl"
 require_relative "bidi2pdf/notifications"
 require_relative "bidi2pdf/notifications/logging_subscriber"
 require_relative "bidi2pdf/verbose_logger"
-
-require "logger"
 
 module Bidi2pdf
   PAPER_FORMATS_CM = {

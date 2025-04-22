@@ -6,7 +6,7 @@ module Bidi2pdf
       def initialize(logger:)
         @logger = logger
         @connected = false
-        @connection_queue = Thread::Queue.new
+        @connection_latch = Concurrent::CountDownLatch.new(1)
       end
 
       def mark_connected
@@ -14,7 +14,7 @@ module Bidi2pdf
 
         @connected = true
         @logger.debug "WebSocket connection is open"
-        @connection_queue.push(true)
+        @connection_latch.count_down
       end
 
       def wait_until_open(timeout:)
@@ -22,13 +22,7 @@ module Bidi2pdf
 
         @logger.debug "Waiting for WebSocket connection to open"
 
-        begin
-          Timeout.timeout(timeout) do
-            @connection_queue.pop
-          end
-        rescue Timeout::Error
-          raise Bidi2pdf::WebsocketError, "WebSocket connection did not open in time #{timeout} sec."
-        end
+        raise Bidi2pdf::WebsocketError, "WebSocket connection did not open in time #{timeout} sec." unless @connection_latch.wait(timeout)
 
         true
       end

@@ -59,6 +59,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "sys-proctable", "~> 1.3"
   spec.add_dependency "thor", "~> 1.3"
   spec.add_dependency "websocket-client-simple", "~> 0.9.0"
+  spec.add_dependency "concurrent-ruby", "~> 1.0", ">= 1.3.1"
 
   spec.add_development_dependency "diff-lcs", "~> 1.5"
   spec.add_development_dependency "pdf-reader", "~> 2.14"
