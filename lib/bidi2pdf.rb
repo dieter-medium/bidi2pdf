@@ -33,7 +33,16 @@ module Bidi2pdf
 
   class ClientError < WebsocketError; end
 
-  class CmdError < ClientError; end
+  class CmdError < ClientError
+    attr_reader :cmd, :response
+
+    def initialize(cmd, response)
+      @cmd = cmd
+      @response = response
+
+      super("Error response: #{response["error"]} #{cmd.inspect}")
+    end
+  end
 
   class CmdResponseNotStoredError < ClientError; end
 
@@ -54,6 +63,8 @@ module Bidi2pdf
       super("Notifications errors: #{exception_class_names.join(", ")}")
     end
   end
+
+  class NavigationError < Error; end
 
   class << self
     attr_accessor :default_timeout, :enable_default_logging_subscriber

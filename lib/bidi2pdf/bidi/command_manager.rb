@@ -52,7 +52,8 @@ module Bidi2pdf
           instrumentation_payload[:response] = response
 
           raise CmdTimeoutError, "Timeout waiting for response to command ID #{id}" if response.nil?
-          raise CmdError, "Error response: #{response["error"]} #{cmd.inspect}" if response["error"]
+
+          raise Bidi2pdf::CmdError.new(cmd, response) if response["error"]
 
           block ? block.call(response) : response
         ensure

@@ -3,7 +3,7 @@
 require "spec_helper"
 require "socket"
 
-RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :session do
+RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
   subject(:browser_tab) { browser_window.create_browser_tab }
 
   let(:browser_window) { user_context.create_browser_window }
@@ -165,6 +165,14 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :session do
 
       it "raises an error when the style file is not found" do
         expect { browser_tab.inject_style url: "file:///var/www/html/does-not-exists.css", id: 1 }.to raise_error(Bidi2pdf::StyleInjectionError)
+      end
+    end
+  end
+
+  describe "#navigate_to" do
+    context "when the http status code is error" do
+      it "raises an error" do
+        expect { browser_tab.navigate_to(nginx_url("does-not-exists")) }.to raise_error(Bidi2pdf::NavigationError)
       end
     end
   end

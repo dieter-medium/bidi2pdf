@@ -4,6 +4,7 @@ require "base64"
 
 require_relative "network_events"
 require_relative "logger_events"
+require_relative "navigation_failed_events"
 require_relative "auth_interceptor"
 require_relative "add_headers_interceptor"
 require_relative "js_logger_helper"
@@ -32,6 +33,11 @@ require_relative "js_logger_helper"
 # @param [String] user_context_id The ID of the user context.
 module Bidi2pdf
   module Bidi
+    # Represents a browser tab for managing interactions and communication
+    # using the Bidi2pdf library. This class provides methods for creating
+    # browser tabs, managing cookies, navigating to URLs, executing scripts,
+    # handling network events, and general tab lifecycle management.
+    #
     class BrowserTab
       include JsLoggerHelper
 
@@ -56,6 +62,9 @@ module Bidi2pdf
       # @return [LoggerEvents] The logger events handler.
       attr_reader :logger_events
 
+      # @return [NavigationFailedEvents] The navigation failed events handler.
+      attr_reader :navigation_failed_events
+
       # Initializes a new browser tab.
       #
       # @param [Object] client The WebSocket client for communication.
@@ -68,6 +77,7 @@ module Bidi2pdf
         @tabs = []
         @network_events = NetworkEvents.new browsing_context_id
         @logger_events = LoggerEvents.new browsing_context_id
+        @navigation_failed_events = NavigationFailedEvents.new browsing_context_id
         @open = true
       end
 
@@ -154,8 +164,21 @@ module Bidi2pdf
 
       # Navigates the browser tab to a specified URL.
       #
+      # This method registers necessary event listeners and sends a navigation
+      # command to the browser tab, instructing it to load the specified URL.
+      # It validates that the URL is properly formatted before attempting navigation.
+      #
       # @param [String] url The URL to navigate to.
+      # @raise [NavigationError] If the URL is invalid or improperly formatted.
+      # @example
+      #   browser_tab.navigate_to("https://example.com")
       def navigate_to(url)
+        begin
+          URI.parse(url)
+        rescue URI::InvalidURIError => e
+          raise NavigationError, "Invalid URL: #{url} - #{e.message}"
+        end
+
         Bidi2pdf.notification_service.instrument("navigate_to.bidi2pdf", url: url) do
           navigate_with_listeners url
         end
@@ -389,6 +412,13 @@ module Bidi2pdf
         client.send_cmd_and_wait(cmd) do |response|
           Bidi2pdf.logger.debug "Navigated to page url: #{url} response: #{response}"
         end
+      rescue Bidi2pdf::CmdError => e
+        case e.response["message"]
+        when /^net::/
+          raise NavigationError, "Connection error: #{url} #{e.response["message"]}"
+        else
+          raise e
+        end
       end
 
       def register_event_listeners
@@ -401,6 +431,8 @@ module Bidi2pdf
 
         client.on_event("log.entryAdded",
                         &logger_events.method(:handle_event))
+
+        client.on_event("browsingContext.navigationFailed", &navigation_failed_events.method(:handle_event))
       end
 
       def handle_injection_exception(response, url, exception_class)
@@ -536,6 +568,9 @@ module Bidi2pdf
 
         client.remove_event_listener "network.responseStarted", "network.responseCompleted", "network.fetchError",
                                      &network_events.method(:handle_event)
+
+        client.remove_event_listener("log.entryAdded",
+                                     &logger_events.method(:handle_event))
       end
 
       # Closes all tabs associated with the browser tab.

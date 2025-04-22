@@ -73,6 +73,15 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
       browser_tab.navigate_to("https://example.com")
       expect(client.event_params(1)).to include("log.entryAdded")
     end
+
+    it "registers an event handler navigation failure events" do
+      browser_tab.navigate_to("https://example.com")
+      expect(client.event_params(2)).to include("browsingContext.navigationFailed")
+    end
+
+    it "raises an error, when url is invalid" do
+      expect { browser_tab.navigate_to("hello world") }.to raise_error(Bidi2pdf::NavigationError)
+    end
   end
 
   describe "#render_html_content" do
