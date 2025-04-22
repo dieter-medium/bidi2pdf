@@ -117,7 +117,10 @@ module Bidi2pdf
 
       # Retrieves the status of the session.
       def status
-        send_cmd(Bidi2pdf::Bidi::Commands::SessionStatus.new) { |resp| Bidi2pdf.logger.info "Session status: #{resp.inspect}" }
+        send_cmd(Bidi2pdf::Bidi::Commands::SessionStatus.new) do |resp|
+          Bidi2pdf.logger.info "Session status: #{resp["result"].inspect}"
+          resp["result"]
+        end
       end
 
       # Checks if the session has started.

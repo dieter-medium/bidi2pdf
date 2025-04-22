@@ -107,4 +107,14 @@ RSpec.describe Bidi2pdf::Bidi::Session, :chromedriver do
       end
     end
   end
+
+  describe "#status" do
+    before do
+      session.start.wait_until_open
+    end
+
+    it "returns the session status" do
+      expect(session.status["message"]).to eq("already connected")
+    end
+  end
 end
