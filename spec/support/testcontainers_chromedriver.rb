@@ -4,7 +4,7 @@ require "testcontainers"
 
 class ChromedriverContainer < Testcontainers::DockerContainer
   DEFAULT_CHROMEDRIVER_PORT = 3000
-  DEFAULT_IMAGE = "chrome-local:latest"
+  DEFAULT_IMAGE = "dieters877565/chromedriver"
 
   attr_reader :docker_file, :build_dir
 

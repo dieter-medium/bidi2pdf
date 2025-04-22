@@ -80,7 +80,7 @@ def start_chromedriver_container(build_dir:, fixture_dir:)
                                      }
                                    )
 
-  container.start_local_image
+  container.start
 
   container
 end
