@@ -36,40 +36,11 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
 
     it "stores the response, if the response should be stored" do
       data = { "id" => 1, "result" => "test" }
-      command_manager.send_cmd cmd, store_response: true
+      result_queue = Thread::Queue.new
+      command_manager.send_cmd cmd, result_queue: result_queue
       command_manager.handle_response(data)
 
-      expect(command_manager.pop_response(1, timeout: 0.1)).to eq(data)
-    end
-  end
-
-  describe "#pop_response" do
-    let(:data) { { "id" => 1, "result" => "test" } }
-
-    before do
-      command_manager.send_cmd cmd, store_response: true
-    end
-
-    it "returns the response" do
-      command_manager.handle_response(data)
-
-      expect(command_manager.pop_response(1, timeout: 0.1)).to eq(data)
-    end
-
-    it "returns nil, when a timeout occours" do
-      expect(command_manager.pop_response(1, timeout: 0.1)).to be_nil
-    end
-
-    it "raises an error, when the response is already poped" do
-      command_manager.pop_response 1, timeout: 0.1
-
-      expect { command_manager.pop_response 1, timeout: 0.1 }.to raise_error(Bidi2pdf::CmdResponseNotStoredError)
-    end
-
-    it "raises an error, when the response is not stored" do
-      id = command_manager.send_cmd cmd, store_response: false
-
-      expect { command_manager.pop_response id, timeout: 0.1 }.to raise_error(Bidi2pdf::CmdResponseNotStoredError)
+      expect(result_queue.pop(0.1)).to eq(data)
     end
   end
 
@@ -85,7 +56,7 @@ RSpec.describe Bidi2pdf::Bidi::CommandManager do
 
       response = command_manager.send_cmd_and_wait cmd, timeout: 5
 
-      waiting_thread.join
+      waiting_thread.join(15)
 
       expect(response).to eq(data)
     end

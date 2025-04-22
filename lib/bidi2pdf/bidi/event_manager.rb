@@ -6,7 +6,7 @@ module Bidi2pdf
       attr_reader :type
 
       def initialize(type)
-        @listeners = Hash.new { |h, k| h[k] = [] }
+        @listeners = Concurrent::Hash.new { |h, k| h[k] = [] }
         @type = type
       end
 

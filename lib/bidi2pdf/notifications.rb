@@ -18,7 +18,7 @@ module Bidi2pdf
   module Notifications
     Thread.attr_accessor :bidi2pdf_notification_instrumenter
 
-    @subscribers = Hash.new { |h, k| h[k] = [] }
+    @subscribers = Concurrent::Hash.new { |h, k| h[k] = [] }
 
     class << self
       attr_reader :subscribers
