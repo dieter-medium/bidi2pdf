@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 RSpec.describe Bidi2pdf::TestHelpers::PDFTextSanitizer do
-
   describe ".clean" do
     it "cleans the text by replacing ligatures and normalizing whitespace" do
       input_text = "Some \uFB01\ntext with \uFB02\nligatures and   extra spaces."
@@ -22,7 +21,7 @@ RSpec.describe Bidi2pdf::TestHelpers::PDFTextSanitizer do
     it "cleans the text and removes all whitespace" do
       input_text = "Some \uFB01\ntext with \uFB02\nligatures and   extra spaces."
       expected_output = "Somefitextwithflligaturesandextraspaces."
-      expect(described_class.clean_for_comparison(input_text)).to eq(expected_output)
+      expect(described_class.normalize(input_text)).to eq(expected_output)
     end
   end
 
@@ -31,27 +30,27 @@ RSpec.describe Bidi2pdf::TestHelpers::PDFTextSanitizer do
 
     it "checks if the PDF contains the expected text" do
       expected_text = "Section Two (New Page)"
-      expect(described_class.contains?(pdf_file, expected_text)).to be_truthy
+      expect(described_class).to be_contains(pdf_file, expected_text)
     end
 
     it "checks if the PDF contains the expected text on a specific page" do
       expected_text = "Section Two (New Page)"
-      expect(described_class.contains?(pdf_file, expected_text, 2)).to be_truthy
+      expect(described_class).to be_contains(pdf_file, expected_text, 2)
     end
 
     it "returns false if the expected text is not found" do
       expected_text = "Section Two does not exists (New Page)"
-      expect(described_class.contains?(pdf_file, expected_text)).to be_falsey
+      expect(described_class).not_to be_contains(pdf_file, expected_text)
     end
 
     it "returns false if the page number is out of range" do
       expected_text = "Section Two (New Page)"
-      expect(described_class.contains?(pdf_file, expected_text, 999)).to be_falsey
+      expect(described_class).not_to be_contains(pdf_file, expected_text, 999)
     end
 
     it "returns false, when the expected text is not found within the page" do
       expected_text = "Section Two (New Page)"
-      expect(described_class.contains?(pdf_file, expected_text, 1)).to be_falsey
+      expect(described_class).not_to be_contains(pdf_file, expected_text, 1)
     end
   end
 
@@ -59,25 +58,25 @@ RSpec.describe Bidi2pdf::TestHelpers::PDFTextSanitizer do
     it "matches the expected text" do
       text = "Some text with ligatures"
       expected = /text with ligatures/
-      expect(described_class.match_expected?(text, expected)).to be_truthy
+      expect(described_class).to be_match_expected(text, expected)
     end
 
     it "does not match when the expected text is not found" do
       text = "Some other text"
       expected = /text with ligatures/
-      expect(described_class.match_expected?(text, expected)).to be_falsey
+      expect(described_class).not_to be_match_expected(text, expected)
     end
 
     it "matches when the expected text is a string" do
       text = "Some text with ligatures"
       expected = "text with ligatures"
-      expect(described_class.match_expected?(text, expected)).to be_truthy
+      expect(described_class).to be_match_expected(text, expected)
     end
 
     it "does not match when the expected text is a string but not found" do
       text = "Some other text"
       expected = "text with ligatures"
-      expect(described_class.match_expected?(text, expected)).to be_falsey
+      expect(described_class).not_to be_match_expected(text, expected)
     end
   end
 
@@ -85,13 +84,15 @@ RSpec.describe Bidi2pdf::TestHelpers::PDFTextSanitizer do
     let(:actual_pdf_thingy) { fixture_file("sample.pdf") }
     let(:expected_pdf_thingy) { fixture_file("expected.pdf") }
 
+    # rubocop: disable RSpec/RedundantPredicateMatcher
     it "matches the content of two PDF objects" do
-      expect(described_class.match?(actual_pdf_thingy, expected_pdf_thingy)).to be_truthy
+      expect(described_class).to be_match(actual_pdf_thingy, expected_pdf_thingy)
     end
 
     it "does not match when the content is different" do
-      expect(described_class.match?(actual_pdf_thingy, fixture_file("different.pdf"))).to be_falsey
+      expect(described_class).not_to be_match(actual_pdf_thingy, fixture_file("different.pdf"))
     end
+    # rubocop: enable RSpec/RedundantPredicateMatcher
 
     it "reports content mismatch when the content is different" do
       expect { described_class.match?(actual_pdf_thingy, fixture_file("different.pdf")) }.to output(/PDF content mismatch/).to_stdout

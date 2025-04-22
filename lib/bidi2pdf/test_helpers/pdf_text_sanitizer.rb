@@ -5,8 +5,8 @@ require "diff/lcs"
 require "diff/lcs/hunk"
 
 module Bidi2pdf
-  # rubocop: disable  Metrics/ModuleLength
   module TestHelpers
+    # rubocop: disable Metrics/ModuleLength
     # Provides utilities for sanitizing and comparing PDF text content.
     # This module includes methods for cleaning text, comparing PDF content,
     # and reporting differences between actual and expected PDF outputs.
@@ -54,7 +54,7 @@ module Bidi2pdf
         #
         # @param [String] text The text to clean and normalize.
         # @return [String] The cleaned text without whitespace.
-        def clean_for_comparison(text)
+        def normalize(text)
           clean(text).gsub(/\s+/, "")
         end
 
@@ -104,8 +104,8 @@ module Bidi2pdf
           cleaned_expected = clean_pages(expected)
 
           # Compare without whitespace for equality check
-          actual_for_comparison = cleaned_actual.map { |text| clean_for_comparison(text) }
-          expected_for_comparison = cleaned_expected.map { |text| clean_for_comparison(text) }
+          actual_for_comparison = cleaned_actual.map { |text| normalize(text) }
+          expected_for_comparison = cleaned_expected.map { |text| normalize(text) }
 
           if actual_for_comparison == expected_for_comparison
             true
@@ -151,8 +151,8 @@ module Bidi2pdf
         # @return [void]
         def print_differences_for_page(actual_page, expected_page, page_idx)
           # Compare without whitespace
-          actual_no_space = clean_for_comparison(actual_page.to_s)
-          expected_no_space = clean_for_comparison(expected_page.to_s)
+          actual_no_space = normalize(actual_page.to_s)
+          expected_no_space = normalize(expected_page.to_s)
 
           return if actual_no_space == expected_no_space
 
@@ -174,52 +174,59 @@ module Bidi2pdf
         def format_diff_output(diffs, expected, actual)
           output = []
 
-          # Find contiguous regions of changes
-          changes = []
-          current_change = nil
-
-          diffs.each do |diff|
-            case diff.action
-            when "!", "+", "-" # Changed, added or deleted
-              if current_change
-                current_change[:diffs] << diff
-              else
-                current_change = { diffs: [diff] }
-              end
-            when "=" # Unchanged
-              if current_change
-                changes << current_change
-                current_change = nil
-              end
-            end
-          end
-          changes << current_change if current_change
+          changes = group_changed_diffs(diffs)
 
           # Output each change with context
           changes.each do |change|
-            # Get the position
-            pos = change[:diffs].first.old_position
-            context_start = [0, pos - 20].max
-            [expected.length, pos + 20].min
-
-            # Format the output with context
-            output << "  Context: ...#{expected[context_start...pos]}"
-
-            # Show the differences
-            expected_snippet = expected[pos, 50]
-            actual_snippet = actual[change[:diffs].first.new_position, 50]
-            output << "  Expected: #{expected_snippet}..."
-            output << "  Actual:   #{actual_snippet}..."
-
-            # Show normalized comparison
-            output << "  Expected (no spaces): #{clean_for_comparison(expected_snippet)}..."
-            output << "  Actual (no spaces):   #{clean_for_comparison(actual_snippet)}..."
+            output += format_change expected, actual, change
           end
 
           output.join("\n")
         end
+
+        private
+
+        # Groups contiguous “real” diffs (added/removed/changed) into blocks,
+        # splitting whenever you hit an unchanged (“=”) diff.
+        def group_changed_diffs(diffs)
+          diffs
+            .chunk_while { |_prev, curr| curr.action != "=" }
+            .map { |chunk| chunk.reject { |elem| elem.action == "=" } }
+            .select(&:any?)
+            .map { |chunk| { diffs: chunk } }
+        end
+
+        def format_change(expected, actual, change)
+          pos = change[:diffs].first.old_position
+          snippets = extract_snippets(expected, actual, change, pos)
+
+          build_output(snippets, pos)
+        end
+
+        def extract_snippets(expected, actual, change, pos)
+          {
+            context_start: [0, pos - 20].max,
+            context: expected,
+            expected_snip: expected[pos, 50],
+            actual_snip: actual[change[:diffs].first.new_position, 50]
+          }
+        end
+
+        # 3. Build the final lines of output
+        def build_output(snip_data, pos)
+          start = snip_data[:context_start]
+          ctx = snip_data[:context]
+
+          [
+            "  Context: ...#{ctx[start...pos]}",
+            "  Expected: #{snip_data[:expected_snip]}...",
+            "  Actual:   #{snip_data[:actual_snip]}...",
+            "  Expected (no spaces): #{normalize(snip_data[:expected_snip])}...",
+            "  Actual (no spaces):   #{normalize(snip_data[:actual_snip])}..."
+          ]
+        end
       end
     end
+    # rubocop:enable Metrics/ModuleLength
   end
-  # rubocop: enable  Metrics/ModuleLength
 end
