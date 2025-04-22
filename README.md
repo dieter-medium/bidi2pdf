@@ -257,6 +257,20 @@ docker compose -f docker/docker-compose.yml down
 
 ---
 
+## 🚂 Rails Integration
+
+Rails integration is available as an additional gem:
+
+```ruby
+# In your Gemfile
+gem 'bidi2pdf-rails'
+```
+
+For full documentation and usage examples,
+visit: [https://github.com/dieter-medium/bidi2pdf-rails](https://github.com/dieter-medium/bidi2pdf-rails)
+
+---
+
 ## 🛠 Development
 
 ```bash
