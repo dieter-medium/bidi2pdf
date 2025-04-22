@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install dependencies
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends\
-    chromium \
+    chromium chromium-driver\
     libglib2.0-0 \
     libnss3 \
     libxss1 \
@@ -25,6 +25,13 @@ RUN groupadd -r appuser && useradd -r -g appuser -m -d /home/appuser appuser
 
 COPY ./docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# ARM compatibility workaround:
+# On ARM architectures (such as Apple Silicon), downloading chromedriver via automated scripts may fail or cause ELF binary errors,
+# such as "rosetta error: failed to open elf at /lib64/ld-linux-x86-64.so.2".
+# To avoid these issues, we directly install 'chromium-driver' via the package manager and explicitly create a symlink in the expected location.
+
+RUN mkdir -p /home/appuser/.webdrivers && ln -s /usr/bin/chromedriver /home/appuser/.webdrivers/chromedriver
 
 # Set working directory
 WORKDIR /app

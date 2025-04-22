@@ -107,13 +107,13 @@ jobs:
           name: coverage-report
           path: coverage/
 
-  push_to_registry:
+  push_cli_to_registry:
     needs:
       - unit-test
       - integration-test
       - acceptance-test
       - gem-build
-    name: Push Docker image to Docker Hub
+    name: Push bidi2pdf cli Docker image to Docker Hub
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -168,6 +168,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
