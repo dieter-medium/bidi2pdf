@@ -37,6 +37,7 @@ RSpec.configure do |config|
   config.add_setting :spec_dir, default: File.expand_path("..", __dir__)
 
   config.add_setting :fixture_dir, default: File.join(config.spec_dir, "fixtures")
+  config.add_setting :chromedriver_mounts, default: { File.join(config.spec_dir, "fixtures") => "/var/www/html" }
   config.add_setting :tmp_dir, default: File.join(config.spec_dir, "..", "tmp")
   config.add_setting :docker_dir, default: File.join(config.spec_dir, "..", "docker")
 
