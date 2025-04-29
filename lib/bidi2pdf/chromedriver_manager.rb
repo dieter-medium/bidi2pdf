@@ -8,6 +8,7 @@ module Bidi2pdf
     include Chromedriver::Binary::Platform
 
     attr_reader :port, :pid, :started, :headless, :chrome_args, :shutdown_mutex
+    attr_accessor :reader_thread
 
     def initialize(port: 0, headless: true, chrome_args: Bidi::Session::DEFAULT_CHROME_ARGS)
       @port = port
@@ -49,9 +50,19 @@ module Bidi2pdf
       "http://localhost:#{@port}/session"
     end
 
+    # rubocop: disable Metrics/AbcSize
     def stop(timeout: 5)
       shutdown_mutex.synchronize do
         return unless @pid
+
+        if reader_thread&.alive?
+          begin
+            reader_thread.kill
+            reader_thread.join
+          rescue StandardError => e
+            Bidi2pdf.logger.error "Error killing reader thread: #{e.message}"
+          end
+        end
 
         @started = false
 
@@ -71,6 +82,8 @@ module Bidi2pdf
         @started = false
       end
     end
+
+    # rubocop: enable Metrics/AbcSize
 
     private
 
@@ -184,25 +197,26 @@ module Bidi2pdf
 
     # rubocop: disable Metrics/AbcSize
     def parse_port_from_output(io, timeout: 5)
-      Thread.new do
+      port_event = Concurrent::Event.new
+
+      self.reader_thread = Thread.new do
         io.each_line do |line|
-          Bidi2pdf.logger.debug1 line.chomp
+          Bidi2pdf.logger.info "[chromedriver] #{line.chomp}"
 
-          next unless line =~ /ChromeDriver was started successfully on port (\d+)/
-
-          Bidi2pdf.logger.debug "Found port: #{::Regexp.last_match(1).to_i} setup port: #{@port}"
-
-          @port = ::Regexp.last_match(1).to_i if @port.nil? || @port.zero?
-
-          break
+          if line =~ /ChromeDriver was started successfully on port (\d+)/
+            @port = ::Regexp.last_match(1).to_i if @port.nil? || @port.zero?
+            port_event.set
+          end
         end
       rescue IOError
         # reader closed
       ensure
         io.close unless io.closed?
-      end.join(timeout)
+      end
 
-      raise "Chromedriver did not report a usable port in #{timeout}s" if @port.nil?
+      return if port_event.wait(timeout)
+
+      raise "Chromedriver did not report a usable port in #{timeout}s"
     end
 
     # rubocop: enable Metrics/AbcSize
