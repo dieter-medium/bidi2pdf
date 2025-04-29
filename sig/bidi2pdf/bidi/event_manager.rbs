@@ -1,29 +1,35 @@
 module Bidi2pdf
   module Bidi
     class EventManager
-      @browser: Bidi2pdf::Bidi::Browser
-      @listeners: Hash[String, Array[Proc]]
-      @active: bool
+      class Listener
+        attr_reader block: untyped
+        attr_reader id: String
 
-      def initialize: (browser: Bidi2pdf::Bidi::Browser) -> void
+        def initialize: (untyped block, ?String id) -> void
 
-      def on: (String event_name) { (Hash[String, untyped]) -> void } -> void
+        def call: (*untyped args) -> untyped
 
-      def off: (String event_name) -> void
+        def ==: (untyped other) -> bool
 
-      def emit: (String event_name, Hash[String, untyped] params) -> void
+        def eql?: (untyped other) -> bool
 
-      def start_listening: () -> void
+        def hash: () -> Integer
+      end
 
-      def stop_listening: () -> void
+      @listeners: untyped
+      @type: untyped
 
-      private
+      attr_reader type: untyped
 
-      def register_browser_events: () -> void
+      def initialize: (untyped type) -> void
 
-      def handle_event: (String event_name, Hash[String, untyped] params) -> void
+      def on: (*untyped event_names, &untyped block) -> Listener
 
-      def process_event: (String event_name, Hash[String, untyped] params) -> void
+      def off: (untyped event_name, Listener listener) -> void
+
+      def dispatch: (untyped event_name, *untyped args) -> void
+
+      def clear: (?untyped event_name) -> void
     end
   end
 end

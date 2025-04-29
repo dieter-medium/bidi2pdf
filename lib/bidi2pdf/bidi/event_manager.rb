@@ -3,6 +3,27 @@
 module Bidi2pdf
   module Bidi
     class EventManager
+      Listener = Struct.new(:block, :id, :source_location) do
+        def initialize(block, id = SecureRandom.uuid)
+          super
+          self.source_location = block.source_location
+        end
+
+        def call(*args)
+          block.call(*args)
+        end
+
+        def ==(other)
+          other.is_a?(Listener) && id == other.id
+        end
+
+        alias_method :eql?, :==
+
+        def hash
+          id.hash
+        end
+      end
+
       attr_reader :type
 
       def initialize(type)
@@ -11,12 +32,16 @@ module Bidi2pdf
       end
 
       def on(*event_names, &block)
-        event_names.each { |event_name| @listeners[event_name.to_sym] << block }
-
-        block
+        Listener.new(block).tap do |listener|
+          event_names.each { |event_name| @listeners[event_name.to_sym] << listener }
+        end
       end
 
-      def off(event_name, block) = @listeners[event_name.to_sym].delete(block)
+      def off(event_name, listener)
+        raise ArgumentError, "Listener not registered" unless listener.is_a?(Listener)
+
+        @listeners[event_name.to_sym].delete(listener)
+      end
 
       def dispatch(event_name, *args)
         listeners = @listeners[event_name.to_sym] || []

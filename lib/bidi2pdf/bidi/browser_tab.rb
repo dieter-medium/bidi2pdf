@@ -141,7 +141,7 @@ module Bidi2pdf
         headers:,
         url_patterns:
       )
-        AddHeadersInterceptor.new(
+        @header_interceptor = AddHeadersInterceptor.new(
           context: browsing_context_id,
           url_patterns: url_patterns,
           headers: headers
@@ -155,7 +155,7 @@ module Bidi2pdf
       # @param [Array<String>] url_patterns The URL patterns to match.
       # @return [AuthInterceptor] The interceptor instance.
       def basic_auth(username:, password:, url_patterns:)
-        AuthInterceptor.new(
+        @basic_auth_interceptor = AuthInterceptor.new(
           context: browsing_context_id,
           url_patterns: url_patterns,
           username: username, password: password
@@ -430,14 +430,14 @@ module Bidi2pdf
         return if @event_handlers_registered
 
         @event_handlers_registered = true
+        @listener_refs ||= {}
 
-        client.on_event("network.beforeRequestSent", "network.responseStarted", "network.responseCompleted", "network.fetchError",
-                        &network_events.method(:handle_event))
+        @listener_refs[:network] = client.on_event("network.beforeRequestSent", "network.responseStarted", "network.responseCompleted", "network.fetchError",
+                                                   &network_events.method(:handle_event))
 
-        client.on_event("log.entryAdded",
-                        &logger_events.method(:handle_event))
+        @listener_refs[:logger] = client.on_event("log.entryAdded", &logger_events.method(:handle_event))
 
-        client.on_event("browsingContext.navigationFailed", &navigation_failed_events.method(:handle_event))
+        @listener_refs[:navigation_failed] = client.on_event("browsingContext.navigationFailed", &navigation_failed_events.method(:handle_event))
       end
 
       def handle_injection_exception(response, url, exception_class)
@@ -568,15 +568,26 @@ module Bidi2pdf
       end
 
       # Removes event listeners for the browser tab.
+      # rubocop:disable Metrics/AbcSize
       def remove_event_listeners
+        return if @listener_refs.nil? || @listener_refs.empty?
+
         Bidi2pdf.logger.debug2 "Network events: #{network_events.all_events.map(&:to_s)}"
 
-        client.remove_event_listener "network.responseStarted", "network.responseCompleted", "network.fetchError",
-                                     &network_events.method(:handle_event)
+        client.remove_event_listener("network.beforeRequestSent", "network.responseStarted", "network.responseCompleted", "network.fetchError",
+                                     @listener_refs[:network])
 
-        client.remove_event_listener("log.entryAdded",
-                                     &logger_events.method(:handle_event))
+        client.remove_event_listener("log.entryAdded", @listener_refs[:logger])
+
+        @header_interceptor&.unregister_with_client(client: client)
+        @basic_auth_interceptor&.unregister_with_client(client: client)
+
+        @header_interceptor = nil
+        @basic_auth_interceptor = nil
+        @listener_refs = {}
       end
+
+      # rubocop:enable Metrics/AbcSize
 
       # Closes all tabs associated with the browser tab.
       def close_tabs

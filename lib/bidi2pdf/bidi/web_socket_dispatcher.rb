@@ -24,7 +24,7 @@ module Bidi2pdf
 
       def on_message(&) = socket_events.on(:message, &)
 
-      def on_event(name, &) = session_events.on(name, &)
+      def on_event(*event_names, &) = session_events.on(*event_names, &)
 
       def on_open(&) = socket_events.on(:open, &)
 
@@ -34,13 +34,13 @@ module Bidi2pdf
 
       def remove_message_listener(block) = socket_events.off(:message, block)
 
-      def remove_event_listener(name, block) = session_events.off(name, block)
+      def remove_event_listener(name, listener) = session_events.off(name, listener)
 
-      def remove_open_listener(block) = socket_events.off(:open, block)
+      def remove_open_listener(listener) = socket_events.off(:open, listener)
 
-      def remove_close_listener(block) = socket_events.off(:close, block)
+      def remove_close_listener(listener) = socket_events.off(:close, listener)
 
-      def remove_error_listener(block) = socket_events.off(:error, block)
+      def remove_error_listener(listener) = socket_events.off(:error, listener)
 
       private
 

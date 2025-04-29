@@ -29,10 +29,18 @@ module Bidi2pdf
 
           Bidi2pdf.logger.debug "Interceptor added: #{@interceptor_id}"
 
-          client.on_event(*self.class.events, &method(:handle_event))
+          @handle_event_listener = client.on_event(*self.class.events, &method(:handle_event))
 
           self
         end
+      end
+
+      def unregister_with_client(client:)
+        return unless @handle_event_listener
+
+        client.remove_event_listener(*self.class.events, @handle_event_listener)
+
+        @handle_event_listener = nil
       end
 
       # rubocop: disable Metrics/AbcSize

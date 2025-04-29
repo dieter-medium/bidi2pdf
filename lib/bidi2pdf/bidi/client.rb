@@ -125,23 +125,25 @@ module Bidi2pdf
       #
       # @param [Array<String>] names The names of the events to subscribe to.
       # @yield [event_data] A block to handle the event data.
-      def on_event(*names, &block)
-        names.each { |name| dispatcher.on_event(name, &block) }
+      def on_event(*names, &)
+        listener = dispatcher.on_event(*names, &)
         cmd = Bidi2pdf::Bidi::Commands::SessionSubscribe.new(events: names)
         send_cmd(cmd) if names.any?
+
+        listener
       end
 
       # Removes a message listener.
       #
       # @param [Proc] block The listener block to remove.
-      def remove_message_listener(block) = dispatcher.remove_message_listener(block)
+      def remove_message_listener(listener) = dispatcher.remove_message_listener(listener)
 
       # Removes event listeners for specific events.
       #
       # @param [Array<String>] names The names of the events to unsubscribe from.
       # @param [Proc] block The listener block to remove.
-      def remove_event_listener(*names, &block)
-        names.each { |event_name| dispatcher.remove_event_listener(event_name, block) }
+      def remove_event_listener(*names, listener)
+        names.each { |event_name| dispatcher.remove_event_listener(event_name, listener) }
       end
 
       # Closes the WebSocket connection.
