@@ -1,8 +1,9 @@
-FROM ruby:3.3
+FROM debian:bookworm-slim
 
 ARG CHROMEDRIVER_PORT=3000
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=en_US.UTF-8
 
 # Install dependencies
 RUN apt-get update && apt-get upgrade -y && \
@@ -18,10 +19,20 @@ RUN apt-get update && apt-get upgrade -y && \
     curl \
     unzip \
     xvfb \
+    x11vnc \
+    fluxbox \
+    xterm \
+    wmctrl \
+    net-tools xauth \
+    fonts-liberation libnss3 libatk1.0-0 \
+    libx11-6 libxss1 libgtk-3-0 libgbm1 \
+    locales sed \
+    && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \
+    && locale-gen en_US.UTF-8 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
-RUN groupadd -r appuser && useradd -r -g appuser -m -d /home/appuser appuser
+RUN groupadd -r appuser && useradd -r -g appuser -G audio,video -m -d /home/appuser appuser
 
 COPY ./docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
@@ -36,12 +47,16 @@ RUN mkdir -p /home/appuser/.webdrivers && ln -s /usr/bin/chromedriver /home/appu
 # Set working directory
 WORKDIR /app
 
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+
 # Switch to non-root user
 USER appuser
 
-RUN gem install chromedriver-binary && ruby -e 'require "chromedriver/binary"; puts Chromedriver::Binary::ChromedriverDownloader.update'
+# RUN gem install chromedriver-binary && ruby -e 'require "chromedriver/binary"; puts Chromedriver::Binary::ChromedriverDownloader.update'
 
 ENV CHROMEDRIVER_PORT=${CHROMEDRIVER_PORT}
 EXPOSE ${CHROMEDRIVER_PORT}
+# VNC
+EXPOSE 5900
 
 CMD ["/usr/local/bin/entrypoint.sh"]
