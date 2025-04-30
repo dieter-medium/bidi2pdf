@@ -6,9 +6,11 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=en_US.UTF-8
 
 # Install dependencies
-RUN apt-get update && apt-get upgrade -y && \
+RUN echo "deb http://deb.debian.org/debian bookworm contrib non-free" > /etc/apt/sources.list.d/contrib.list &&\
+    echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections &&\
+    apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends\
-    chromium chromium-driver\
+    chromium chromium-driver chromium-l10n chromium-sandbox\
     libglib2.0-0 \
     libnss3 \
     libxss1 \
@@ -24,7 +26,8 @@ RUN apt-get update && apt-get upgrade -y && \
     xterm \
     wmctrl \
     net-tools xauth \
-    fonts-liberation libnss3 libatk1.0-0 \
+    fonts-liberation fonts-dejavu-core  fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji fonts-symbola fontconfig ttf-mscorefonts-installer\
+    libnss3 libatk1.0-0 \
     libx11-6 libxss1 libgtk-3-0 libgbm1 \
     locales sed \
     && sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen \

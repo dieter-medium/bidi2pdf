@@ -46,7 +46,10 @@ jobs:
         with:
           images: dieters877565/chromedriver
           tags: |
-            type=raw,value=latest            
+            type=raw,value=${{ inputs.dockerImageTag }},enable=${{ inputs.dockerImageTag != '' }}
+            type=ref,event=branch,suffix=${{matrix.variant.suffix}}
+            type=semver,pattern={{version}}${{matrix.variant.suffix}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build and push Docker image
         id: push
