@@ -33,12 +33,17 @@ module Bidi2pdf
 
       def on(*event_names, &block)
         Listener.new(block).tap do |listener|
-          event_names.each { |event_name| @listeners[event_name.to_sym] << listener }
+          event_names.each do |event_name|
+            @listeners[event_name.to_sym] << listener
+            log_msg("Adding #{event_name} listener", listener)
+          end
         end
       end
 
       def off(event_name, listener)
         raise ArgumentError, "Listener not registered" unless listener.is_a?(Listener)
+
+        log_msg("Removing #{event_name} listener", listener)
 
         @listeners[event_name.to_sym].delete(listener)
       end

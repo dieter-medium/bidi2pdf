@@ -27,7 +27,7 @@ module Bidi2pdf
         client.send_cmd_and_wait(cmd) do |response|
           @interceptor_id = response["result"]["intercept"]
 
-          Bidi2pdf.logger.debug "Interceptor added: #{@interceptor_id}"
+          Bidi2pdf.logger.debug2 "Interceptor added: #{@interceptor_id}"
 
           @handle_event_listener = client.on_event(*self.class.events, &method(:handle_event))
 
@@ -39,6 +39,8 @@ module Bidi2pdf
         return unless @handle_event_listener
 
         client.remove_event_listener(*self.class.events, @handle_event_listener)
+
+        Bidi2pdf.logger.debug2 "Interceptor removed: #{@interceptor_id}"
 
         @handle_event_listener = nil
       end
