@@ -4,6 +4,8 @@ USER_DATA_DIR=/home/appuser/.cache
 mkdir -p ${USER_DATA_DIR}
 
 if [ "$ENABLE_XVFB" = "true" ]; then
+  rm -rf /tmp/.X99-lock
+
   export DISPLAY=:99
   Xvfb :99 -screen 0 1920x1080x24 &
 
