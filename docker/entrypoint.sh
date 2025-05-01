@@ -13,11 +13,13 @@ if [ "$ENABLE_XVFB" = "true" ]; then
   umask 077
 
   touch /home/appuser/.Xauthority
+  export XAUTHORITY=/home/appuser/.Xauthority
+
   xauth generate :99 . trusted
 
   umask $old_umask
 
-  export XAUTHORITY=/home/appuser/.Xauthority
+
 
   until xdpyinfo -display ${DISPLAY} >/dev/null 2>&1; do
       sleep 0.2
@@ -38,7 +40,7 @@ if [ "$ENABLE_VNC" = "true" ]; then
   mkdir -p /home/appuser/.vnc
   x11vnc -storepasswd $VNC_PASS /home/appuser/.vnc/passwd
   umask $old_umask
-  x11vnc -display WAIT:99 -xkb -noxrecord -noxfixes -noxdamage -forever -usepw -rfbauth /home/appuser/.vnc/passwd &
+  x11vnc -display WAIT:99 -xkb -noxrecord -noxfixes -noxdamage -forever -usepw -ncache 10 -rfbauth /home/appuser/.vnc/passwd &
 fi
 
 # DISPLAY=:99 /home/appuser/.webdrivers/chromedriver --port=33259 --whitelisted-ips=""  --allowed-origins="*" --disable-dev-shm-usage --disable-gpu  --verbose
