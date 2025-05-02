@@ -83,6 +83,21 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
         new_user_context&.close
       end.to perform_under(600).ms.warmup(1).times.sample(10).times
     end
+
+    context "when using multiple browser tabs" do
+      it "can generate multiple PDF files in parallel" do
+        url = nginx_url "simple_with_pagedjs.html", use_alias: true
+
+        # warmup
+        create_pdf_thread(url, session).value
+
+        threads = 10.times.map { create_pdf_thread url, session }
+
+        pdfs = threads.map(&:value)
+
+        expect(pdfs).to all(have_pdf_page_count(1))
+      end
+    end
   end
 
   describe "#inject_script" do
@@ -173,6 +188,27 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
     context "when the http status code is error" do
       it "raises an error" do
         expect { browser_tab.navigate_to(nginx_url("does-not-exists")) }.to raise_error(Bidi2pdf::NavigationError)
+      end
+    end
+  end
+
+  def create_pdf_thread(url, session)
+    Thread.new do
+      browser = session.browser
+      context = browser.create_user_context
+      window = context.create_browser_window
+      tab = window.create_browser_tab
+
+      begin
+        tab.navigate_to url
+        tab.wait_until_network_idle
+        tab.wait_until_page_loaded
+
+        tab.print
+      ensure
+        tab&.close
+        window&.close
+        context&.close
       end
     end
   end

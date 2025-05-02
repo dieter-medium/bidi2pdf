@@ -20,7 +20,7 @@ module NginxTestHelper
     RSpec.configuration.nginx_container.send(:container_ports).first
   end
 
-  def nginx_url(path = "", use_alias = false)
+  def nginx_url(path = "", use_alias: false)
     if use_alias
       "http://#{nginx_first_alias}:#{nginx_first_exposed_port}/#{path}"
     else

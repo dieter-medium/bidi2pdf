@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Simple Sample PDF</title>
+
+    <script>
+        window.loaded = false; // make it global
+
+        window.PagedConfig = {
+            auto: false,
+            after: (flow) => {
+            },
+        };
+
+        function initPaged() {
+            console.log("Paged library is ready");
+
+            // Initialize your Paged handlers here
+
+            class PageJsReadyHandler extends Paged.Handler {
+                constructor(chunker, polisher, caller) {
+                    super(chunker, polisher, caller);
+                }
+
+                afterRendered(pages) {
+                    window.loaded = true;
+                    console.info("✅ Paged.js has rendered everything!");
+                }
+            }
+
+            Paged.registerHandlers(PageJsReadyHandler);
+
+            window.PagedPolyfill.preview();
+        }
+    </script>
+
+    <script src="./paged.polyfill-4.3.js" onload="initPaged()" async></script>
+
+    <!-- No Favicon -->
+    <link rel="icon" href="data:,">
+</head>
+<body>
+
+
+<main class="page-content">
+    <section>
+        <h2>Section One</h2>
+    </section>
+</main>
+
+<script>
+    // for testing console log within specs
+    console.log("Hello from spec!");
+    console.info("Hello from spec!");
+    console.warn("Hello from spec!");
+    console.error("Hello from spec!");
+    console.debug("Hello from spec!");
+    console.trace("Hello from spec!");
+    console.count("counter-label-1");
+    console.count("counter-label-1");
+    console.count("counter-label-1");
+    console.countReset("counter-label-1");
+    console.dir({a: 1, b: 2});
+
+    console.group("group-label-1");
+    console.log("Hello from spec!");
+
+    console.info({a: 1, b: 2});
+</script>
+
+
+</body>
+</html>
