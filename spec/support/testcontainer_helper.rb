@@ -14,7 +14,8 @@ RSpec.configure do |config|
     if nginx_tests_present?
       config.nginx_container = start_nginx_container(
         conf_dir: File.join(config.docker_dir, "nginx"),
-        fixture_dir: config.fixture_dir
+        fixture_dir: config.fixture_dir,
+        shared_network: config.shared_network
       )
       wait_for_nginx(config.nginx_container)
 
@@ -52,16 +53,17 @@ def test_of_kind_present?(type)
   RSpec.world.filtered_examples.values.flatten.any? { |example| example.metadata[type] }
 end
 
-def start_nginx_container(conf_dir:, fixture_dir:)
-  container = Testcontainers::NginxContainer.new(
-    "nginx:1.27-bookworm"
-  ).with_filesystem_binds(
-    {
-      File.join(conf_dir, "default.conf") => "/etc/nginx/conf.d/default.conf",
-      File.join(conf_dir, "htpasswd") => "/etc/nginx/conf.d/.htpasswd",
-      fixture_dir => "/var/www/html"
-    }
-  )
+def start_nginx_container(conf_dir:, fixture_dir:, shared_network:)
+  container = Testcontainers::NginxContainer.new("nginx:1.27-bookworm")
+                                            .with_filesystem_binds(
+                                              {
+                                                File.join(conf_dir, "default.conf") => "/etc/nginx/conf.d/default.conf",
+                                                File.join(conf_dir, "htpasswd") => "/etc/nginx/conf.d/.htpasswd",
+                                                fixture_dir => "/var/www/html"
+                                              }
+                                            )
+                                            .with_network(shared_network)
+                                            .with_network_aliases("nginx")
 
   container.start
 end

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "shared_docker_network"
+
 module Bidi2pdf
   module TestHelpers
     module Testcontainers
@@ -45,7 +47,8 @@ RSpec.configure do |config|
     if chromedriver_tests_present?
       config.chromedriver_container = start_chromedriver_container(
         build_dir: File.join(config.docker_dir, ".."),
-        mounts: config.respond_to?(:chromedriver_mounts) ? config.chromedriver_mounts : {}
+        mounts: config.respond_to?(:chromedriver_mounts) ? config.chromedriver_mounts : {},
+        shared_network: config.shared_network
       )
 
       puts "🚀 chromedriver container started for tests"
@@ -85,10 +88,12 @@ end
 # alias the long class name
 ChromedriverTestcontainer = Bidi2pdf::TestHelpers::Testcontainers::ChromedriverContainer
 
-def start_chromedriver_container(build_dir:, mounts:)
+def start_chromedriver_container(build_dir:, mounts:, shared_network:)
   container = ChromedriverTestcontainer.new(ChromedriverTestcontainer::DEFAULT_IMAGE,
                                             build_dir: build_dir,
                                             docker_file: "docker/Dockerfile.chromedriver")
+                                       .with_network(shared_network)
+                                       .with_network_aliases("remote-chrome")
 
   container.with_filesystem_binds(mounts) if mounts&.any?
 
