@@ -165,6 +165,7 @@ module Bidi2pdf
         Bidi2pdf.logger.info "Subscribing to events"
 
         Bidi::Client.new(websocket_url).tap do |event_client|
+          @event_socket = event_client
           event_client.start
           event_client.wait_until_open
 
@@ -320,6 +321,7 @@ module Bidi2pdf
       # Cleans up resources associated with the session.
       def cleanup
         @client&.close
+        @event_socket&.close
         @client = @websocket_url = @browser = nil
       end
     end
