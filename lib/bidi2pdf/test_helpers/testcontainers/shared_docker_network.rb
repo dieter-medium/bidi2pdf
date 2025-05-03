@@ -1,11 +1,5 @@
 # frozen_string_literal: true
 
-%w[docker testcontainer].each do |dep|
-  require dep
-rescue LoadError
-  warn "Missing #{dep}. Add it to your Gemfile if you're using Bidi2pdf test helpers."
-end
-
 RSpec.configure do |config|
   config.add_setting :shared_network, default: nil
 
