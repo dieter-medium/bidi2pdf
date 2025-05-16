@@ -171,8 +171,6 @@ RSpec.describe "PDF Generation", :nginx do
     it "I can generate a PDF file" do
       pdf_data = Base64.decode64(launcher.launch)
 
-      sleep 10
-
       with_pdf_debug(pdf_data) do
         io = StringIO.new(pdf_data)
 

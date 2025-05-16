@@ -156,6 +156,7 @@ jobs:
           tags: |
             type=raw,value=${{ inputs.dockerImageTag }},enable=${{ inputs.dockerImageTag != '' }}
             type=ref,event=branch,suffix=${{matrix.variant.suffix}}
+            type=ref,event=pull_request,suffix=${{ matrix.variant.suffix }}
             type=semver,pattern={{version}}${{matrix.variant.suffix}}
 
       - name: Build and push Docker image

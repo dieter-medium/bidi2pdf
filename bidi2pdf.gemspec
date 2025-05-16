@@ -61,6 +61,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "thor", "~> 1.3"
   spec.add_dependency "websocket-client-simple", "~> 0.9.0"
 
+  spec.add_development_dependency "dhash-vips"
   spec.add_development_dependency "diff-lcs", "~> 1.5"
   spec.add_development_dependency "pdf-reader", "~> 2.14"
   spec.add_development_dependency "rake", "~> 13.0"
@@ -70,6 +71,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rubocop", "~> 1.21"
   spec.add_development_dependency "rubocop-rake", "~> 0.7"
   spec.add_development_dependency "rubocop-rspec", "~> 3.5"
+  spec.add_development_dependency "ruby-vips", "~> 2.2"
   spec.add_development_dependency "simplecov", "~> 0.22"
   spec.add_development_dependency "testcontainers", "~> 0.2"
   spec.add_development_dependency "testcontainers-nginx", "~> 0.2"
