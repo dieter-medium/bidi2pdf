@@ -108,6 +108,7 @@ jobs:
           path: coverage/
 
   push_cli_to_registry:
+    if: ${{ github.event_name != 'pull_request' }}
     needs:
       - unit-test
       - integration-test

@@ -47,6 +47,7 @@ RSpec.describe "PDF Generation", :nginx do
 
     @golden_sample_text = nil
     @golden_sample_pages = nil
+    @golden_sample_image = fixture_file("img.jpg")
 
     golden_sample = fixture_file("sample.pdf")
 
@@ -170,8 +171,6 @@ RSpec.describe "PDF Generation", :nginx do
 
     it "I can generate a PDF file" do
       pdf_data = Base64.decode64(launcher.launch)
-
-      sleep 10
 
       with_pdf_debug(pdf_data) do
         io = StringIO.new(pdf_data)

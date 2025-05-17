@@ -5,10 +5,13 @@ runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v3
+    - name: Install libvips
+      shell: bash
+      run: |
+        sudo apt-get update        
+        sudo apt-get install --no-install-recommends libvips
     - uses: ruby/setup-ruby@v1
       with:
         ruby-version: .ruby-version
         bundler-cache: true
-    - name: Install dependencies
-      run: bundle install --jobs 4 --retry 3
-      shell: bash
+        bundler-install-args: --jobs 4 --retry 3

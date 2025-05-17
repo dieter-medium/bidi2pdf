@@ -3,12 +3,19 @@
 require "pdf-reader"
 require "base64"
 require "securerandom"
+require "bidi2pdf/test_helpers/images"
 
 RSpec.shared_examples "a PDF downloader" do
   it "creates the downloaded file with correct content" do
     expected_pages_as_text = @golden_sample_text
 
     expect(launcher.launch).to match_pdf_text(expected_pages_as_text)
+  end
+
+  it "containes the expected image" do
+    expected_image = @golden_sample_image
+
+    expect(launcher.launch).to contains_pdf_image(expected_image).at_page(3).at_position(1)
   end
 
   it "creates the downloaded file with correct page count" do
