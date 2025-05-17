@@ -13,8 +13,8 @@ RSpec.configure do |config|
   config.before(:suite) do
     if nginx_tests_present?
       config.nginx_container = start_nginx_container(
-        conf_dir: File.join(config.docker_dir, "nginx"),
-        fixture_dir: config.fixture_dir,
+        conf_dir: File.join(Bidi2pdf::TestHelpers.configuration.docker_dir, "nginx"),
+        fixture_dir: Bidi2pdf::TestHelpers.configuration.fixture_dir,
         shared_network: config.shared_network
       )
       wait_for_nginx(config.nginx_container)
@@ -59,7 +59,7 @@ def start_nginx_container(conf_dir:, fixture_dir:, shared_network:)
                                               {
                                                 File.join(conf_dir, "default.conf") => "/etc/nginx/conf.d/default.conf",
                                                 File.join(conf_dir, "htpasswd") => "/etc/nginx/conf.d/.htpasswd",
-                                                fixture_dir => "/var/www/html"
+                                                fixture_dir.to_s => "/var/www/html"
                                               }
                                             )
                                             .with_network(shared_network)

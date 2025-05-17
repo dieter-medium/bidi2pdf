@@ -66,7 +66,5 @@ RSpec.configure do |config|
   config.include RSpec::Benchmark::Matchers, benchmark: true
 end
 
-require_relative "support/default_dirs_helper" # just to ensure that the folder definitions are loaded first
-
 Dir[File.expand_path("shared/**/*.rb", __dir__)].each { |f| require f }
 Dir[File.expand_path("support/**/*.rb", __dir__)].each { |f| require f }

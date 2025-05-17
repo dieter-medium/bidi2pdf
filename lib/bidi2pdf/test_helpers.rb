@@ -6,6 +6,9 @@ rescue LoadError
   warn "Missing #{dep}. Add it to your Gemfile if you're using Bidi2pdf test helpers."
 end
 
+require "bidi2pdf/test_helpers/configuration"
+require "bidi2pdf/test_helpers/pdf_file_helper"
+require "bidi2pdf/test_helpers/spec_paths_helper"
 require "bidi2pdf/test_helpers/pdf_text_sanitizer"
 require "bidi2pdf/test_helpers/pdf_reader_utils"
 require "bidi2pdf/test_helpers/matchers/match_pdf_text"

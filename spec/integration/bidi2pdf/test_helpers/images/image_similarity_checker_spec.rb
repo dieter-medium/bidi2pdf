@@ -3,7 +3,7 @@
 require "spec_helper"
 require "bidi2pdf/test_helpers/images"
 
-RSpec.describe Bidi2pdf::TestHelpers::Images::ImageSimilarityChecker do
+RSpec.describe Bidi2pdf::TestHelpers::Images::ImageSimilarityChecker, :pdf do
   subject(:checker) { described_class.new(expected_image, images_to_check) }
 
   context "when images are the same" do

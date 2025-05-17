@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 RSpec.configure do |config|
-  config.before(:all, :acceptance) do
+  config.before(:suite, :acceptance) do
     puts "[ACCEPTANCE TEST] ..."
   end
 
-  config.after(:all, :acceptance) do
+  config.after(:suite, :acceptance) do
     puts "[ACCEPTANCE TEST] Cleaning up."
   end
 end
