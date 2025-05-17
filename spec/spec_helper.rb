@@ -64,6 +64,11 @@ RSpec.configure do |config|
   end
 
   config.include RSpec::Benchmark::Matchers, benchmark: true
+
+  config.include Bidi2pdf::TestHelpers::SpecPathsHelper
+  config.extend Bidi2pdf::TestHelpers::SpecPathsHelper
+
+  config.add_setting :chromedriver_mounts, default: { Bidi2pdf::TestHelpers.configuration.fixture_dir.to_s => "/var/www/html" }
 end
 
 Dir[File.expand_path("shared/**/*.rb", __dir__)].each { |f| require f }

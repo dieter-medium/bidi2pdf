@@ -271,6 +271,67 @@ visit: [https://github.com/dieter-medium/bidi2pdf-rails](https://github.com/diet
 
 ---
 
+## 🧪 Test Helpers
+
+Bidi2pdf provides a suite of RSpec helpers (activated with `pdf: true`) to
+simplify PDF-related testing:
+
+### SpecPathsHelper
+
+– `spec_dir` → returns your spec directory  
+– `tmp_dir` → returns your tmp directory  
+– `tmp_file(*parts)` → builds a tmp file path  
+– `random_tmp_dir(*dirs, prefix:)` → builds a random tmp directory
+
+- `fixture_file(*parts)` → returns the path to a fixture file
+
+### PdfFileHelper
+
+– `with_pdf_debug(pdf_data) { |data| … }` → on failure, writes PDF to disk  
+– `store_pdf_file(pdf_data, filename_prefix = "test")` → saves PDF and returns path
+
+### Rspec Matchers
+
+- `have_pdf_page_count` → checks if the PDF has a specific number of pages
+- `match_pdf_text` → checks if the PDF equals a specific text, after stripping whitespace and normalizing characters
+- `contains_pdf_text` → checks if the PDF contains a specific text, after stripping whitespace and normalizing
+  characters, supporting regex
+- `contains_pdf_image` → checks if the PDF contains a specific image
+
+### ChromedriverContainer
+
+`require "bidi2pdf/test_helpers/testcontainers"` you can use the `chromedriver_container` helper to
+start a ChromeDriver container for your tests. This is useful if you don't want to run ChromeDriver locally
+or if you want to ensure a clean environment for your tests.
+
+This also provides the helper methods:
+
+- `session_url` → returns the session URL for the ChromeDriver container
+- `chromedriver_container` → returns the Testcontainers container object
+- `create_session` -> creates a `Bidi2pdf::Bidi::Session` object for the ChromeDriver container
+
+With the environment variable `DISABLE_CHROME_SANDBOX` set to `true`, the container will run Chrome without
+the sandbox. This is useful for CI environments where the sandbox may cause issues.
+
+#### Example
+
+```ruby
+require "bidi2pdf/test_helpers"
+require "bidi2pdf/test_helpers/images" # <= for image matching, requires lib-vips
+require "bidi2pdf/test_helpers/testcontainers" # <= requires testcontainers gem
+
+RSpec.describe "PDF generation", :pdf, :chromedriver do
+  it "generates a PDF with the correct content" do
+    pdf_data = generate_pdf("https://example.com")
+    expect(pdf_data).to have_pdf_page_count(1)
+    expect(pdf_data).to match_pdf_text("Hello, world!")
+    expect(pdf_data).to contain_pdf_image(fixture_file("logo.png"))
+  end
+end
+```
+
+---
+
 ## 🛠 Development
 
 ```bash
