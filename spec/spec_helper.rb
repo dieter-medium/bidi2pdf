@@ -64,9 +64,12 @@ RSpec.configure do |config|
   end
 
   config.include RSpec::Benchmark::Matchers, benchmark: true
-end
 
-require_relative "support/default_dirs_helper" # just to ensure that the folder definitions are loaded first
+  config.include Bidi2pdf::TestHelpers::SpecPathsHelper
+  config.extend Bidi2pdf::TestHelpers::SpecPathsHelper
+
+  config.add_setting :chromedriver_mounts, default: { Bidi2pdf::TestHelpers.configuration.fixture_dir.to_s => "/var/www/html" }
+end
 
 Dir[File.expand_path("shared/**/*.rb", __dir__)].each { |f| require f }
 Dir[File.expand_path("support/**/*.rb", __dir__)].each { |f| require f }

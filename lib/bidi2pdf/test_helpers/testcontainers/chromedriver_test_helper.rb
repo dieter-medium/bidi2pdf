@@ -46,7 +46,7 @@ RSpec.configure do |config|
   config.before(:suite) do
     if chromedriver_tests_present?
       config.chromedriver_container = start_chromedriver_container(
-        build_dir: File.join(config.docker_dir, ".."),
+        build_dir: File.join(Bidi2pdf::TestHelpers.configuration.docker_dir, ".."),
         mounts: config.respond_to?(:chromedriver_mounts) ? config.chromedriver_mounts : {},
         shared_network: config.shared_network
       )

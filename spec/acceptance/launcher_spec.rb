@@ -3,7 +3,7 @@
 require "spec_helper"
 require "pdf-reader"
 
-RSpec.describe "PDF Generation", :nginx do
+RSpec.describe "PDF Generation", :nginx, :pdf do
   subject(:launcher) do
     Bidi2pdf::Launcher.new(
       url: url,
