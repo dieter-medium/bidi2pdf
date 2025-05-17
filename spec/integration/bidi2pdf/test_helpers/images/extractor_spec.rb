@@ -21,7 +21,7 @@ RSpec.describe Bidi2pdf::TestHelpers::Images::Extractor do
         expected_image = expected_images[page_number - 1]
         image = extractor.image_on_page(1, 1)
 
-        checker = Bidi2pdf::TestHelpers::Images::ImageSimilarityChecker.new(expected_image, [image])
+        checker = Bidi2pdf::TestHelpers::Images::ImageSimilarityChecker.new(expected_image, image)
 
         expect(checker).to be_very_similar
       end

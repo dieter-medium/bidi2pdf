@@ -6,13 +6,13 @@ module Bidi2pdf
       require "dhash-vips"
 
       class ImageSimilarityChecker
-        def initialize(expected_image, images_to_check)
+        def initialize(expected_image, image_to_check)
           @expected_image = expected_image.is_a?(Vips::Image) ? expected_image : Vips::Image.new_from_file(expected_image)
-          @images_to_check = images_to_check.map { |image_to_check| image_to_check.is_a?(Vips::Image) ? image_to_check : Vips::Image.new_from_file(image_to_check) }
+          @image_to_check = image_to_check.is_a?(Vips::Image) ? image_to_check : Vips::Image.new_from_file(image_to_check)
         end
 
         def similar?(tolerance: 20)
-          distances.any? { |distance| distance < tolerance }
+          distance < tolerance
         end
 
         def very_similar?
@@ -31,14 +31,12 @@ module Bidi2pdf
           @expected_fingerprint ||= fingerprint @expected_image
         end
 
-        def actual_fingerprints
-          @actual_fingerprints ||= @images_to_check.map { |image| fingerprint image }
+        def actual_fingerprint
+          @actual_fingerprint ||= fingerprint @image_to_check
         end
 
-        def distances
-          @distances ||= actual_fingerprints.map do |actual_fingerprint|
-            DHashVips::IDHash.distance(expected_fingerprint, actual_fingerprint)
-          end
+        def distance
+          @distance ||= DHashVips::IDHash.distance(expected_fingerprint, actual_fingerprint)
         end
 
         def fingerprint(image)
