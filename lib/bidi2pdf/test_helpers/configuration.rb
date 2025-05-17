@@ -47,6 +47,10 @@ module Bidi2pdf
         @configuration ||= Configuration.new
       end
 
+      # Sets the configuration object for TestHelpers.
+      # @param [Configuration] config the configuration object to set
+      attr_writer :configuration
+
       # Allows configuration of TestHelpers by yielding the configuration object.
       # @yieldparam [Configuration] configuration the configuration object to modify
       def configure
