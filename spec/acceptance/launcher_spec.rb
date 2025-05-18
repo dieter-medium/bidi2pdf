@@ -152,6 +152,61 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
     end
   end
 
+  describe "As a user who needs cdp dependent PDF options" do
+    let(:url) { nginx_url "/sample-without-page-settings.html" }
+    let(:print_options) do
+      {
+        background: true,
+        orientation: "landscape",
+        margin: { top: 0.5, bottom: 0.75, left: 0.5, right: 0.5 },
+        page: { width: 21.0, height: 29.7 },
+        pageRanges: ["1-2"],
+        scale: 0.9,
+        cmd_type: :cdp,
+        generate_tagged_pdf: true,
+        generate_document_outline: true
+      }
+    end
+
+    it "I can generate a PDF with limited page range" do
+      pdf_data = Base64.decode64(launcher.launch)
+
+      with_pdf_debug(pdf_data) do
+        io = StringIO.new(pdf_data)
+
+        PDF::Reader.open(io) do |reader|
+          expect(reader.page_count).to eq(2)
+        end
+      end
+    end
+
+    it "I can generate a PDF in landscape orientation" do
+      pdf_data = Base64.decode64(launcher.launch)
+
+      with_pdf_debug(pdf_data) do
+        io = StringIO.new(pdf_data)
+
+        PDF::Reader.open(io) do |reader|
+          page = reader.pages.first
+          expect(page.attributes[:MediaBox][2]).to be > page.attributes[:MediaBox][3]
+        end
+      end
+    end
+
+    it "I can see the expected content in my generated PDF" do
+      pdf_data = Base64.decode64(launcher.launch)
+
+      with_pdf_debug(pdf_data) do
+        io = StringIO.new(pdf_data)
+
+        PDF::Reader.open(io) do |reader|
+          text = reader.pages.map(&:text).join
+          expect(text).to include("PDF Rendering Sample")
+        end
+      end
+    end
+  end
+
   describe "As a user with a local html file" do
     subject(:launcher) do
       Bidi2pdf::Launcher.new(
