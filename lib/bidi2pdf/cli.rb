@@ -74,6 +74,8 @@ module Bidi2pdf
     option :page_ranges, type: :array, desc: "Page ranges to print (e.g., 1-2 4 6)"
     option :scale, type: :numeric, default: 1.0, desc: "Scale between 0.1 and 2.0"
     option :shrink_to_fit, type: :boolean, default: true, desc: "Shrink content to fit page"
+    option :generate_tagged_pdf, type: :boolean, default: false, desc: "Generate tagged PDF"
+    option :generate_document_outline, type: :boolean, default: false, desc: "Generate document outline"
 
     class << self
       def exit_on_failure?
@@ -150,7 +152,7 @@ module Bidi2pdf
       raise Thor::Error, "Invalid print option: #{e.message}"
     end
 
-    # rubocop:disable Metrics/CyclomaticComplexity
+    # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
     def print_options
       opts = {}
 
@@ -186,10 +188,15 @@ module Bidi2pdf
       assign_if_provided(page, :height, :page_height)
       opts[:page] = page unless page.empty?
 
+      assign_if_provided(opts, :generate_tagged_pdf)
+      assign_if_provided(opts, :generate_document_outline)
+
+      opts[:cmd_type] = :cdp if opts[:generate_tagged_pdf] || opts[:generate_document_outline]
+
       opts.empty? ? nil : opts
     end
 
-    # rubocop:enable Metrics/CyclomaticComplexity
+    # rubocop:enable Metrics/CyclomaticComplexity,  Metrics/PerceivedComplexity
 
     def option_provided?(key)
       ARGV.include?("--#{key.to_s.tr("_", "-")}") || ARGV.include?("--#{key}")

@@ -371,13 +371,13 @@ module Bidi2pdf
       # rubocop:disable Metrics/AbcSize, Metrics/PerceivedComplexity
       def print(outputfile = nil, print_options: { background: true }, &block)
         Bidi2pdf.notification_service.instrument("print.bidi2pdf") do |instrumentation_payload|
-          cmd = Bidi2pdf::Bidi::Commands::BrowsingContextPrint.new context: browsing_context_id, print_options: print_options
+          cmd, extractor = build_command_and_extractor(print_options)
 
           instrumentation_payload[:cmd] = cmd
 
           client.send_cmd_and_wait(cmd) do |response|
             if response["result"]
-              pdf_base64 = response["result"]["data"]
+              pdf_base64 = extractor.call response
 
               instrumentation_payload[:pdf_base64] = pdf_base64
 
@@ -403,6 +403,36 @@ module Bidi2pdf
       # rubocop:enable Metrics/AbcSize, Metrics/PerceivedComplexity
 
       private
+
+      def build_command_and_extractor(print_options)
+        cmd_type = (print_options.delete(:cmd_type) || :bidi).to_sym
+
+        if cmd_type == :bidi
+          cmd = Bidi2pdf::Bidi::Commands::BrowsingContextPrint.new(
+            context: browsing_context_id,
+            print_options: print_options
+          )
+          extractor = ->(response) { response.dig("result", "data") }
+        else
+          cmd = Bidi2pdf::Bidi::Commands::PagePrint.new(
+            cdp_session: cdp_session,
+            print_options: print_options
+          )
+          extractor = ->(response) { response.dig("result", "result", "data") }
+        end
+
+        [cmd, extractor]
+      end
+
+      def cdp_session
+        @cdp_session ||= begin
+                           cmd = Bidi2pdf::Bidi::Commands::CdpGetSession.new context: browsing_context_id
+                           client.send_cmd_and_wait(cmd) do |response|
+                             Bidi2pdf.logger.debug "CDP session: #{response.inspect}"
+                             response["result"]["session"]
+                           end
+                         end
+      end
 
       def navigate_with_listeners(url)
         register_event_listeners

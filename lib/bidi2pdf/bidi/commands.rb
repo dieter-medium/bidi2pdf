@@ -18,6 +18,8 @@ module Bidi2pdf
       require_relative "commands/browsing_context_close"
       require_relative "commands/browsing_context_navigate"
       require_relative "commands/browsing_context_print"
+      require_relative "commands/cdp_get_session"
+      require_relative "commands/page_print"
       require_relative "commands/session_subscribe"
       require_relative "commands/session_end"
       require_relative "commands/cancel_auth"
