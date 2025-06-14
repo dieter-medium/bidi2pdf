@@ -14,6 +14,23 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 
 ---
 
+## 📚 Table of Contents
+
+1. [Key Features](#-key-features)
+2. [Why BiDi?](#-why-bidi-instead-of-cdp)
+3. [Quick Start](#-quick-start)
+4. [Installation](#-installation)
+5. [CLI Usage](#-cli-usage)
+6. [Library API](#-library-api)
+7. [Architecture](#-architecture)
+8. [Docker](#-docker)
+9. [Configuration Options](#-configuration-options)
+10. [Rails Integration](#-rails-integration)
+11. [Test Helpers](#-test-helpers)
+12. [Development](#-development)
+13. [Contributing](#-contributing)
+14. [License](#-license)
+
 ## ✨ Key Features
 
 ✅ **One-liner CLI** – From URL to PDF in a single command  
@@ -24,55 +41,6 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 ✅ **Modern architecture** – Built on Chrome's next-gen BiDi protocol  
 ✅ **Network logging** – Know which requests fail during rendering  
 ✅ **Console log capture** – See what goes wrong inside the browser
-
----
-
-## ✈️ High Level Overview
-
-```mermaid
-%%{  init: {
-      "theme": "base",
-      "themeVariables": {
-        "primaryColor":      "lavender",     /* #E0E7FF */
-        "secondaryColor":    "lightyellow",  /* #FEF9C3 */
-        "edgeLabelBackground":"white",
-        "fontSize":          "14px",
-        "nodeBorderRadius":  "6"
-      }
-    }
-}%%
-flowchart LR
-    %% ─── Ruby side ─────────────────────────────────────────────
-    A["fa:fa-gem  Ruby Application"]
-    B["fa:fa-gem  bidi2pdf<br/>Library"]
-
-    %% ─── Chrome environment ───────────────────────────────────
-    subgraph C["fa:fa-chrome  Chrome Environment"]
-        direction TB
-        C1["fa:fa-chrome  Local Chrome<br/>(sub-process)"]
-        C2["fa:fa-docker  Docker Chrome<br/>(remote)"]
-    end
-
-    D[[PDF File]]
-
-    %% ─── Data / control flows ─────────────────────────────────
-    A  -- "HTML / URL + JS / CSS" -->   B
-
-    B  -- "WebDriver BiDi"        -->   C1
-    B  -- "WebDriver BiDi"        -->   C2
-
-    C1 -- "PDF bytes"             -->   B
-    C2 -- "PDF bytes"             -->   B
-
-    B  -- "PDF"                   -->   D
-
-    %% ─── Colour classes ───────────────────────────────────────
-    classDef ruby   fill:lavender,     stroke:slateblue,  color:midnightblue;
-    classDef chrome fill:lightyellow,  stroke:goldenrod,  color:saddlebrown;
-
-    class A,B ruby
-    class C1,C2 chrome
-```
 
 ---
 
@@ -222,6 +190,48 @@ session.close
 ```
 
 </details>
+
+---
+
+## 🌐 Architecture
+
+```mermaid
+%%{  init: {
+      "theme": "base",
+      "themeVariables": {
+        "primaryColor":  "#E0E7FF",
+        "secondaryColor":"#FEF9C3",
+        "edgeLabelBackground":"#FFFFFF",
+        "fontSize":"14px",
+        "nodeBorderRadius":"6"
+      }
+    }
+}%%
+flowchart LR
+%% ----- Ruby side ---------
+    A["fa:fa-gem Ruby Application"]
+    B["fa:fa-gem bidi2pdf<br/>Library"]
+%% ----Chrome environment -----------
+    subgraph C["fa:fa-chrome Chrome Environment"]
+        direction TB
+        C1["fa:fa-chrome Local Chrome<br/>(sub-process)"]
+        C2["fa:fa-docker Docker Chrome<br/>(remote)"]
+    end
+
+    D[[PDF File]]
+%% ---- Data / control flows ------
+    A -- " HTML / URL + JS / CSS " --> B
+    B -- " WebDriver BiDi " --> C1
+    B -- " WebDriver BiDi " --> C2
+    C1 -- " PDF bytes " --> B
+    C2 -- " PDF bytes " --> B
+    B -- " PDF " --> D
+%% --- Optional extra styling classes (for future tweaks) ---
+    classDef ruby fill:#E0E7FF,stroke:#6366F1,color:#1E1B4B;
+    classDef chrome fill:#FEF9C3,stroke:#F59E0B,color:#78350F;
+    class A,B ruby;
+    class C1,C2 chrome;
+```
 
 ---
 
