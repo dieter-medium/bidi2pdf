@@ -54,14 +54,14 @@ gem install bidi2pdf
 ### Command-line
 
 ```bash
-bidi2pdf render --url https://example.com --output example.pdf
+bidi2pdf render --url https://example.com/invoice/14432423 --output example.pdf
 ```
 
 ### Advanced CLI Options
 
 ```bash
 bidi2pdf render \
-  --url https://example.com \
+  --url https://example.com/invoice/14432423 \
   --output example.pdf \
   --cookie session=abc123 \
   --header X-API-KEY=token \
@@ -81,7 +81,7 @@ bidi2pdf render \
 require 'bidi2pdf'
 
 launcher = Bidi2pdf::Launcher.new(
-  url: 'https://example.com',
+  url: 'https://example.com/invoice/14432423',
   output: 'example.pdf',
   cookies: { 'session' => 'abc123' },
   headers: { 'X-API-KEY' => 'token' },
@@ -99,7 +99,7 @@ launcher.launch
 require "bidi2pdf"
 
 Bidi2pdf::DSL.with_tab(headless: true) do |tab|
-  tab.navigate_to("https://example.com")
+  tab.navigate_to("https://example.com/invoice/14432423")
   tab.wait_until_network_idle
   tab.print("example.pdf")
 end
@@ -145,7 +145,7 @@ tab.basic_auth(url_patterns: [{ type: "pattern", protocol: "https", hostname: "e
                username: "username", password: "secret")
 
 # 4. Render PDF
-tab.navigate_to "https://example.com"
+tab.navigate_to "https://example.com/invoice/14432423"
 
 # Alternative: send html code to the browser
 # tab.render_html_content("<html>...</html>")
@@ -191,7 +191,7 @@ docker build -t bidi2pdf -f docker/Dockerfile .
 docker run -it --rm \
   -v ./output:/reports \
   bidi2pdf \
-  bidi2pdf render --url=https://example.com --output /reports/example.pdf
+  bidi2pdf render --url=https://example.com/invoice/14432423 --output /reports/example.pdf
 
 ```
 
@@ -203,7 +203,7 @@ Grab it directly from [Docker Hub](https://hub.docker.com/r/dieters877565/bidi2p
 docker run -it --rm \
   -v ./output:/reports \
   dieters877565/bidi2pdf:main-slim \
-  bidi2pdf render --url=https://example.com --output /reports/example.pdf
+  bidi2pdf render --url=https://example.com/invoice/14432423 --output /reports/example.pdf
 ```
 
 ✅ Tip: Mount your local directory (e.g. ./output) to /reports in the container to easily access the generated PDFs.
@@ -322,7 +322,7 @@ require "bidi2pdf/test_helpers/testcontainers" # <= requires testcontainers gem
 
 RSpec.describe "PDF generation", :pdf, :chromedriver do
   it "generates a PDF with the correct content" do
-    pdf_data = generate_pdf("https://example.com")
+    pdf_data = generate_pdf("https://example.com/invoice/14432423")
     expect(pdf_data).to have_pdf_page_count(1)
     expect(pdf_data).to match_pdf_text("Hello, world!")
     expect(pdf_data).to contain_pdf_image(fixture_file("logo.png"))
