@@ -16,20 +16,20 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 
 ## 📚 Table of Contents
 
-1. [Key Features](#-key-features)
-2. [Why BiDi?](#-why-bidi-instead-of-cdp)
-3. [Quick Start](#-quick-start)
-4. [Installation](#-installation)
-5. [CLI Usage](#-cli-usage)
-6. [Library API](#-library-api)
-7. [Architecture](#-architecture)
-8. [Docker](#-docker)
-9. [Configuration Options](#-configuration-options)
-10. [Rails Integration](#-rails-integration)
-11. [Test Helpers](#-test-helpers)
-12. [Development](#-development)
-13. [Contributing](#-contributing)
-14. [License](#-license)
+1. [Key Features](#key-features)
+2. [Quick Start](#quick-start)
+3. [Why BiDi?](#why-bidi-instead-of-cdp)
+4. [Installation](#installation)
+5. [CLI Usage](#cli-usage)
+6. [Library API](#library-api)
+7. [Architecture](#architecture)
+8. [Docker](#docker)
+9. [Configuration Options](#configuration-options)
+10. [Rails Integration](#rails-integration)
+11. [Test Helpers](#test-helpers)
+12. [Development](#development)
+13. [Contributing](#contributing)
+14. [License](#license)
 
 ## ✨ Key Features
 
@@ -41,6 +41,25 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 ✅ **Modern architecture** – Built on Chrome's next-gen BiDi protocol  
 ✅ **Network logging** – Know which requests fail during rendering  
 ✅ **Console log capture** – See what goes wrong inside the browser
+
+---
+
+## ⚡ Quick Start
+
+Get up and running in three easy steps:
+
+```bash
+# 1. Install the gem (system-wide)
+gem install bidi2pdf
+
+# 2. Render any page to PDF
+bidi2pdf render --url https://example.com --output example.pdf
+
+# 3. Open the PDF (macOS shown; use xdg-open on Linux)
+open example.pdf
+```
+
+> **Bundler users** – Add it to your project with `bundle add bidi2pdf`.
 
 ---
 
