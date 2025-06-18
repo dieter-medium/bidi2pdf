@@ -23,7 +23,7 @@ RSpec::Matchers.define :contains_pdf_image do |expected, tolerance: 10|
   end
 
   failure_message do |_actual_pdf|
-    "expected to find one image #{@page_number ? "on page #{@page_number}" : ""}#{@image_number ? " at position #{@image_number}" : ""} to be perceptually similar (distance ≤ #{tolerance}), " \
+    "expected to find one image #{"on page #{@page_number}" if @page_number}#{" at position #{@image_number}" if @image_number} to be perceptually similar (distance ≤ #{tolerance}), " \
       "but Hamming distances have been #{@checkers.map(&:distance).join(", ")}"
   end
 end
