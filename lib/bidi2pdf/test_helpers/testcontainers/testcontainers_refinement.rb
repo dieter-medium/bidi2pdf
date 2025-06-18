@@ -31,7 +31,7 @@ module Bidi2pdf
 
       def _container_create_options
         opts = super
-        network_name = network ? network.info["Name"] : nil
+        network_name = network&.info&.[]("Name")
         opts["HostConfig"]["NetworkMode"] = network_name
 
         if network && aliases.any?

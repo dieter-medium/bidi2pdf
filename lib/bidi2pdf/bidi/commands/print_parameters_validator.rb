@@ -37,6 +37,7 @@ module Bidi2pdf
           @params = params
         end
 
+        # rubocop:disable Naming/PredicateMethod
         def validate!
           raise ArgumentError, "params must be a Hash" unless @params.is_a?(Hash)
 
@@ -50,6 +51,8 @@ module Bidi2pdf
 
           true
         end
+
+        # rubocop:enable Naming/PredicateMethod
 
         private
 
@@ -79,7 +82,7 @@ module Bidi2pdf
         def validate_page_ranges
           return unless @params.key?(:pageRanges)
           unless @params[:pageRanges].is_a?(Array) &&
-            @params[:pageRanges].all? { |v| v.is_a?(Integer) || v.is_a?(String) }
+                 @params[:pageRanges].all? { |v| v.is_a?(Integer) || v.is_a?(String) }
             raise ArgumentError, ":pageRanges must be an array of integers or strings"
           end
         end

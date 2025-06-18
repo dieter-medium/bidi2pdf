@@ -17,6 +17,7 @@ module Bidi2pdf
         @connection_latch.count_down
       end
 
+      # rubocop:disable Naming/PredicateMethod
       def wait_until_open(timeout:)
         return true if @connected
 
@@ -26,6 +27,8 @@ module Bidi2pdf
 
         true
       end
+
+      # rubocop:enable Naming/PredicateMethod
     end
   end
 end
