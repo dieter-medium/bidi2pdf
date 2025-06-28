@@ -39,6 +39,7 @@ module Bidi2pdf
 
       private
 
+      # rubocop:disable Naming/PredicateMethod
       def handled_bad_credentials(navigation_id, network_id, url)
         return false unless network_ids.include?(network_id)
 
@@ -55,6 +56,8 @@ module Bidi2pdf
 
         true
       end
+
+      # rubocop:enable Naming/PredicateMethod
     end
   end
 end

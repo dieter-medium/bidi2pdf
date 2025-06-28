@@ -509,7 +509,7 @@ module Bidi2pdf
             const script = document.createElement('script');
             script.type = 'text/javascript';
 
-            #{content ? "script.text = #{content.to_json};" : ""}
+            #{"script.text = #{content.to_json};" if content}
 
             script.addEventListener(
               'error',
@@ -519,12 +519,12 @@ module Bidi2pdf
               {once: true},
             );
 
-            #{id ? "script.id = '#{id}';" : ""}
+            #{"script.id = '#{id}';" if id}
             #{js_src_part}
 
             document.head.appendChild(script);
 
-            #{url ? "" : "resolve(script);"}
+            #{"resolve(script);" unless url}
           });
         JS
       end
@@ -545,7 +545,7 @@ module Bidi2pdf
               link.type = 'text/css';
               link.href = '#{url}';
             #{"  "}
-              #{id ? "link.id = '#{id}';" : ""}
+              #{"link.id = '#{id}';" if id}
             #{"  "}
               link.addEventListener(
                 'load',
@@ -574,9 +574,9 @@ module Bidi2pdf
                 const style = document.createElement('style');
                 style.type = 'text/css';
             #{"    "}
-                #{id ? "style.id = '#{id}';" : ""}
+                #{"style.id = '#{id}';" if id}
             #{"    "}
-                #{content ? "style.textContent = #{content.to_json};" : ""}
+                #{"style.textContent = #{content.to_json};" if content}
             #{"    "}
                 document.head.appendChild(style);
                 resolve(style);

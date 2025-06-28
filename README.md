@@ -14,6 +14,23 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 
 ---
 
+## 📚 Table of Contents
+
+1. [Key Features](#key-features)
+2. [Quick Start](#quick-start)
+3. [Why BiDi?](#why-bidi-instead-of-cdp)
+4. [Installation](#installation)
+5. [CLI Usage](#cli-usage)
+6. [Library API](#library-api)
+7. [Architecture](#architecture)
+8. [Docker](#docker)
+9. [Configuration Options](#configuration-options)
+10. [Rails Integration](#rails-integration)
+11. [Test Helpers](#test-helpers)
+12. [Development](#development)
+13. [Contributing](#contributing)
+14. [License](#license)
+
 ## ✨ Key Features
 
 ✅ **One-liner CLI** – From URL to PDF in a single command  
@@ -24,6 +41,25 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 ✅ **Modern architecture** – Built on Chrome's next-gen BiDi protocol  
 ✅ **Network logging** – Know which requests fail during rendering  
 ✅ **Console log capture** – See what goes wrong inside the browser
+
+---
+
+## ⚡ Quick Start
+
+Get up and running in three easy steps:
+
+```bash
+# 1. Install the gem (system-wide)
+gem install bidi2pdf
+
+# 2. Render any page to PDF
+bidi2pdf render --url https://example.com --output example.pdf
+
+# 3. Open the PDF (macOS shown; use xdg-open on Linux)
+open example.pdf
+```
+
+> **Bundler users** – Add it to your project with `bundle add bidi2pdf`.
 
 ---
 
@@ -54,14 +90,14 @@ gem install bidi2pdf
 ### Command-line
 
 ```bash
-bidi2pdf render --url https://example.com --output example.pdf
+bidi2pdf render --url https://example.com/invoice/14432423 --output example.pdf
 ```
 
 ### Advanced CLI Options
 
 ```bash
 bidi2pdf render \
-  --url https://example.com \
+  --url https://example.com/invoice/14432423 \
   --output example.pdf \
   --cookie session=abc123 \
   --header X-API-KEY=token \
@@ -81,7 +117,7 @@ bidi2pdf render \
 require 'bidi2pdf'
 
 launcher = Bidi2pdf::Launcher.new(
-  url: 'https://example.com',
+  url: 'https://example.com/invoice/14432423',
   output: 'example.pdf',
   cookies: { 'session' => 'abc123' },
   headers: { 'X-API-KEY' => 'token' },
@@ -99,7 +135,7 @@ launcher.launch
 require "bidi2pdf"
 
 Bidi2pdf::DSL.with_tab(headless: true) do |tab|
-  tab.navigate_to("https://example.com")
+  tab.navigate_to("https://example.com/invoice/14432423")
   tab.wait_until_network_idle
   tab.print("example.pdf")
 end
@@ -145,7 +181,7 @@ tab.basic_auth(url_patterns: [{ type: "pattern", protocol: "https", hostname: "e
                username: "username", password: "secret")
 
 # 4. Render PDF
-tab.navigate_to "https://example.com"
+tab.navigate_to "https://example.com/invoice/14432423"
 
 # Alternative: send html code to the browser
 # tab.render_html_content("<html>...</html>")
@@ -176,6 +212,48 @@ session.close
 
 ---
 
+## 🌐 Architecture
+
+```mermaid
+%%{  init: {
+      "theme": "base",
+      "themeVariables": {
+        "primaryColor":  "#E0E7FF",
+        "secondaryColor":"#FEF9C3",
+        "edgeLabelBackground":"#FFFFFF",
+        "fontSize":"14px",
+        "nodeBorderRadius":"6"
+      }
+    }
+}%%
+flowchart LR
+%% ----- Ruby side ---------
+    A["fa:fa-gem Ruby Application"]
+    B["fa:fa-gem bidi2pdf<br/>Library"]
+%% ----Chrome environment -----------
+    subgraph C["fa:fa-chrome Chrome Environment"]
+        direction TB
+        C1["fa:fa-chrome Local Chrome<br/>(sub-process)"]
+        C2["fa:fa-docker Docker Chrome<br/>(remote)"]
+    end
+
+    D[[PDF File]]
+%% ---- Data / control flows ------
+    A -- " HTML / URL + JS / CSS " --> B
+    B -- " WebDriver BiDi " --> C1
+    B -- " WebDriver BiDi " --> C2
+    C1 -- " PDF bytes " --> B
+    C2 -- " PDF bytes " --> B
+    B -- " PDF " --> D
+%% --- Optional extra styling classes (for future tweaks) ---
+    classDef ruby fill:#E0E7FF,stroke:#6366F1,color:#1E1B4B;
+    classDef chrome fill:#FEF9C3,stroke:#F59E0B,color:#78350F;
+    class A,B ruby;
+    class C1,C2 chrome;
+```
+
+---
+
 ## 🐳 Docker Support
 
 ### 🛠️ Build & Run Locally
@@ -191,7 +269,7 @@ docker build -t bidi2pdf -f docker/Dockerfile .
 docker run -it --rm \
   -v ./output:/reports \
   bidi2pdf \
-  bidi2pdf render --url=https://example.com --output /reports/example.pdf
+  bidi2pdf render --url=https://example.com/invoice/14432423 --output /reports/example.pdf
 
 ```
 
@@ -203,7 +281,7 @@ Grab it directly from [Docker Hub](https://hub.docker.com/r/dieters877565/bidi2p
 docker run -it --rm \
   -v ./output:/reports \
   dieters877565/bidi2pdf:main-slim \
-  bidi2pdf render --url=https://example.com --output /reports/example.pdf
+  bidi2pdf render --url=https://example.com/invoice/14432423 --output /reports/example.pdf
 ```
 
 ✅ Tip: Mount your local directory (e.g. ./output) to /reports in the container to easily access the generated PDFs.
@@ -322,7 +400,7 @@ require "bidi2pdf/test_helpers/testcontainers" # <= requires testcontainers gem
 
 RSpec.describe "PDF generation", :pdf, :chromedriver do
   it "generates a PDF with the correct content" do
-    pdf_data = generate_pdf("https://example.com")
+    pdf_data = generate_pdf("https://example.com/invoice/14432423")
     expect(pdf_data).to have_pdf_page_count(1)
     expect(pdf_data).to match_pdf_text("Hello, world!")
     expect(pdf_data).to contain_pdf_image(fixture_file("logo.png"))
