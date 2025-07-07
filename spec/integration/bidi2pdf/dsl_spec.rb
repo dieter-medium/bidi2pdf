@@ -16,7 +16,7 @@ RSpec.describe Bidi2pdf::DSL, :chromedriver, :nginx, :session do
 
   context "with local chrome" do
     it "opens a page and prints it to PDF" do
-      described_class.with_tab(headless: true) do |tab|
+      described_class.with_tab(headless: true, chrome_args: chrome_args) do |tab|
         tab.navigate_to(nginx_url("sample.html"))
         tab.wait_until_network_idle
         tab.print(pdf_path)

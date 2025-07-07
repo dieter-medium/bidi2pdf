@@ -50,7 +50,7 @@ module Bidi2pdf
                       chrome_args: chrome_args
                     )
                   else
-                    manager = Bidi2pdf::ChromedriverManager.new(port: port, headless: headless)
+                    manager = Bidi2pdf::ChromedriverManager.new(port: port, headless: headless, chrome_args: chrome_args)
                     manager.start
                     manager.session
                   end
