@@ -181,14 +181,31 @@ module Bidi2pdf
 
     def build_cmd
       bin = Chromedriver::Binary::ChromedriverDownloader.driver_path
-      user_data_dir = File.join(Dir.tmpdir, "bidi2pdf", "user_data", SecureRandom.hex(8))
 
       cmd = [bin]
       cmd << "--port=#{@port}" unless @port.zero?
       cmd << "--headless" if @headless
-      cmd << "--user-data-dir "
-      cmd << user_data_dir
+
+      cmd << user_data_dir_arg
+      cmd.concat(process_chrome_args)
+
       cmd.join(" ")
+    end
+
+    def user_data_dir_arg
+      provided = @chrome_args&.find { |arg| arg.include?("--user-data-dir") }
+      return provided if provided
+
+      user_data_dir = File.join(Dir.tmpdir, "bidi2pdf", "user_data", SecureRandom.hex(8))
+      "--user-data-dir #{user_data_dir}"
+    end
+
+    def process_chrome_args
+      return [] unless @chrome_args
+
+      %w[--lang --accept-lang].map do |arg_name|
+        @chrome_args.find { |chrome_arg| chrome_arg.include?(arg_name) }
+      end.compact
     end
 
     def update_chromedriver
