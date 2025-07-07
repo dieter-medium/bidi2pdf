@@ -14,4 +14,3 @@ runs:
       with:
         ruby-version: .ruby-version
         bundler-cache: true
-        bundler-install-args: --jobs 4 --retry 3
