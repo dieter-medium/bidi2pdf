@@ -254,7 +254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-## Changelog
+### 🔄 Released
 
 - [unreleased](https://github.com/dieter-medium/bidi2pdf/compare/v0.1.10..HEAD)
 - [0.1.10](https://github.com/dieter-medium/bidi2pdf/compare/v0.1.9..V0.1.10)
