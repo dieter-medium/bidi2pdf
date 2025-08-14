@@ -172,7 +172,7 @@ module Bidi2pdf
       # @raise [NavigationError] If the URL is invalid or improperly formatted.
       # @example
       #   browser_tab.navigate_to("https://example.com")
-      def navigate_to(url)
+      def navigate_to(url, wait: "complete")
         begin
           URI.parse(url)
         rescue URI::InvalidURIError => e
@@ -180,14 +180,15 @@ module Bidi2pdf
         end
 
         Bidi2pdf.notification_service.instrument("navigate_to.bidi2pdf", url: url) do
-          navigate_with_listeners url
+          navigate_with_listeners url, wait: wait
         end
       end
 
       # Renders HTML content in the browser tab.
       #
       # @param [String] html_content The HTML content to render.
-      def render_html_content(html_content)
+      # rubocop:disable  Metrics/BlockLength
+      def render_html_content(html_content, wait: "complete")
         Bidi2pdf.notification_service.instrument("render_html_content.bidi2pdf", url: "data:text/html") do |instrumentation_payload|
           base64_encoded = Base64.strict_encode64(html_content)
 
@@ -195,9 +196,50 @@ module Bidi2pdf
 
           data_url = "data:text/html;charset=utf-8;base64,#{base64_encoded}"
 
-          navigate_with_listeners data_url
+          begin
+            navigate_with_listeners data_url, wait: wait
+          rescue Bidi2pdf::CmdTimeoutError
+            Bidi2pdf.logger.info "Waiting for page to load seemed to have timed out. Checking if page is ready via javascript..."
+
+            # check if the page is still loading
+            execute_script <<~JS, wrap_in_promise: false
+              const desiredState = "interactive";#{" "}
+              const timeoutMs = 30000;#{"        "}
+              const intervalMs = 50;
+
+              result = new Promise((resolveReady, rejectReady) => {
+                const start = Date.now();
+
+                const reachedDesired = (state) =>
+                  desiredState === "interactive"
+                    ? state === "interactive" || state === "complete"
+                    : state === "complete";
+
+                const check = () => {
+                  const state = document.readyState;
+                  if (reachedDesired(state)) {
+                    resolveReady(state); // resolves to "interactive" or "complete"
+                    return;
+                  }
+                  if (Date.now() - start >= timeoutMs) {
+                    rejectReady(new Error(`Timeout waiting for document.readyState="${desiredState}". Last state="${state}".`));
+                    return;
+                  }
+
+                  console.warn(`Waiting for document.readyState="${desiredState}". Last state="${state}".`);
+
+                  setTimeout(check, intervalMs);
+                };
+
+                // Immediate check in case the page is already loaded
+                check();
+              });
+            JS
+          end
         end
       end
+
+      # rubocop:enable  Metrics/BlockLength
 
       # Executes a script in the browser tab.
       #
@@ -434,10 +476,10 @@ module Bidi2pdf
                          end
       end
 
-      def navigate_with_listeners(url)
+      def navigate_with_listeners(url, wait: "complete")
         register_event_listeners
 
-        cmd = Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new url: url, context: browsing_context_id
+        cmd = Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new url: url, context: browsing_context_id, wait: wait
 
         client.send_cmd_and_wait(cmd) do |response|
           Bidi2pdf.logger.debug "Navigated to page url: #{url} response: #{response}"
