@@ -65,7 +65,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "diff-lcs", "~> 1.5"
   spec.add_development_dependency "pdf-reader", "~> 2.14"
   spec.add_development_dependency "rake", "~> 13.0"
-  spec.add_development_dependency "rbs", "~> 3.4"
+  spec.add_development_dependency "rbs", "~> 4.0"
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "rspec-benchmark", "~> 0.6"
   spec.add_development_dependency "rubocop", "~> 1.21"

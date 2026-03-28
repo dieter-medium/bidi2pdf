@@ -121,7 +121,7 @@ module Bidi2pdf
         # @param [Array<String>] expected The expected PDF content.
         # @return [void]
         def report_content_mismatch(actual, expected)
-          puts "--- PDF content mismatch ---"
+          reporter.message("--- PDF content mismatch ---")
           print_differences(actual, expected)
         end
 
@@ -156,13 +156,13 @@ module Bidi2pdf
 
           return if actual_no_space == expected_no_space
 
-          puts "\nPage #{page_idx + 1} differences (ignoring whitespace):"
+          reporter.message("\nPage #{page_idx + 1} differences (ignoring whitespace):")
 
           # Create diffs between the two pages
           diffs = Diff::LCS.sdiff(expected_page, actual_page)
 
           # Format and display the differences
-          puts format_diff_output(diffs, expected_page, actual_page)
+          reporter.message(format_diff_output(diffs, expected_page, actual_page))
         end
 
         # Formats the output of differences for display.
@@ -182,6 +182,10 @@ module Bidi2pdf
           end
 
           output.join("\n")
+        end
+
+        def reporter
+          RSpec.configuration.reporter
         end
 
         private

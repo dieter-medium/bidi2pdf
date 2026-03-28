@@ -11,11 +11,15 @@ RSpec.configure do |config|
 
     if uses_containers
       config.shared_network = Docker::Network.create("bidi2pdf-test-net-#{SecureRandom.hex(4)}")
-      puts "🕸️  started shared network #{config.shared_network}"
+      reporter.message("🕸️  started shared network #{config.shared_network}")
     end
   end
 
   config.after(:suite) do
     config.shared_network&.remove
   end
+end
+
+def reporter
+  RSpec.configuration.reporter
 end
