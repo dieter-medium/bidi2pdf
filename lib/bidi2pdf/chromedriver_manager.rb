@@ -185,11 +185,22 @@ module Bidi2pdf
       cmd = [bin]
       cmd << "--port=#{@port}" unless @port.zero?
       cmd << "--headless" if @headless
+      cmd << "--log-level=#{chromedriver_log_level}"
+      cmd << "--readable-timestamp"
 
       cmd << user_data_dir_arg
       cmd.concat(process_chrome_args)
 
       cmd.join(" ")
+    end
+
+    def chromedriver_log_level
+      case Bidi2pdf.logger.level
+      when Logger::DEBUG then "ALL"
+      when Logger::INFO then "INFO"
+      when Logger::WARN then "WARNING"
+      else "SEVERE"
+      end
     end
 
     def user_data_dir_arg

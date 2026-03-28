@@ -45,10 +45,10 @@ fi
 
 # DISPLAY=:99 /home/appuser/.webdrivers/chromedriver --port=33259 --whitelisted-ips=""  --allowed-origins="*" --disable-dev-shm-usage --disable-gpu  --verbose
 /home/appuser/.webdrivers/chromedriver --port=${CHROMEDRIVER_PORT} \
-                                       --headless \
-                                       --whitelisted-ips="" \
+                                       --allowed-ips="" \
                                        --allowed-origins="*" \
                                        --disable-dev-shm-usage \
                                        --disable-gpu \
                                        --user-data-dir=${USER_DATA_DIR} \
-                                       --verbose
+                                       --log-level=${CHROMEDRIVER_LOG_LEVEL:-INFO} \
+                                       --readable-timestamp

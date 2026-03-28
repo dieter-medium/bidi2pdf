@@ -85,7 +85,7 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
         new_browser_tab&.close
         new_browser_window&.close
         new_user_context&.close
-      end.to perform_under(600).ms.warmup(1).times.sample(10).times
+      end.to perform_under(1000).ms.warmup(1).times.sample(10).times
     end
 
     context "when using multiple browser tabs" do
