@@ -28,10 +28,6 @@ RSpec.configure do |config|
   end
 end
 
-def reporter
-  RSpec.configuration.reporter
-end
-
 def stop_container(container)
   return unless container
 
