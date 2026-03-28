@@ -9,8 +9,8 @@ module Bidi2pdf
           self.source_location = block.source_location
         end
 
-        def call(*args)
-          block.call(*args)
+        def call(*)
+          block.call(*)
         end
 
         def ==(other)
