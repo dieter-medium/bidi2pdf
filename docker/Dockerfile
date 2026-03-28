@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install dependencies
 RUN apt-get update && apt-get upgrade -y &&\
     apt-get install -y --no-install-recommends\
-    chromium chromium-driver\
+    chromium chromium-driver chromium-sandbox \
     libglib2.0-0 \
     libnss3 \
     libxss1 \
