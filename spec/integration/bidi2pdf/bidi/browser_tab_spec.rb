@@ -4,6 +4,10 @@ require "spec_helper"
 require "socket"
 
 RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
+  def reporter
+    RSpec.configuration.reporter
+  end
+
   subject(:browser_tab) { browser_window.create_browser_tab }
 
   let(:browser_window) { user_context.create_browser_window }
@@ -58,7 +62,7 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
         file_name = File.basename(file)
         file_type = File.extname(file)
 
-        puts "Generated file: #{file_name} (#{file_size} bytes, type: #{file_type})"
+        reporter.message("Generated file: #{file_name} (#{file_size} bytes, type: #{file_type})")
       end
 
       FileUtils.rm_f(tmp_path)

@@ -4,6 +4,10 @@ require "spec_helper"
 require "pdf-reader"
 
 RSpec.describe "PDF Generation", :nginx, :pdf do
+  def reporter
+    RSpec.configuration.reporter
+  end
+
   subject(:launcher) do
     Bidi2pdf::Launcher.new(
       url: url,
@@ -244,7 +248,7 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
     failure_output = tmp_file("pdf-files", "test-failure-#{Time.now.to_i}.pdf")
     FileUtils.mkdir_p(File.dirname(failure_output))
     File.binwrite(failure_output, pdf_data)
-    puts "Test failed! PDF saved to: #{failure_output}"
+    reporter.message("Test failed! PDF saved to: #{failure_output}")
     raise e
   end
 end

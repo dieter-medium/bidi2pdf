@@ -19,7 +19,7 @@ RSpec.configure do |config|
       )
       wait_for_nginx(config.nginx_container)
 
-      puts "🚀 nginx container started for tests"
+      reporter.message("🚀 nginx container started for tests")
     end
   end
 
@@ -29,20 +29,30 @@ RSpec.configure do |config|
 end
 
 def stop_container(container)
-  if container&.running?
+  return unless container
 
-    if ENV["SHOW_CONTAINER_LOGS"]
-      puts "Container logs:"
-      logs_std, logs_error = container.logs
+  log_container(container) if container.running?
+  stop_with_message(container) if container.running?
 
-      puts logs_error
-      puts logs_std
-    end
+  container.remove
+end
 
-    puts "🧹 #{container.image} stopping container..."
-    container.stop
-  end
-  container&.remove
+def log_container(container)
+  return unless ENV["SHOW_CONTAINER_LOGS"]
+
+  reporter.message("Container logs:")
+  stdout, stderr = container.logs
+  reporter.message(stderr.to_s)
+  reporter.message(stdout.to_s)
+end
+
+def stop_with_message(container)
+  reporter.message("🧹 #{container.image} stopping container...")
+  container.stop
+end
+
+def reporter
+  RSpec.configuration.reporter
 end
 
 def nginx_tests_present?
@@ -77,7 +87,7 @@ def wait_for_nginx(container)
           break if response&.code.to_i == 200
         end
       rescue StandardError
-        puts "⏳ waiting for nginx to be ready..."
+        reporter.message("⏳ waiting for nginx to be ready...")
       end
       sleep 0.5
     end

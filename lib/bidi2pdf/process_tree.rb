@@ -36,8 +36,8 @@ module Bidi2pdf
     end
 
     def build_process_map
-      ProcTable.ps.each_with_object({}) do |process, map|
-        map[process.pid] = { info: process, children: [] }
+      ProcTable.ps.to_h do |process|
+        [process.pid, { info: process, children: [] }]
       end
     end
 

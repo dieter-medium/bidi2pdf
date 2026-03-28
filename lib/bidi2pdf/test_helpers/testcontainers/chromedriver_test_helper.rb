@@ -16,6 +16,10 @@ module Bidi2pdf
       end
 
       module SessionTestHelper
+        def reporter
+          RSpec.configuration.reporter
+        end
+
         def chrome_args
           chrome_args = Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS.dup
 
@@ -24,7 +28,7 @@ module Bidi2pdf
           if ENV["DISABLE_CHROME_SANDBOX"]
             chrome_args << "--no-sandbox"
 
-            puts "🚨 Chrome sandbox disabled"
+            reporter.message("🚨 Chrome sandbox disabled")
           end
           chrome_args
         end
@@ -51,7 +55,7 @@ RSpec.configure do |config|
         shared_network: config.shared_network
       )
 
-      puts "🚀 chromedriver container started for tests"
+      reporter.message("🚀 chromedriver container started for tests")
     end
   end
 
@@ -61,20 +65,31 @@ RSpec.configure do |config|
 end
 
 def stop_container(container)
-  if container&.running?
+  return unless container
 
-    if ENV["SHOW_CONTAINER_LOGS"]
-      puts "Container logs:"
-      logs_std, logs_error = container.logs
+  dump_container_logs(container) if container.running?
+  stop_running_container(container)
+  container.remove
+end
 
-      puts logs_error
-      puts logs_std
-    end
+def dump_container_logs(container)
+  return unless ENV["SHOW_CONTAINER_LOGS"]
 
-    puts "🧹 #{container.image} stopping container..."
-    container.stop
-  end
-  container&.remove
+  stdout, stderr = container.logs
+  reporter.message("Container logs:")
+  reporter.message(stderr.to_s) unless stderr.to_s.empty?
+  reporter.message(stdout.to_s) unless stdout.to_s.empty?
+end
+
+def stop_running_container(container)
+  return unless container.running?
+
+  reporter.message("🧹 #{container.image} stopping container...")
+  container.stop
+end
+
+def reporter
+  RSpec.configuration.reporter
 end
 
 def chromedriver_tests_present?

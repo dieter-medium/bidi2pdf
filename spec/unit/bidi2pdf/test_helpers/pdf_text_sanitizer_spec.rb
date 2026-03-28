@@ -95,7 +95,9 @@ RSpec.describe Bidi2pdf::TestHelpers::PDFTextSanitizer do
     # rubocop: enable RSpec/RedundantPredicateMatcher
 
     it "reports content mismatch when the content is different" do
-      expect { described_class.match?(actual_pdf_thingy, fixture_file("different.pdf")) }.to output(/PDF content mismatch/).to_stdout
+      expect(
+        described_class.content_mismatch_message(actual_pdf_thingy, fixture_file("different.pdf"))
+      ).to match(/PDF content mismatch/m)
     end
   end
 
@@ -104,7 +106,9 @@ RSpec.describe Bidi2pdf::TestHelpers::PDFTextSanitizer do
       cleaned_actual = ["Some fi text", "with fl ligatures"]
       cleaned_expected = ["Some text", "with ligatures"]
 
-      expect { described_class.report_content_mismatch(cleaned_actual, cleaned_expected) }.to output(/Page 1 differences \(ignoring whitespace\).*Page 2 differences \(ignoring whitespace\)/m).to_stdout
+      expect(
+        described_class.content_mismatch_message(cleaned_actual, cleaned_expected)
+      ).to match(/Page 1 differences \(ignoring whitespace\).*Page 2 differences \(ignoring whitespace\)/m)
     end
   end
 end

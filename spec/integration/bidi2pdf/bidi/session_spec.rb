@@ -4,6 +4,10 @@ require "spec_helper"
 require "socket"
 
 RSpec.describe Bidi2pdf::Bidi::Session, :chromedriver do
+  def reporter
+    RSpec.configuration.reporter
+  end
+
   subject(:session) do
     chrome_args = described_class::DEFAULT_CHROME_ARGS.dup
 
@@ -12,7 +16,7 @@ RSpec.describe Bidi2pdf::Bidi::Session, :chromedriver do
     if ENV["DISABLE_CHROME_SANDBOX"]
       chrome_args << "--no-sandbox"
 
-      puts "🚨 Chrome sandbox disabled"
+      reporter.message("🚨 Chrome sandbox disabled")
     end
 
     described_class.new(session_url: current_session_url, headless: headless, chrome_args: chrome_args)

@@ -5,6 +5,10 @@ module Bidi2pdf
     # This module provides helper methods for handling PDF files in tests.
     # It includes methods for debugging, storing, and managing PDF files.
     module PdfFileHelper
+      def reporter
+        RSpec.configuration.reporter
+      end
+
       # Executes a block with the given PDF data and handles debugging in case of test failures.
       # If an expectation fails, the PDF data is saved to a file for debugging purposes.
       # @param [String] pdf_data the PDF data to debug
@@ -14,7 +18,7 @@ module Bidi2pdf
         yield pdf_data
       rescue RSpec::Expectations::ExpectationNotMetError => e
         failure_output = store_pdf_file pdf_data, "test-failure"
-        puts "Test failed! PDF saved to: #{failure_output}"
+        reporter.message("Test failed! PDF saved to: #{failure_output}")
         raise e
       end
 
