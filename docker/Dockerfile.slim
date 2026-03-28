@@ -1,4 +1,4 @@
-FROM ruby:3.3-slim AS builder
+FROM ruby:3.4-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -31,7 +31,7 @@ RUN gem install ./bidi2pdf-*.gem
 
 # Stage 2
 
-FROM ruby:3.3-slim
+FROM ruby:3.4-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 

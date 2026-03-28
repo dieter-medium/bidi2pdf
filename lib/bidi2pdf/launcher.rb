@@ -38,7 +38,8 @@ module Bidi2pdf
   class Launcher
     # rubocop:disable Metrics/ParameterLists
     def initialize(url:, inputfile:, output:, cookies:, headers:, auth:, headless: true, port: 0, wait_window_loaded: false,
-                   wait_network_idle: false, print_options: {}, remote_browser_url: nil, network_log_format: :console)
+                   wait_network_idle: false, print_options: {}, remote_browser_url: nil, network_log_format: :console,
+                   chrome_args: Bidi::Session::DEFAULT_CHROME_ARGS)
       @url = url
       @inputfile = inputfile
       @port = port
@@ -54,6 +55,7 @@ module Bidi2pdf
       @remote_browser_url = remote_browser_url
       @custom_session = nil
       @network_log_format = network_log_format
+      @chrome_args = chrome_args
     end
 
     # rubocop:enable Metrics/ParameterLists
@@ -84,9 +86,9 @@ module Bidi2pdf
 
     def session
       if @remote_browser_url
-        @custom_session = Bidi::Session.new(session_url: @remote_browser_url, headless: @headless)
+        @custom_session = Bidi::Session.new(session_url: @remote_browser_url, headless: @headless, chrome_args: @chrome_args)
       else
-        @manager = ChromedriverManager.new(port: @port, headless: @headless)
+        @manager = ChromedriverManager.new(port: @port, headless: @headless, chrome_args: @chrome_args)
         @manager.start
         @manager.session
       end

@@ -40,6 +40,8 @@ module Bidi2pdf
     option :header, type: :array, default: [], banner: "name=value", desc: "One or more custom headers", aliases: "-H"
     option :auth, type: :string, banner: "user:pass", desc: "Basic auth credentials", aliases: "-a"
     option :headless, type: :boolean, default: true, desc: "Run Chrome in headless mode"
+    option :no_sandbox, type: :boolean, default: false, desc: "Disable Chrome sandbox (needed inside containers)"
+    option :chrome_flag, type: :array, default: [], banner: "--flag[=value]", desc: "Extra Chrome flags appended to defaults", aliases: "--cf"
     option :port, type: :numeric, default: 0, desc: "Port to run ChromeDriver on (0 = auto)"
     option :wait_window_loaded,
            type: :boolean,
@@ -114,6 +116,8 @@ module Bidi2pdf
         "url" => "https://example.com",
         "output" => "output.pdf",
         "headless" => true,
+        "no_sandbox" => false,
+        "chrome_flag" => [],
         "print_options" => {
           "background" => true,
           "orientation" => "portrait",
@@ -210,6 +214,11 @@ module Bidi2pdf
       @launcher ||= begin
                       username, password = parse_auth(merged_options[:auth]) if merged_options[:auth]
 
+                      chrome_args = Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS.dup
+                      no_sandbox = merged_options[:no_sandbox] || ENV["DISABLE_CHROME_SANDBOX"] == "true"
+                      chrome_args << "--no-sandbox" if no_sandbox
+                      chrome_args.concat(Array(merged_options[:chrome_flag]))
+
                       Bidi2pdf::Launcher.new(
                         url: merged_options[:url],
                         inputfile: merged_options[:hmtl_file],
@@ -223,7 +232,8 @@ module Bidi2pdf
                         wait_window_loaded: merged_options[:wait_window_loaded],
                         wait_network_idle: merged_options[:wait_network_idle],
                         print_options: print_options,
-                        network_log_format: merged_options[:network_log_format]
+                        network_log_format: merged_options[:network_log_format],
+                        chrome_args: chrome_args
                       )
                     end
     end
