@@ -5,7 +5,7 @@ require "timeout"
 
 module NginxTestHelper
   def nginx_host
-    RSpec.configuration.nginx_container.host
+    RSpec.configuration.nginx_container.accessible_host
   end
 
   def nginx_first_alias

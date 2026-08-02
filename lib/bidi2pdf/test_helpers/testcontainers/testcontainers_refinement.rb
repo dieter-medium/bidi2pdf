@@ -29,6 +29,36 @@ module Bidi2pdf
         self
       end
 
+      def container_json
+        @_container&.json
+      end
+
+      def own_container_id
+        # cgroup v2 gives just "0::/", so read mountinfo instead
+        File.read("/proc/self/mountinfo")[%r{/docker/containers/([0-9a-f]{64})/}, 1]
+      rescue Errno::ENOENT
+        nil
+      end
+
+      def accessible_host
+        tmp_host = host
+        tmp_host = "localhost" if %i[host dind].include?(docker_topology)
+        tmp_host
+      end
+
+      def docker_topology
+        return :remote if ENV["DOCKER_HOST"].to_s.match?(/\A(tcp|ssh):/)
+        return :host unless File.exist?("/.dockerenv")
+
+        id = own_container_id
+        return :unknown unless id
+
+        Docker::Container.get(id) # daemon knows me => we're siblings
+        :sibling
+      rescue Docker::Error::NotFoundError
+        :dind # daemon has never heard of me
+      end
+
       def _container_create_options
         opts = super
         network_name = network&.info&.[]("Name")
