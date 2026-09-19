@@ -1,0 +1,9 @@
+module Bidi2pdf
+  module Bidi
+    module JsLoggerHelper
+      private
+
+      def format_stack_trace: (untyped trace) -> untyped
+    end
+  end
+end

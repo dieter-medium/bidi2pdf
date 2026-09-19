@@ -1,17 +1,42 @@
 module Bidi2pdf
   module Bidi
     class AuthInterceptor
-      @credentials: Hash[Symbol, String]?
+      @url_patterns: untyped
 
-      def initialize: (?credentials: Hash[Symbol, String]?) -> void
+      @context: untyped
 
-      def intercept: (untyped request) -> untyped
+      @username: untyped
+
+      @password: untyped
+
+      @network_ids: untyped
+
+      include Interceptor
+
+      def self.phases: () -> ::Array[untyped]
+
+      def self.events: () -> ::Array["network.authRequired"]
+
+      attr_reader headers: untyped
+
+      attr_reader url_patterns: untyped
+
+      attr_reader context: untyped
+
+      attr_reader username: untyped
+
+      attr_reader password: untyped
+
+      attr_reader network_ids: untyped
+
+      def initialize: (username: untyped, password: untyped, url_patterns: untyped, context: untyped) -> void
+
+      def process_interception: (untyped _event_response, untyped navigation_id, untyped network_id, untyped url) -> untyped
 
       private
 
-      def add_auth_header: (untyped request) -> void
-
-      def auth_header_value: () -> String?
+      # rubocop:disable Naming/PredicateMethod
+      def handled_bad_credentials: (untyped navigation_id, untyped network_id, untyped url) -> (false | true)
     end
   end
 end

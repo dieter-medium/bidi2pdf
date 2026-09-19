@@ -12,6 +12,10 @@ module Bidi2pdf
 
         def initialize: (?user_context_id: untyped?, ?reference_context: untyped?, ?background: bool) -> void
 
+        def method_name: () -> "browsingContext.create"
+
+        def params: () -> untyped
+
         def type: () -> "window"
       end
     end

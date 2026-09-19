@@ -1,0 +1,24 @@
+module Bidi2pdf
+  module Notifications
+    self.@subscribers: untyped
+
+    attr_reader self.subscribers: untyped
+
+    def self.instrument: (untyped name, ?::Hash[untyped, untyped] payload) ?{ (untyped) -> untyped } -> untyped
+
+    def self.subscribe: (untyped event_pattern) { (?) -> untyped } -> untyped
+
+    def self.unsubscribe: (untyped event_pattern, ?untyped? block) -> untyped
+
+    # rubocop: disable Style/CaseEquality
+    def self.listening?: (untyped name) -> untyped
+
+    private
+
+    def self.bidi2pdf_notification_instrumenter: () -> untyped
+
+    def self.notify: (untyped name, untyped payload) { (?) -> untyped } -> untyped
+
+    def self.normalize_pattern: (untyped pat) -> untyped
+  end
+end

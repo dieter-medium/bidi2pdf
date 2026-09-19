@@ -1,0 +1,23 @@
+module Bidi2pdf
+  module TestHelpers
+    # This module provides helper methods for handling PDF files in tests.
+    # It includes methods for debugging, storing, and managing PDF files.
+    module PdfFileHelper
+      def reporter: () -> untyped
+
+      # Executes a block with the given PDF data and handles debugging in case of test failures.
+      # If an expectation fails, the PDF data is saved to a file for debugging purposes.
+      # @param [String] pdf_data the PDF data to debug
+      # @yield [String] yields the PDF data to the given block
+      # @raise [RSpec::Expectations::ExpectationNotMetError] re-raises the exception after saving the PDF
+      def with_pdf_debug: (untyped pdf_data) { (untyped) -> untyped } -> untyped
+
+      # Stores the given PDF data to a file with a specified filename prefix.
+      # The file is saved in a temporary directory.
+      # @param [String] pdf_data the PDF data to store
+      # @param [String] filename_prefix the prefix for the generated filename (default: "test")
+      # @return [String] the full path to the saved PDF file
+      def store_pdf_file: (untyped pdf_data, ?::String filename_prefix) -> untyped
+    end
+  end
+end

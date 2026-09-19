@@ -1,0 +1,35 @@
+# This module provides helper methods for managing paths in test environments.
+# It includes methods to retrieve directories and generate temporary file paths.
+module Bidi2pdf
+  module TestHelpers
+    # This submodule contains path-related helper methods and configuration for tests.
+    module SpecPathsHelper
+      # Retrieves the directory path for Docker files.
+      # @return [String] the Docker directory path
+      def fixture_dir: () -> untyped
+
+      # Retrieves the directory path for fixtures.
+      # @return [String] the fixture directory path
+      def fixture_file: (*untyped) -> untyped
+
+      # Retrieves the directory path for specs.
+      # @return [String] the spec directory path
+      def spec_dir: () -> untyped
+
+      # Retrieves the directory path for temporary files.
+      # @return [String] the temporary directory path
+      def tmp_dir: () -> untyped
+
+      # Generates a path for a temporary file by joining the temporary directory with the given parts.
+      # @param [Array<String>] parts the parts of the file path to join
+      # @return [String] the full path to the temporary file
+      def tmp_file: (*untyped parts) -> untyped
+
+      # Generates a random temporary directory path.
+      # @param [Array<String>] dirs additional directory components to include in the path
+      # @param [String, nil] prefix an optional prefix for the directory name
+      # @return [String] the full path to the random temporary directory
+      def random_tmp_dir: (*untyped dirs, ?prefix: untyped?) -> untyped
+    end
+  end
+end

@@ -1,13 +1,31 @@
 module Bidi2pdf
+  # rubocop:disable Metrics/AbcSize
   class CLI < Thor
-    # rubocop:disable Layout/BeginEndAlignment
     @launcher: untyped
+
+    def self.exit_on_failure?: () -> true
 
     def render: () -> untyped
 
+    def version: () -> untyped
+
+    def template: () -> untyped
+
     private
 
-    # rubocop:disable  Metrics/AbcSize
+    def load_config: () -> (nil | untyped)
+
+    def validate_required_options!: () -> (untyped | untyped | nil)
+
+    def validate_print_options: (untyped opts) -> untyped
+
+    # rubocop:disable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    def print_options: () -> untyped
+
+    def option_provided?: (untyped key) -> untyped
+
+    def assign_if_provided: (untyped hash, untyped key, ?untyped option_key) -> (untyped | nil)
+
     def launcher: () -> untyped
 
     def configure: () -> untyped
@@ -17,5 +35,7 @@ module Bidi2pdf
     def parse_key_values: (untyped pairs) -> untyped
 
     def parse_auth: (untyped auth_string) -> ::Array[untyped]
+
+    def merged_options: () -> untyped
   end
 end

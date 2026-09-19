@@ -1,0 +1,38 @@
+module Bidi2pdf
+  module TestHelpers
+    # rubocop: disable-next Metrics/ModuleLength
+    module PDFTextSanitizer
+      def self.clean: (untyped text) -> untyped
+
+      def self.clean_pages: (untyped pdf) -> untyped
+
+      def self.normalize: (untyped text) -> untyped
+
+      def self.contains?: (untyped actual_pdf_thingy, untyped expected, ?untyped? page_number) -> (false | untyped)
+
+      def self.match_expected?: (untyped text, untyped expected) -> (false | untyped)
+
+      def self.match?: (untyped actual_pdf_thingy, untyped expected_pdf_thingy) -> (true | false)
+
+      def self.report_content_mismatch: (untyped actual, untyped expected) -> untyped
+
+      def self.content_mismatch_message: (untyped actual, untyped expected) -> untyped
+
+      def self.page_difference_message: (untyped actual_page, untyped expected_page, untyped page_idx) -> (nil | untyped)
+
+      def self.format_diff_output: (untyped diffs, untyped expected, untyped actual) -> untyped
+
+      def self.reporter: () -> untyped
+
+      private
+
+      def self.group_changed_diffs: (untyped diffs) -> untyped
+
+      def self.format_change: (untyped expected, untyped actual, untyped change) -> untyped
+
+      def self.extract_snippets: (untyped expected, untyped actual, untyped change, untyped pos) -> { context_start: untyped, context: untyped, expected_snip: untyped, actual_snip: untyped }
+
+      def self.build_output: (untyped snip_data, untyped pos) -> ::Array[::String]
+    end
+  end
+end

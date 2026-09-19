@@ -1,0 +1,17 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class CdpGetSession
+        @context: untyped
+
+        include Base
+
+        def initialize: (context: untyped) -> void
+
+        def params: () -> { context: untyped }
+
+        def method_name: () -> "goog:cdp.getSession"
+      end
+    end
+  end
+end

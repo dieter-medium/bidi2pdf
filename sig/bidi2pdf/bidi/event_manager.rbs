@@ -1,35 +1,30 @@
 module Bidi2pdf
   module Bidi
     class EventManager
-      class Listener
-        attr_reader block: untyped
-        attr_reader id: String
-
-        def initialize: (untyped block, ?String id) -> void
-
-        def call: (*untyped args) -> untyped
-
-        def ==: (untyped other) -> bool
-
-        def eql?: (untyped other) -> bool
-
-        def hash: () -> Integer
-      end
-
       @listeners: untyped
+
       @type: untyped
+
+      Listener: untyped
 
       attr_reader type: untyped
 
       def initialize: (untyped type) -> void
 
-      def on: (*untyped event_names, &untyped block) -> Listener
+      def on: (*untyped event_names) { (?) -> untyped } -> untyped
 
-      def off: (untyped event_name, Listener listener) -> void
+      def off: (untyped event_name, untyped listener) -> untyped
 
-      def dispatch: (untyped event_name, *untyped args) -> void
+      def dispatch: (untyped event_name, *untyped args) -> untyped
 
-      def clear: (?untyped event_name) -> void
+      def clear: (?untyped? event_name) -> untyped
+
+      private
+
+      def log_msg: (untyped prefix, untyped data) -> untyped
+
+      # rubocop: disable all
+      def truncate_large_values: (untyped org, ?::Integer max_length, ?::Integer max_depth, ?::Integer current_depth) -> ("...(too deep)..." | untyped)
     end
   end
 end

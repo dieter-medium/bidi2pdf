@@ -1,0 +1,37 @@
+module Bidi2pdf
+  class VerboseLogger < SimpleDelegator
+    @logger: untyped
+
+    @verbosity: untyped
+
+    VERBOSITY_LEVELS: { none: 0, low: 1, medium: 2, high: 3 }
+
+    attr_reader logger: untyped
+
+    attr_reader verbosity: untyped
+
+    def initialize: (untyped logger, ?::Symbol verbosity) -> void
+
+    def verbosity=: (untyped verbosity) -> untyped
+
+    def verbosity_sym: () -> untyped
+
+    def debug1: (?untyped? progname) { (?) -> untyped } -> (nil | untyped)
+
+    def debug1?: () -> untyped
+
+    def debug1!: () -> untyped
+
+    def debug2: (?untyped? progname) { (?) -> untyped } -> (nil | untyped)
+
+    def debug2?: () -> untyped
+
+    def debug2!: () -> untyped
+
+    def debug3: (?untyped? progname) { (?) -> untyped } -> (nil | untyped)
+
+    def debug3?: () -> untyped
+
+    def debug3!: () -> untyped
+  end
+end

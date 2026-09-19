@@ -1,0 +1,19 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class BrowserRemoveUserContext
+        @user_context_id: untyped
+
+        include Base
+
+        attr_reader user_context_id: untyped
+
+        def initialize: (?user_context_id: untyped?) -> void
+
+        def params: () -> untyped
+
+        def method_name: () -> "browser.removeUserContext"
+      end
+    end
+  end
+end

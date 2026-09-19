@@ -1,38 +1,11 @@
 module Bidi2pdf
   module Bidi
     class Browser
-      @url: String
-      @chromedriver_manager: Bidi2pdf::ChromedriverManager
-      @browser: untyped
-      @timeout: Integer
-      @debug: bool
+      @client: untyped
 
-      attr_reader browser: untyped
-      attr_reader timeout: Integer
+      def initialize: (untyped client) -> void
 
-      def initialize: (
-          url: String,
-          chromedriver_manager: Bidi2pdf::ChromedriverManager,
-          ?timeout: Integer,
-          ?debug: bool
-        ) -> void
-
-      def navigate: (?reload: bool) -> void
-
-      def current_url: -> String
-
-      def wait_until: [T] (
-          ?timeout: Integer,
-          ?message: String
-        ) { () -> T? } -> T
-
-      def close: () -> void
-
-      private
-
-      def connect: () -> untyped
-
-      def setup_browser: () -> untyped
+      def create_user_context: () -> untyped
     end
   end
 end

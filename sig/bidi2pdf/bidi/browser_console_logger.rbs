@@ -1,0 +1,59 @@
+module Bidi2pdf
+  module Bidi
+    class BrowserConsoleLoggerSuggar
+      @browser_console_logger: untyped
+
+      @level: untyped
+
+      @prefix: untyped
+
+      @timestamp: untyped
+
+      @text: untyped
+
+      @args: untyped
+
+      @stack_trace: untyped
+
+      attr_reader browser_console_logger: untyped
+
+      def initialize: (untyped browser_console_logger) -> void
+
+      def with_level: (untyped level) -> self
+
+      def with_prefix: (untyped prefix) -> self
+
+      def with_timestamp: (untyped timestamp) -> self
+
+      def with_text: (untyped text) -> self
+
+      def with_args: (untyped args) -> self
+
+      def with_stack_trace: (untyped stack_trace) -> self
+
+      def log_event: () -> untyped
+
+      def prefix: () -> untyped
+    end
+
+    class BrowserConsoleLogger
+      @logger: untyped
+
+      include JsLoggerHelper
+
+      attr_accessor logger: untyped
+
+      def initialize: (untyped logger) -> void
+
+      def builder: () -> untyped
+
+      def log_message: (untyped level, untyped prefix, untyped text) -> (nil | untyped)
+
+      def log_args: (untyped prefix, untyped args) -> (nil | untyped)
+
+      def log_stack_trace: (untyped prefix, untyped trace) -> untyped
+
+      def self.format_timestamp: (untyped timestamp) -> ("N/A" | untyped)
+    end
+  end
+end

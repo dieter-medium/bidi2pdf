@@ -1,0 +1,45 @@
+module Bidi2pdf
+  module TestHelpers
+    module Testcontainers
+      module ChromedriverTestHelper
+        def session_url: () -> untyped
+
+        def chromedriver_container: () -> untyped
+      end
+
+      module SessionTestHelper
+        def reporter: () -> untyped
+
+        def chrome_args: () -> untyped
+
+        def create_session: (untyped session_url) -> untyped
+
+        # Full session/tab lifecycle in one call - create_session above only builds the session
+        # object, it never starts or closes it, and there is no after(:each) teardown for a spec
+        # that uses it directly. Mirrors Bidi2pdf::DSL.with_tab's own ensure-based teardown, but
+        # against a session_url this module already knows about (a long-lived remote-chrome
+        # reached over `session:` metadata, not a freshly spawned local chromedriver per call).
+        def with_tab: (untyped session_url) { (untyped) -> untyped } -> untyped
+      end
+    end
+  end
+end
+
+# alias the long class name
+ChromedriverTestcontainer: untyped
+
+class Object
+  def stop_container: (untyped container) -> (nil | untyped)
+
+  def dump_container_logs: (untyped container) -> (nil | untyped)
+
+  def stop_running_container: (untyped container) -> (nil | untyped)
+
+  def reporter: () -> untyped
+
+  def chromedriver_tests_present?: () -> untyped
+
+  def test_of_kind_present?: (untyped type) -> untyped
+
+  def start_chromedriver_container: (build_dir: untyped, mounts: untyped, shared_network: untyped) -> untyped
+end

@@ -2,7 +2,9 @@ module Bidi2pdf
   module Bidi
     module Commands
       class SessionStatus
-        include Commands::Base
+        include Base
+
+        def method_name: () -> "session.status"
       end
     end
   end

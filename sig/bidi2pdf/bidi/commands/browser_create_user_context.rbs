@@ -3,6 +3,8 @@ module Bidi2pdf
     module Commands
       class BrowserCreateUserContext
         include Base
+
+        def method_name: () -> "browser.createUserContext"
       end
     end
   end

@@ -1,0 +1,28 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class PagePrint
+        @cdp_session: untyped
+
+        @print_options: untyped
+
+        include Base
+
+        def initialize: (cdp_session: untyped, print_options: untyped) -> void
+
+        # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+        def params: () -> { method: "Page.printToPDF", session: untyped, params: untyped }
+
+        def method_name: () -> "goog:cdp.sendCommand"
+
+        private
+
+        # rubocop:disable  Naming/MethodParameterName
+        def cm_to_inch: (untyped cm) -> (nil | untyped)
+
+        # rubocop:disable Metrics/CyclomaticComplexity
+        def page_ranges_to_string: (untyped input) -> (nil | untyped)
+      end
+    end
+  end
+end

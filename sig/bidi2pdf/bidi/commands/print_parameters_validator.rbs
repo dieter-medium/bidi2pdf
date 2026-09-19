@@ -15,6 +15,7 @@ module Bidi2pdf
       #   },
       #   orientation: "portrait" or "landscape" (optional, default: "portrait"),
       #   page: {
+      #     format: String (optional, use either format or width/height),
       #     width: Float >= 0.0352 (optional, default: 21.59),
       #     height: Float >= 0.0352 (optional, default: 27.94)
       #   },
@@ -32,6 +33,7 @@ module Bidi2pdf
 
         def initialize: (untyped params) -> void
 
+        # rubocop:disable Naming/PredicateMethod
         def validate!: () -> true
 
         private
@@ -46,6 +48,7 @@ module Bidi2pdf
 
         def validate_margin: () -> (nil | untyped)
 
+        # rubocop: disable Metrics/CyclomaticComplexity
         def validate_page_size: () -> (nil | untyped)
       end
     end

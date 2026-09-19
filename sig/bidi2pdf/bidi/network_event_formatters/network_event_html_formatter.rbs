@@ -1,0 +1,18 @@
+module Bidi2pdf
+  module Bidi
+    module NetworkEventFormatters
+      class NetworkEventHtmlFormatter
+        include NetworkEventFormatterUtils
+
+        def render: (untyped events) -> (nil | ::String)
+
+        def toc_entry: (untyped event, untyped index) -> ::String
+
+        # rubocop: disable Metrics/AbcSize
+        def render_event: (untyped event, untyped index) -> ::String
+
+        def render_timing_bars: (untyped timing) -> ("" | ::String)
+      end
+    end
+  end
+end

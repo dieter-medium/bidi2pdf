@@ -32,15 +32,11 @@ namespace :rbs do
         parser = RBS::Prototype::RB.new
         parser.parse input.read
 
-        if output.file?
-          puts "⚠️  RBS file already exists: #{rbs_path}"
-        else
-          puts "📝 Writing RBS file: #{rbs_path}"
+        puts "📝 Writing RBS file: #{rbs_path}"
 
-          output.open("w") do |io|
-            writer = RBS::Writer.new(out: io)
-            writer.write(parser.decls)
-          end
+        output.open("w") do |io|
+          writer = RBS::Writer.new(out: io)
+          writer.write(parser.decls)
         end
       rescue StandardError => e
         puts "❌ Error generating RBS for #{rb_path}: #{e.message}"
@@ -55,7 +51,12 @@ namespace :rbs do
 
   desc "Clean all generated RBS files"
   task :clean_rbs do
-    FileList["#{OUTPUT_DIR}/**/*.rbs"].each do |file|
+    # sig/vendor/** holds hand-written signatures for third-party gems (e.g. Thor) with no
+    # corresponding lib/ source to regenerate from - excluded so a clean+regenerate cycle can't
+    # delete them with no way to get them back.
+    generated = FileList["#{OUTPUT_DIR}/**/*.rbs"].exclude("#{OUTPUT_DIR}/vendor/**")
+
+    generated.each do |file|
       FileUtils.rm_f(file)
     end
     puts "🧹 Cleaned up all RBS files"

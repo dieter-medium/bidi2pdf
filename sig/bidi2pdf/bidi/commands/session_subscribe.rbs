@@ -9,6 +9,10 @@ module Bidi2pdf
         attr_reader events: untyped
 
         def initialize: (events: untyped) -> void
+
+        def method_name: () -> "session.subscribe"
+
+        def params: () -> untyped
       end
     end
   end

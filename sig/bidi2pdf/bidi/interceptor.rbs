@@ -3,6 +3,8 @@ module Bidi2pdf
     module Interceptor
       @client: untyped
 
+      @handle_event_listener: untyped
+
       def self.included: (untyped base) -> untyped
 
       module ClassMethods
@@ -19,6 +21,9 @@ module Bidi2pdf
 
       def register_with_client: (client: untyped) -> untyped
 
+      def unregister_with_client: (client: untyped) -> (nil | untyped)
+
+      # rubocop: disable Metrics/AbcSize
       def handle_event: (untyped response) -> untyped
 
       def interceptor_id: () -> untyped

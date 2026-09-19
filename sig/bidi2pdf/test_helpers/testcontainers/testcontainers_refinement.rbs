@@ -1,0 +1,47 @@
+module Bidi2pdf
+  module TestHelpers
+    module TestcontainersRefinement
+      @aliases: untyped
+
+      @_network: untyped
+
+      def id: () -> untyped
+
+      def aliases: () -> untyped
+
+      def aliases=: (untyped aliases) -> untyped
+
+      def network: () -> untyped
+
+      def with_network: (untyped network) -> self
+
+      def with_network_aliases: (*untyped aliases) -> self
+
+      def container_json: () -> untyped
+
+      # Address of the Docker host at which this container's *mapped* ports
+      # are reachable from the test process.
+      #
+      # Resolution belongs to testcontainers: it honours TC_HOST, a tcp:/ssh:
+      # DOCKER_HOST, a native local daemon, and a sibling container reaching
+      # the daemon over the bridge gateway — and it derives #mapped_port from
+      # the same decision, so the two must stay on one path. We only add a
+      # fallback for the cases 0.2.0 leaves unresolved.
+      #
+      # This is not the address containers use to reach each other; for that
+      # the helpers join a shared network and address containers by alias.
+      def accessible_host: () -> untyped
+
+      # testcontainers-core 0.2.0 cannot resolve a host when the test process
+      # runs inside a container and the container under test is on a custom
+      # network: #container_gateway_ip hardcodes the "bridge" network key
+      # (docker_container.rb:1074), so #host returns nil. On the default
+      # bridge it can instead reach docker_container.rb:703, which calls an
+      # undefined `bridge_ip`. Both are fixed on testcontainers-ruby main;
+      # treat either as "unresolved" and fall back.
+      def resolved_host: () -> untyped
+
+      def _container_create_options: () -> untyped
+    end
+  end
+end

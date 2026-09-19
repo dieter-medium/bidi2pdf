@@ -1,0 +1,6 @@
+module Bidi2pdf
+  module TestHelpers
+    module Testcontainers
+    end
+  end
+end

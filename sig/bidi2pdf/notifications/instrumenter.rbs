@@ -1,0 +1,21 @@
+module Bidi2pdf
+  # rubocop: disable Lint/RescueException, Lint/SuppressedException
+  module Notifications
+    class Instrumenter
+      @id: untyped
+
+      attr_reader id: untyped
+
+      def initialize: () -> void
+
+      def notify: (untyped name, untyped payload) { (?) -> untyped } -> untyped
+
+      private
+
+      def create_event: (untyped name, untyped payload) -> untyped
+
+      # rubocop:disable  Style/CaseEquality
+      def notify_subscribers: (untyped name, untyped event) -> untyped
+    end
+  end
+end
