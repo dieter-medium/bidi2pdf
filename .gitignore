@@ -13,3 +13,4 @@
 /.claude/
 /docker-claude/
 /vendor/bundle/
+/bidi2pdf.yml

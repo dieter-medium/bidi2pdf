@@ -23,20 +23,20 @@ jobs:
       SHOW_CONTAINER_LOGS: true
       DISABLE_CHROME_SANDBOX: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Setup Ruby Environment
         uses: ./.github/actions/setup-ruby
       - name: Run Tests with tag ${{ inputs.test_tag }}
         run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag ${{ inputs.test_tag }}"
       - name: Upload ${{ inputs.artifact_name }} coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.artifact_name }}
           include-hidden-files: true
           path: coverage/
       - name: Upload generated pdf files (if any)
         if: ${{ inputs.upload_pdf }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pdf-files
           path: tmp/pdf-files/
