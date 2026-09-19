@@ -1,0 +1,43 @@
+module Bidi2pdf
+  module TestHelpers
+    module Testcontainers
+      class ChromedriverContainer < ::Testcontainers::DockerContainer
+        @docker_file: untyped
+
+        @build_dir: untyped
+
+        @wait_for: untyped
+
+        @_container: untyped
+
+        @_id: untyped
+
+        @name: untyped
+
+        @_created_at: untyped
+
+        DEFAULT_CHROMEDRIVER_PORT: 3000
+
+        DEFAULT_IMAGE: "dieters877565/chromedriver"
+
+        attr_reader docker_file: untyped
+
+        attr_reader build_dir: untyped
+
+        def initialize: (?untyped image, **untyped options) -> void
+
+        def start: () -> untyped
+
+        def port: () -> untyped
+
+        # rubocop: disable Metrics/AbcSize
+        def build_local_image: () -> untyped
+
+        # rubocop: disable Metrics/AbcSize
+        def start_local_image: () -> untyped
+
+        def session_url: (?protocol: ::String) -> untyped
+      end
+    end
+  end
+end

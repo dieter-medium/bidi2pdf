@@ -2,12 +2,17 @@ module Bidi2pdf
   module Bidi
     module Commands
       class BrowsingContextPrint
-        include Commands::Base
+        @context: untyped
 
-        def initialize: (
-            context: String,
-            print_options: Hash[Symbol, untyped]?
-          ) -> void
+        @print_options: untyped
+
+        include Base
+
+        def initialize: (context: untyped, print_options: untyped) -> void
+
+        def params: () -> untyped
+
+        def method_name: () -> "browsingContext.print"
       end
     end
   end

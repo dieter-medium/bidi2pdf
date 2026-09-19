@@ -2,13 +2,19 @@ module Bidi2pdf
   module Bidi
     module Commands
       class BrowsingContextNavigate
-        include Commands::Base
+        @url: untyped
 
-        def initialize: (
-            url: String,
-            context: String,
-            ?wait: String
-          ) -> void
+        @context: untyped
+
+        @wait: untyped
+
+        include Base
+
+        def initialize: (url: untyped, context: untyped, ?wait: ::String) -> void
+
+        def params: () -> { url: untyped, context: untyped, wait: untyped }
+
+        def method_name: () -> "browsingContext.navigate"
       end
     end
   end

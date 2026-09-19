@@ -1,0 +1,51 @@
+module Bidi2pdf
+  module TestHelpers
+    self.@configuration: untyped
+
+    class Configuration
+      @spec_dir: untyped
+
+      @docker_dir: untyped
+
+      @fixture_dir: untyped
+
+      @tmp_dir: untyped
+
+      @prefix: untyped
+
+      # @!attribute [rw] spec_dir
+      #   @return [Pathname] the directory where specs are located
+      attr_accessor spec_dir: untyped
+
+      # @!attribute [rw] tmp_dir
+      #   @return [String] the directory for temporary files
+      attr_accessor tmp_dir: untyped
+
+      # @!attribute [rw] prefix
+      #   @return [String] the prefix for temporary files
+      attr_accessor prefix: untyped
+
+      # @!attribute [rw] docker_dir
+      #  @return [String] the directory for Docker files
+      attr_accessor docker_dir: untyped
+
+      # @!attribute [rw] fixture_dir
+      # @return [String] the directory for fixture files
+      attr_accessor fixture_dir: untyped
+
+      def initialize: () -> void
+    end
+
+    # Retrieves the current configuration object for TestHelpers.
+    # @return [Configuration] the configuration object
+    def self.configuration: () -> untyped
+
+    # Sets the configuration object for TestHelpers.
+    # @param [Configuration] config the configuration object to set
+    attr_writer self.configuration: untyped
+
+    # Allows configuration of TestHelpers by yielding the configuration object.
+    # @yieldparam [Configuration] configuration the configuration object to modify
+    def self.configure: () { (untyped) -> untyped } -> untyped
+  end
+end

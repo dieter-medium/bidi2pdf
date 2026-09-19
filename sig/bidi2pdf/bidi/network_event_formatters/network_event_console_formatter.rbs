@@ -1,0 +1,63 @@
+module Bidi2pdf
+  module Bidi
+    module NetworkEventFormatters
+      # rubocop: disable  Metrics/AbcSize
+      class NetworkEventConsoleFormatter
+        @color_enabled: untyped
+
+        @logger: untyped
+
+        include NetworkEventFormatterUtils
+
+        attr_reader color_enabled: untyped
+
+        attr_reader logger: untyped
+
+        # ANSI styles
+        RESET: "\e[0m"
+
+        BOLD: "\e[1m"
+
+        DIM: "\e[2m"
+
+        RED: "\e[31m"
+
+        GREEN: "\e[32m"
+
+        YELLOW: "\e[33m"
+
+        CYAN: "\e[36m"
+
+        GRAY: "\e[90m"
+
+        def initialize: (?color: bool, ?logger: untyped) -> void
+
+        def log: (untyped events) -> untyped
+
+        def pretty_log: (untyped event) -> untyped
+
+        private
+
+        def format_timing: (untyped event) -> ("" | untyped)
+
+        def color_for_status: (untyped code) -> untyped
+
+        def bold: (untyped str) -> (::String | untyped)
+
+        def dim: (untyped str) -> (::String | untyped)
+
+        def green: (?::String str) -> (::String | untyped)
+
+        def yellow: (?::String str) -> (::String | untyped)
+
+        def red: (?::String str) -> (::String | untyped)
+
+        def cyan: (?::String str) -> (::String | untyped)
+
+        def gray: (?::String str) -> (::String | untyped)
+
+        def reset: () -> (untyped | "")
+      end
+    end
+  end
+end

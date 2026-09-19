@@ -1,0 +1,41 @@
+module Bidi2pdf
+  module Notifications
+    # for reuse within ActiveSupport::LogSubscriber
+    module LoggingSubscriberActions
+      def handle_response: (untyped event) -> untyped
+
+      def send_cmd: (untyped event) -> untyped
+
+      def send_cmd_and_wait: (untyped event) -> (nil | untyped)
+
+      def session_close: (untyped event) -> (nil | untyped)
+
+      # rubocop: disable Metrics/AbcSize
+      def network_event_received: (untyped event) -> (nil | untyped)
+
+      # rubocop:disable  Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+      def network_idle: (untyped event) -> (nil | untyped)
+
+      def page_loaded: (untyped event) -> untyped
+
+      def print: (untyped event) -> untyped
+
+      private
+
+      def redact_sensitive_fields: (untyped obj, ?::Array[untyped] sensitive_keys) -> untyped
+    end
+
+    class LoggingSubscriber
+      @logger: untyped
+
+      include LoggingSubscriberActions
+
+      attr_accessor logger: untyped
+
+      # rubocop: disable Metrics/AbcSize, Metrics/CyclomaticComplexity,  Metrics/PerceivedComplexity
+      def initialize: (?logger: untyped) -> void
+
+      def unsubscribe: () -> untyped
+    end
+  end
+end

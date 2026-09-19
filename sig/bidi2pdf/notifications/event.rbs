@@ -1,0 +1,40 @@
+module Bidi2pdf
+  # rubocop: disable Lint/RescueException
+  module Notifications
+    class Event
+      @name: untyped
+
+      @payload: untyped
+
+      @time: untyped
+
+      @transaction_id: untyped
+
+      @end: untyped
+
+      attr_reader name: untyped
+
+      attr_reader transaction_id: untyped
+
+      attr_accessor payload: untyped
+
+      def initialize: (untyped name, untyped start, untyped ending, untyped transaction_id, untyped payload) -> void
+
+      def record: () ?{ (untyped) -> untyped } -> untyped
+
+      def start!: () -> untyped
+
+      def finish!: () -> untyped
+
+      def duration: () -> untyped
+
+      def time: () -> (untyped | nil)
+
+      def end: () -> (untyped | nil)
+
+      private
+
+      def now: () -> untyped
+    end
+  end
+end

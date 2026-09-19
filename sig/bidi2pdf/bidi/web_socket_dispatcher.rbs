@@ -1,53 +1,45 @@
 module Bidi2pdf
   module Bidi
     class WebSocketDispatcher
-      @url: String
-      @socket: WebSocket::Driver
-      @connection: TCPSocket
-      @pending_requests: Hash[Integer, Concurrent::Promises::ResolvableFuture]
-      @message_id: Integer
-      @listeners: Hash[String, Array[Proc]]
-      @thread: Thread?
-      @mutex: Mutex
-      @connected: bool
-      @logger: Logger?
+      @socket: untyped
 
-      attr_reader url: String
-      attr_reader connected: bool
+      @socket_events: untyped
 
-      def initialize: (String url, ?logger: Logger?) -> void
+      @session_events: untyped
 
-      def connect: () -> bool
+      attr_reader socket_events: untyped
 
-      def disconnect: () -> void
+      attr_reader session_events: untyped
 
-      def send_command: [T] (String method, ?Hash[Symbol, untyped] params) -> T
+      def initialize: (untyped socket) -> void
 
-      def send_message: (Hash[Symbol, untyped] message) -> Integer
+      def start_listening: () -> untyped
 
-      def add_event_listener: (String event_name) { (Hash[String, untyped]) -> void } -> void
+      def on_message: () { (?) -> untyped } -> untyped
 
-      def remove_event_listener: (String event_name, ?Proc? callback) -> void
+      def on_event: (*untyped event_names) { (?) -> untyped } -> untyped
 
-      def connected?: () -> bool
+      def on_open: () { (?) -> untyped } -> untyped
+
+      def on_close: () { (?) -> untyped } -> untyped
+
+      def on_error: () { (?) -> untyped } -> untyped
+
+      def remove_message_listener: (untyped block) -> untyped
+
+      def remove_event_listener: (untyped name, untyped listener) -> untyped
+
+      def remove_open_listener: (untyped listener) -> untyped
+
+      def remove_close_listener: (untyped listener) -> untyped
+
+      def remove_error_listener: (untyped listener) -> untyped
 
       private
 
-      def generate_message_id: () -> Integer
+      def setup_message_handler: () -> untyped
 
-      def create_socket: () -> WebSocket::Driver
-
-      def handle_open: () -> void
-
-      def handle_message: (String data) -> void
-
-      def handle_close: () -> void
-
-      def handle_error: (Exception error) -> void
-
-      def dispatch_event: (String event_name, Hash[String, untyped] params) -> void
-
-      def listen_for_messages: () -> void
+      def setup_connection_lifecycle_handlers: () -> untyped
     end
   end
 end

@@ -1,0 +1,31 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class SetViewport
+        @context: untyped
+
+        @width: untyped
+
+        @height: untyped
+
+        @device_pixel_ratio: untyped
+
+        include Base
+
+        attr_reader context: untyped
+
+        attr_reader width: untyped
+
+        attr_reader height: untyped
+
+        attr_reader device_pixel_ratio: untyped
+
+        def initialize: (context: untyped, width: untyped, height: untyped, ?device_pixel_ratio: untyped?) -> void
+
+        def method_name: () -> "browsingContext.setViewport"
+
+        def params: () -> untyped
+      end
+    end
+  end
+end

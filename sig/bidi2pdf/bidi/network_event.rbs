@@ -1,51 +1,59 @@
 module Bidi2pdf
   module Bidi
     class NetworkEvent
-      # Request data
-      @request_id: String
-      @url: String
-      @method: String
-      @headers: Hash[String, String]
-      @post_data: String?
+      @id: untyped
 
-      # Response data
-      @response_status: Integer?
-      @response_headers: Hash[String, String]?
-      @response_body: String?
+      @url: untyped
 
-      # Timing information
-      @timestamp: Float
-      @timing: Hash[Symbol, Float]?
+      @start_timestamp: untyped
 
-      attr_reader request_id: String
-      attr_reader url: String
-      attr_reader method: String
-      attr_reader headers: Hash[String, String]
-      attr_reader post_data: String?
-      attr_reader response_status: Integer?
-      attr_reader response_headers: Hash[String, String]?
-      attr_reader response_body: String?
-      attr_reader timestamp: Float
-      attr_reader timing: Hash[Symbol, Float]?
+      @timing: untyped
 
-      def initialize: (
-          request_id: String,
-          url: String,
-          method: String,
-          headers: Hash[String, String],
-          ?post_data: String?,
-          ?timestamp: Float?
-        ) -> void
+      @state: untyped
 
-      def add_response: (
-          status: Integer,
-          headers: Hash[String, String],
-          ?body: String?
-        ) -> void
+      @http_status_code: untyped
 
-      def add_timing: (Hash[Symbol, Float] timing_data) -> void
+      @http_method: untyped
 
-      def completed?: () -> bool
+      @end_timestamp: untyped
+
+      @bytes_received: untyped
+
+      attr_reader id: untyped
+
+      attr_reader url: untyped
+
+      attr_reader state: untyped
+
+      attr_reader start_timestamp: untyped
+
+      attr_reader end_timestamp: untyped
+
+      attr_reader timing: untyped
+
+      attr_reader http_status_code: untyped
+
+      attr_reader http_method: untyped
+
+      attr_reader bytes_received: untyped
+
+      STATE_MAP: { "network.responseStarted" => "started", "network.responseCompleted" => "completed", "network.fetchError" => "error" }
+
+      def initialize: (id: untyped, url: untyped, timestamp: untyped, timing: untyped, state: untyped, ?http_status_code: untyped?, ?http_method: untyped?) -> void
+
+      def update_state: (untyped new_state, ?timestamp: untyped?, ?timing: untyped?, ?http_status_code: untyped?, ?bytes_received: untyped?) -> untyped
+
+      def map_state: (untyped state) -> untyped
+
+      def format_timestamp: (untyped timestamp) -> ("N/A" | untyped)
+
+      def duration_seconds: () -> (nil | untyped)
+
+      def in_progress?: () -> untyped
+
+      def to_s: () -> ::String
+
+      def dup: () -> untyped
     end
   end
 end

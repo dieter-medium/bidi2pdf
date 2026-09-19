@@ -3,6 +3,8 @@ module Bidi2pdf
     module Commands
       class SessionEnd
         include Base
+
+        def method_name: () -> "session.end"
       end
     end
   end

@@ -1,26 +1,66 @@
 module Bidi2pdf
   module Bidi
     module Commands
+      # Base module for defining WebSocket commands in the Bidi2pdf library.
+      # This module provides common functionality for creating, comparing, and
+      # inspecting WebSocket command payloads.
       module Base
-        def method_name: () -> String
+        # Abstract method that must be implemented in subclasses to define the
+        # WebSocket command method name.
+        #
+        # @raise [NotImplementedError] If the method is not implemented in a subclass.
+        def method_name: () -> untyped
 
-        def params: () -> Hash[Symbol, untyped]
+        # Returns the parameters for the WebSocket command.
+        #
+        # @return [Hash] The parameters for the command. Defaults to an empty hash.
+        def params: () -> ::Hash[untyped, untyped]
 
-        def as_payload: (untyped id) -> Hash[Symbol, untyped]
+        # Constructs the payload for the WebSocket command.
+        #
+        # @param [Integer] id The unique identifier for the command.
+        # @return [Hash] The payload containing the command ID, method name, and parameters.
+        def as_payload: (untyped id) -> { id: untyped, method: untyped, params: untyped }
 
-        def ==: (untyped other) -> bool
+        # Compares the current command with another command for equality.
+        #
+        # @param [Object] other The other command to compare.
+        # @return [Boolean] True if the commands are equal, false otherwise.
+        # rubocop: disable Metrics/AbcSize
+        def ==: (untyped other) -> (false | untyped)
 
-        def eql?: (untyped other) -> bool
+        # Checks if the current command is hash-equal to another command.
+        #
+        # @param [Object] other The other command to compare.
+        # @return [Boolean] True if the commands are hash-equal, false otherwise.
+        def eql?: (untyped other) -> (false | untyped)
 
-        def hash: () -> Integer
+        # Computes the hash value for the command.
+        #
+        # @return [Integer] The hash value based on the method name and parameters.
+        def hash: () -> untyped
 
-        def inspect: () -> String
+        # Returns a string representation of the command, with sensitive fields redacted.
+        #
+        # @return [String] The string representation of the command.
+        def inspect: () -> ::String
 
         private
 
-        def redact_sensitive_fields: (untyped obj, Array[String] sensitive_keys) -> untyped
+        # Redacts sensitive fields in a given object.
+        #
+        # @param [Object] obj The object to redact.
+        # @param [Array<String>] sensitive_keys The list of sensitive keys to redact. Defaults to common sensitive keys.
+        # @return [Object] The object with sensitive fields redacted.
+        def redact_sensitive_fields: (untyped obj, ?::Array[untyped] sensitive_keys) -> untyped
 
-        def raise_timeout_error: (untyped id, String method, Hash[Symbol, untyped] params) -> void
+        # Logs and raises a timeout error for a command.
+        #
+        # @param [Integer] id The unique identifier for the command.
+        # @param [String] method The method name of the command.
+        # @param [Hash] params The parameters of the command.
+        # @raise [CmdTimeoutError] If the command times out.
+        def raise_timeout_error: (untyped id, untyped method, untyped params) -> untyped
       end
     end
   end

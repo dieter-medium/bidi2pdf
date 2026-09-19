@@ -1,0 +1,35 @@
+module Bidi2pdf
+  module TestHelpers
+    module Images
+      class ImageSimilarityChecker
+        @expected_image: untyped
+
+        @image_to_check: untyped
+
+        @expected_fingerprint: untyped
+
+        @actual_fingerprint: untyped
+
+        @distance: untyped
+
+        def initialize: (untyped expected_image, untyped image_to_check) -> void
+
+        def similar?: (?tolerance: ::Integer) -> untyped
+
+        def very_similar?: () -> untyped
+
+        def slightly_similar?: () -> untyped
+
+        def different?: () -> untyped
+
+        def expected_fingerprint: () -> untyped
+
+        def actual_fingerprint: () -> untyped
+
+        def distance: () -> untyped
+
+        def fingerprint: (untyped image) -> untyped
+      end
+    end
+  end
+end

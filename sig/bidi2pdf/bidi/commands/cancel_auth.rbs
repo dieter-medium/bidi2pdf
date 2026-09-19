@@ -2,9 +2,15 @@ module Bidi2pdf
   module Bidi
     module Commands
       class CancelAuth
-        include Commands::Base
+        @request: untyped
 
-        def initialize: (request: String) -> void
+        include Base
+
+        def initialize: (request: untyped) -> void
+
+        def params: () -> { request: untyped, action: "cancel" }
+
+        def method_name: () -> "network.continueWithAuth"
       end
     end
   end

@@ -10,7 +10,7 @@ module Bidi2pdf
 
     def children: (untyped of_pid) -> (::Array[untyped] | untyped)
 
-    def traverse: () { () -> untyped } -> untyped
+    def traverse: () { (?) -> untyped } -> untyped
 
     private
 
@@ -22,6 +22,6 @@ module Bidi2pdf
 
     def root_pids: () -> (::Array[untyped] | untyped)
 
-    def traverse_branch: (untyped pid, ?::Integer level) { () -> untyped } -> (nil | untyped)
+    def traverse_branch: (untyped pid, ?::Integer level) { (?) -> untyped } -> (nil | untyped)
   end
 end

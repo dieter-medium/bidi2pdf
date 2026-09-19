@@ -1,55 +1,30 @@
 module Bidi2pdf
   module Bidi
     class NetworkEvents
-      include Enumerable[NetworkEvent]
+      @context_id: untyped
 
-      @events: Hash[String, NetworkEvent]
-      @browser: Bidi2pdf::Bidi::Browser?
-      @event_manager: Bidi2pdf::Bidi::EventManager?
-      @recording: bool
-      @filters: Array[Proc]
+      @events: untyped
 
-      attr_reader events: Hash[String, NetworkEvent]
-      attr_reader recording: bool
+      @network_event_formatter: untyped
 
-      def initialize: (?browser: Bidi2pdf::Bidi::Browser?) -> void
+      attr_reader context_id: untyped
 
-      def start_recording: (?browser: Bidi2pdf::Bidi::Browser?) -> void
+      attr_reader events: untyped
 
-      def stop_recording: () -> void
+      attr_reader network_event_formatter: untyped
 
-      def add_filter: () { (NetworkEvent) -> bool } -> void
+      def initialize: (untyped context_id) -> void
 
-      def clear_filters: () -> void
+      def handle_event: (untyped data) -> untyped
 
-      def clear: () -> void
+      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+      def handle_response: (untyped method, untyped event) -> (nil | untyped)
 
-      def size: () -> Integer
+      def all_events: () -> untyped
 
-      def []: (String request_id) -> NetworkEvent?
+      def log_network_traffic: (?format: ::Symbol) -> untyped
 
-      def each: () { (NetworkEvent) -> void } -> self
-        | () -> Enumerator[NetworkEvent, self]
-
-      def find_by_url: (String url_pattern) -> Array[NetworkEvent]
-
-      def find_by_method: (String method) -> Array[NetworkEvent]
-
-      def completed_requests: () -> Array[NetworkEvent]
-
-      def pending_requests: () -> Array[NetworkEvent]
-
-      def to_a: () -> Array[NetworkEvent]
-
-      private
-
-      def setup_event_listeners: () -> void
-
-      def handle_request_event: (Hash[String, untyped] params) -> void
-
-      def handle_response_event: (Hash[String, untyped] params) -> void
-
-      def handle_loading_finished_event: (Hash[String, untyped] params) -> void
+      def wait_until_network_idle: (?timeout: ::Integer, ?poll_interval: ::Float) -> untyped
     end
   end
 end

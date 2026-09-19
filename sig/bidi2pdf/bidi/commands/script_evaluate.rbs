@@ -11,6 +11,10 @@ module Bidi2pdf
         include Base
 
         def initialize: (expression: untyped, context: untyped, ?await_promise: bool) -> void
+
+        def params: () -> { expression: untyped, target: { context: untyped }, awaitPromise: untyped }
+
+        def method_name: () -> "script.evaluate"
       end
     end
   end

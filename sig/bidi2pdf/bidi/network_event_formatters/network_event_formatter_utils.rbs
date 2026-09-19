@@ -1,0 +1,15 @@
+module Bidi2pdf
+  module Bidi
+    module NetworkEventFormatters
+      module NetworkEventFormatterUtils
+        def format_bytes: (untyped size) -> ("N/A" | untyped)
+
+        def parse_timing: (untyped event) -> (::Array[untyped] | untyped)
+
+        def format_timestamp: (untyped timestamp) -> ("N/A" | untyped)
+
+        def shorten_url: (untyped url) -> (untyped | "data:text/html,...")
+      end
+    end
+  end
+end

@@ -33,6 +33,20 @@ jobs:
         run: |
           bundle install --jobs 4 --retry 3
           bundle exec rubocop
+      - name: Verify RBS signatures are up to date
+        run: |
+          bundle exec rake rbs:clean_rbs rbs:generate_rbs
+          # git diff alone misses a new lib/ file whose regenerated sig/ counterpart is untracked
+          # (exactly the failure mode this check exists to catch) - status --porcelain covers
+          # modified, deleted, and untracked alike.
+          if [ -n "$(git status --porcelain sig/)" ]; then
+            echo "sig/ is out of date - run 'bundle exec rake rbs:clean_rbs rbs:generate_rbs' and commit the result"
+            git status --porcelain sig/
+            git diff sig/
+            exit 1
+          fi
+      - name: Validate RBS syntax
+        run: bundle exec rbs validate
 
   gem-build:
     needs:

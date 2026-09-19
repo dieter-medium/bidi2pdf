@@ -1,0 +1,6 @@
+module Bidi2pdf
+  module Bidi
+    module NetworkEventFormatters
+    end
+  end
+end

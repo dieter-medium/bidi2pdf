@@ -1,0 +1,31 @@
+module Bidi2pdf
+  module Bidi
+    module Commands
+      class CaptureScreenshot
+        @context: untyped
+
+        @origin: untyped
+
+        @format: untyped
+
+        @clip: untyped
+
+        include Base
+
+        attr_reader context: untyped
+
+        attr_reader origin: untyped
+
+        attr_reader format: untyped
+
+        attr_reader clip: untyped
+
+        def initialize: (context: untyped, ?origin: ::String, ?format: untyped?, ?clip: untyped?) -> void
+
+        def method_name: () -> "browsingContext.captureScreenshot"
+
+        def params: () -> untyped
+      end
+    end
+  end
+end

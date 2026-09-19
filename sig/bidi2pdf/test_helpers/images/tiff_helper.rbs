@@ -1,0 +1,70 @@
+module Bidi2pdf
+  module TestHelpers
+    module Images
+      # rubocop: disable  Metrics/ModuleLength, Metrics/AbcSize
+      module TIFFHelper
+        # TIFF Tag IDs
+        IMAGE_WIDTH: 256
+
+        IMAGE_LENGTH: 257
+
+        BITS_PER_SAMPLE: 258
+
+        COMPRESSION: 259
+
+        PHOTOMETRIC_INTERPRETATION: 262
+
+        STRIP_OFFSETS: 273
+
+        SAMPLES_PER_PIXEL: 277
+
+        ROWS_PER_STRIP: 278
+
+        STRIP_BYTE_COUNTS: 279
+
+        PLANAR_CONFIGURATION: 284
+
+        INK_SET: 332
+
+        # TIFF Data Types
+        TYPE_SHORT: 3
+
+        TYPE_LONG: 4
+
+        # TIFF Compression Types
+        COMPRESSION_NONE: 1
+
+        COMPRESSION_CCITT_G3: 3
+
+        COMPRESSION_CCITT_G4: 4
+
+        # TIFF Photometric Interpretations
+        PHOTO_WHITE_IS_ZERO: 0
+
+        PHOTO_BLACK_IS_ZERO: 1
+
+        PHOTO_RGB: 2
+
+        PHOTO_SEPARATION: 5
+
+        # Planar Configuration
+        PLANAR_CHUNKY: 1
+
+        def tiff_header: (untyped hash, untyped data) -> untyped
+
+        # See:
+        #    * https://gist.github.com/gstorer/f6a9f1dfe41e8e64dcf58d07afa9ab2a
+        #    * https://github.com/yob/pdf-reader/blob/main/examples/extract_images.rb
+        def pack_tiff: (untyped entries) -> untyped
+
+        def tiff_header_for_gray: (untyped hash, untyped data) -> untyped
+
+        def tiff_header_for_ccitt: (untyped hash, untyped data) -> untyped
+
+        def tiff_header_for_cmyk: (untyped hash, untyped data) -> untyped
+
+        def tiff_header_for_rgb: (untyped hash, untyped data) -> untyped
+      end
+    end
+  end
+end

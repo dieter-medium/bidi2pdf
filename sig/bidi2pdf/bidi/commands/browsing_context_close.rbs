@@ -2,9 +2,15 @@ module Bidi2pdf
   module Bidi
     module Commands
       class BrowsingContextClose
-        include Commands::Base
+        @context: untyped
 
-        def initialize: (context: String) -> void
+        include Base
+
+        def initialize: (context: untyped) -> void
+
+        def params: () -> { context: untyped }
+
+        def method_name: () -> "browsingContext.close"
       end
     end
   end

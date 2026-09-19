@@ -1,4 +1,114 @@
 module Bidi2pdf
-  VERSION: String
-  # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+  self.@logger: untyped
+
+  self.@network_events_logger: untyped
+
+  self.@browser_console_logger: untyped
+
+  self.@logging_subscriber: untyped
+
+  self.@notification_service: untyped
+
+  PAPER_FORMATS_CM: { letter: { width: ::Float, height: ::Float }, legal: { width: ::Float, height: ::Float }, tabloid: { width: ::Float, height: ::Float }, ledger: { width: ::Float, height: ::Float }, a0: { width: ::Float, height: ::Float }, a1: { width: ::Float, height: ::Float }, a2: { width: ::Float, height: ::Float }, a3: { width: ::Float, height: ::Float }, a4: { width: ::Float, height: ::Float }, a5: { width: ::Float, height: ::Float }, a6: { width: ::Float, height: ::Float } }
+
+  class Error < StandardError
+  end
+
+  class SessionNotStartedError < Error
+  end
+
+  class WebsocketError < Error
+  end
+
+  class ClientError < WebsocketError
+  end
+
+  class CmdError < ClientError
+    @cmd: untyped
+
+    @response: untyped
+
+    attr_reader cmd: untyped
+
+    attr_reader response: untyped
+
+    def initialize: (untyped cmd, untyped response) -> void
+  end
+
+  class CmdResponseNotStoredError < ClientError
+  end
+
+  class CmdTimeoutError < ClientError
+  end
+
+  class PrintError < Error
+  end
+
+  class ScreenshotError < Error
+  end
+
+  class ScriptInjectionError < Error
+  end
+
+  class StyleInjectionError < Error
+  end
+
+  class NotificationsError < Error
+    @causes: untyped
+
+    attr_reader causes: untyped
+
+    def initialize: (untyped causes) -> void
+  end
+
+  class NavigationError < Error
+  end
+
+  class NavigationAuthError < NavigationError
+    @url: untyped
+
+    attr_reader url: untyped
+
+    def initialize: (untyped url, ?untyped? message) -> void
+  end
+
+  class NavigationTimeoutError < NavigationError
+  end
+
+  class NavigationNotFoundError < NavigationError
+  end
+
+  class NavigationDNSError < NavigationError
+  end
+
+  attr_accessor self.default_timeout: untyped
+
+  attr_accessor self.enable_default_logging_subscriber: untyped
+
+  attr_reader self.logging_subscriber: untyped
+
+  attr_reader self.logger: untyped
+
+  attr_reader self.network_events_logger: untyped
+
+  attr_reader self.browser_console_logger: untyped
+
+  attr_reader self.notification_service: untyped
+
+  # Allow configuration through a block
+  def self.configure: () ?{ (untyped) -> untyped } -> untyped
+
+  def self.init: () -> untyped
+
+  def self.translate_paper_format: (untyped format) -> { width: untyped, height: untyped }
+
+  def self.logger=: (untyped new_logger) -> untyped
+
+  def self.network_events_logger=: (untyped new_network_events_logger) -> untyped
+
+  def self.browser_console_logger=: (untyped new_browser_console_logger) -> untyped
+
+  def self.logging_subscriber=: (untyped new_logging_subscriber) -> untyped
+
+  def self.notification_service=: (untyped new_notification_service) -> untyped
 end

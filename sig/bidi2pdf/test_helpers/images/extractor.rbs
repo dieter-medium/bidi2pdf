@@ -1,0 +1,43 @@
+module Bidi2pdf
+  module TestHelpers
+    module Images
+      class Extractor
+        @pages: untyped
+
+        @logger: untyped
+
+        @extracted_images: untyped
+
+        include PDFReaderUtils
+
+        include TIFFHelper
+
+        attr_reader pages: untyped
+
+        attr_reader logger: untyped
+
+        def initialize: (untyped pdf_data, ?logger: untyped) -> void
+
+        def all_images: () -> untyped
+
+        def image_on_page: (untyped page_number, untyped image_number) -> (nil | untyped)
+
+        def images_on_page: (untyped page_number) -> untyped
+
+        private
+
+        def extracted_images: () -> untyped
+
+        def extract_images: (untyped page) -> (nil | untyped)
+
+        def process_image_stream: (untyped stream) -> (nil | untyped)
+
+        def extract_raw_image_data: (untyped stream, untyped filter) -> untyped
+
+        def handle_compressed_image: (untyped stream) -> untyped
+
+        def create_vips_image: (untyped raw, untyped filter) -> untyped
+      end
+    end
+  end
+end

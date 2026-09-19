@@ -13,6 +13,10 @@ module Bidi2pdf
         attr_reader headers: untyped
 
         def initialize: (request: untyped, headers: untyped) -> void
+
+        def method_name: () -> "network.continueRequest"
+
+        def params: () -> untyped
       end
     end
   end

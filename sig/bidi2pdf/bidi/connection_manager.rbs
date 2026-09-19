@@ -5,12 +5,13 @@ module Bidi2pdf
 
       @connected: untyped
 
-      @connection_queue: untyped
+      @connection_latch: untyped
 
       def initialize: (logger: untyped) -> void
 
       def mark_connected: () -> (nil | untyped)
 
+      # rubocop:disable Naming/PredicateMethod
       def wait_until_open: (timeout: untyped) -> true
     end
   end

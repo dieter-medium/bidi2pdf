@@ -1,42 +1,77 @@
 module Bidi2pdf
   class ChromedriverManager
-    @port: Integer
-    @headless: bool
+    @port: untyped
+
+    @headless: untyped
+
     @session: untyped
-    @pid: Integer?
 
-    attr_reader port: Integer
-    attr_reader pid: Integer?
-    attr_reader session: untyped
+    @started: untyped
 
-    def initialize: (?port: Integer, ?headless: bool) -> void
+    @chrome_args: untyped
 
-    def start: () -> self
+    @shutdown_mutex: untyped
 
-    def stop: (?timeout: Integer) -> bool
+    @pid: untyped
+
+    include Chromedriver::Binary::Platform
+
+    attr_reader port: untyped
+
+    attr_reader pid: untyped
+
+    attr_reader started: untyped
+
+    attr_reader headless: untyped
+
+    attr_reader chrome_args: untyped
+
+    attr_reader shutdown_mutex: untyped
+
+    attr_accessor reader_thread: untyped
+
+    def initialize: (?port: ::Integer, ?headless: bool, ?chrome_args: untyped) -> void
+
+    def start: () -> untyped
+
+    def session: () -> (nil | untyped)
+
+    def session_url: () -> (nil | ::String)
+
+    # rubocop: disable Metrics/AbcSize
+    def stop: (?timeout: ::Integer) -> untyped
 
     private
 
-    # rubocop:disable Metrics/AbcSize
-    def detect_zombie_processes: () -> Array[Integer]?
+    def spawn_process: (untyped cmd) -> untyped
 
-    def debug_show_all_children: () -> void
+    def detect_zombie_processes: (untyped old_childprocesses) -> (nil | untyped)
 
-    def close_session: () -> void
+    def term_zombie_processes: (untyped zombie_processes) -> untyped
 
-    def term_chromedriver: () -> bool
+    def debug_show_all_children: () -> untyped
 
-    def kill_chromedriver: (?timeout: Integer) -> bool
+    def close_session: () -> untyped
 
-    def build_cmd: () -> Array[String]
+    def term_chromedriver: () -> untyped
 
-    def update_chromedriver: () -> void
+    def kill_chromedriver: (?timeout: ::Integer) -> untyped
 
-    # rubocop:disable Metrics/AbcSize
-    def parse_port_from_output: (IO io, ?timeout: Integer) -> Integer?
+    def build_cmd: () -> untyped
 
-    def process_alive?: (?pid: Integer?) -> bool
+    def chromedriver_log_level: () -> untyped
 
-    def wait_until_chromedriver_ready: (?timeout: Integer) -> bool
+    def user_data_dir_arg: () -> (untyped | ::String)
+
+    def process_chrome_args: () -> (::Array[untyped] | untyped)
+
+    def update_chromedriver: () -> untyped
+
+    # rubocop: disable Metrics/AbcSize
+    def parse_port_from_output: (untyped io, ?timeout: ::Integer) -> (nil | untyped)
+
+    def process_alive?: (?untyped pid) -> (false | untyped)
+
+    def wait_until_chromedriver_ready: (?timeout: ::Integer) -> (true | untyped)
   end
 end

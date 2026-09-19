@@ -2,19 +2,27 @@ module Bidi2pdf
   module Bidi
     module Commands
       class AddIntercept
+        @context: untyped
+
+        @phases: untyped
+
+        @url_patterns: untyped
+
         include Base
 
-        BEFORE_REQUEST: String
-        RESPONSE_STARTED: String
-        AUTH_REQUIRED: String
+        BEFORE_REQUEST: "beforeRequestSent"
 
-        @context: String
-        @phases: Array[String]
-        @url_patterns: Array[String]
+        RESPONSE_STARTED: "responseStarted"
 
-        def initialize: (context: String, phases: Array[String], url_patterns: Array[String]) -> void
+        AUTH_REQUIRED: "authRequired"
 
-        def validate_phases!: () -> void
+        def initialize: (context: untyped, phases: untyped, url_patterns: untyped) -> void
+
+        def method_name: () -> "network.addIntercept"
+
+        def params: () -> untyped
+
+        def validate_phases!: () -> untyped
       end
     end
   end

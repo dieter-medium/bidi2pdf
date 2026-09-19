@@ -1,0 +1,25 @@
+module Bidi2pdf
+  module TestHelpers
+    module Testcontainers
+      # Builds a URL for reaching a container's published port from the test
+      # process, using the container's own host/port resolution.
+      class ContainerEndpoint
+        @container: untyped
+
+        @port: untyped
+
+        def initialize: (untyped container, untyped port) -> void
+
+        def url: (?scheme: ::String, ?path: ::String) -> ::String
+
+        # Address reachable from another container on the same Docker network (e.g. remote-chrome
+        # reaching nginx), by alias and internal port - as opposed to #url's host-accessible,
+        # externally-mapped port. Uses the same @port this instance was built with, not a
+        # container_ports.first guess: the two methods must agree on which port they're both
+        # describing for the same container, or a caller comparing #url and #alias_url for what's
+        # meant to be the same endpoint could silently get two different services.
+        def alias_url: (?scheme: ::String, ?path: ::String) -> ::String
+      end
+    end
+  end
+end

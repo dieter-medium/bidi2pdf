@@ -1,20 +1,27 @@
 module Bidi2pdf
   module Bidi
     class AddHeadersInterceptor
-      @id: String
-      @client: untyped
-      @headers: Hash[String, String]
+      @headers: untyped
 
-      attr_reader id: String
-      attr_reader headers: Hash[String, String]
+      @url_patterns: untyped
 
-      def initialize: (String id, Hash[String, String] headers, untyped client) -> void
+      @context: untyped
 
-      def handle_event: (Hash[String, untyped] response) -> (nil | untyped)
+      include Interceptor
 
-      private
+      def self.phases: () -> ::Array[untyped]
 
-      attr_reader client: untyped
+      def self.events: () -> ::Array["network.beforeRequestSent"]
+
+      attr_reader headers: untyped
+
+      attr_reader url_patterns: untyped
+
+      attr_reader context: untyped
+
+      def initialize: (headers: untyped, url_patterns: untyped, context: untyped) -> void
+
+      def process_interception: (untyped _event_response, untyped _navigation_id, untyped network_id, untyped _url) -> untyped
     end
   end
 end

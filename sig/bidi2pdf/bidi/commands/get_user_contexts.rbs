@@ -3,6 +3,8 @@ module Bidi2pdf
     module Commands
       class GetUserContexts
         include Base
+
+        def method_name: () -> "browser.getUserContexts"
       end
     end
   end

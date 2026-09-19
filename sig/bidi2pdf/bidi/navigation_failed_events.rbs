@@ -1,0 +1,17 @@
+module Bidi2pdf
+  module Bidi
+    class NavigationFailedEvents
+      @context_id: untyped
+
+      attr_reader context_id: untyped
+
+      attr_reader browser_console_logger: untyped
+
+      def initialize: (untyped context_id) -> void
+
+      def handle_event: (untyped data) -> untyped
+
+      def handle_response: (untyped _method, untyped event) -> untyped
+    end
+  end
+end
