@@ -84,7 +84,8 @@ def wait_for_nginx(container)
       begin
         if container.running? && container.mapped_port(80) != 0
 
-          response = Net::HTTP.get_response(URI("http://#{container.accessible_host}:#{container.mapped_port(80)}/nginx_status"))
+          url = Bidi2pdf::TestHelpers::Testcontainers::ContainerEndpoint.new(container, 80).url(path: "nginx_status")
+          response = Net::HTTP.get_response(URI(url))
           break if response&.code.to_i == 200
         end
       rescue StandardError

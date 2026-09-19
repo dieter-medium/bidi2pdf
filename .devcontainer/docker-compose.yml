@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+
+    #    volumes:
+    #      - ../..:/workspaces:cached
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+    # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
+    network_mode: service:remote-chrome-debug
+
+    # volumes:
+    #  - /var/run/docker.sock:/var/run/docker.sock
+
+    # Use "forwardPorts" in **devcontainer.json** to forward an app port locally.
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
+
+  remote-chrome-debug:
+    image: dieters877565/chromedriver:latest
+    environment:
+      ENABLE_XVFB: true
+      ENABLE_VNC: true
+      VNC_PASS: ${REMOTE_CHROME_VNC_PASS:-supersecret}
+    cap_add:
+      - SYS_ADMIN
+    ports:
+      - "127.0.0.1:${REMOTE_CHROME_VNC_PORT:-5900}:5900"

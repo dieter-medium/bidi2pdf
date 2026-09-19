@@ -73,10 +73,7 @@ module Bidi2pdf
         # rubocop: enable Metrics/AbcSize
 
         def session_url(protocol: "http")
-          tmp_host = host
-          tmp_host = "localhost" if %i[host dind].include?(docker_topology)
-
-          "#{protocol}://#{tmp_host}:#{mapped_port(port)}/session"
+          ContainerEndpoint.new(self, port).url(scheme: protocol, path: "session")
         end
       end
     end

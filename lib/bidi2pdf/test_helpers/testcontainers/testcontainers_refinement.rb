@@ -33,30 +33,33 @@ module Bidi2pdf
         @_container&.json
       end
 
-      def own_container_id
-        # cgroup v2 gives just "0::/", so read mountinfo instead
-        File.read("/proc/self/mountinfo")[%r{/docker/containers/([0-9a-f]{64})/}, 1]
-      rescue Errno::ENOENT
-        nil
-      end
-
+      # Address of the Docker host at which this container's *mapped* ports
+      # are reachable from the test process.
+      #
+      # Resolution belongs to testcontainers: it honours TC_HOST, a tcp:/ssh:
+      # DOCKER_HOST, a native local daemon, and a sibling container reaching
+      # the daemon over the bridge gateway — and it derives #mapped_port from
+      # the same decision, so the two must stay on one path. We only add a
+      # fallback for the cases 0.2.0 leaves unresolved.
+      #
+      # This is not the address containers use to reach each other; for that
+      # the helpers join a shared network and address containers by alias.
       def accessible_host
-        tmp_host = host
-        tmp_host = "localhost" if %i[host dind].include?(docker_topology)
-        tmp_host
+        resolved_host || "localhost"
       end
 
-      def docker_topology
-        return :remote if ENV["DOCKER_HOST"].to_s.match?(/\A(tcp|ssh):/)
-        return :host unless File.exist?("/.dockerenv")
-
-        id = own_container_id
-        return :unknown unless id
-
-        Docker::Container.get(id) # daemon knows me => we're siblings
-        :sibling
-      rescue Docker::Error::NotFoundError
-        :dind # daemon has never heard of me
+      # testcontainers-core 0.2.0 cannot resolve a host when the test process
+      # runs inside a container and the container under test is on a custom
+      # network: #container_gateway_ip hardcodes the "bridge" network key
+      # (docker_container.rb:1074), so #host returns nil. On the default
+      # bridge it can instead reach docker_container.rb:703, which calls an
+      # undefined `bridge_ip`. Both are fixed on testcontainers-ruby main;
+      # treat either as "unresolved" and fall back.
+      def resolved_host
+        value = host
+        value unless value.nil? || value.empty?
+      rescue NoMethodError
+        nil
       end
 
       def _container_create_options

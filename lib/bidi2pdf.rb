@@ -51,6 +51,8 @@ module Bidi2pdf
 
   class PrintError < Error; end
 
+  class ScreenshotError < Error; end
+
   class ScriptInjectionError < Error; end
 
   class StyleInjectionError < Error; end
