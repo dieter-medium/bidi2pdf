@@ -40,7 +40,7 @@ module Bidi2pdf
 
       # Starts the WebSocket client and establishes a connection.
       #
-      # @return [WebSocket::Client::Simple] The WebSocket connection object.
+      # @return [BufferedWebSocketClient] The WebSocket connection object.
       def start: () -> untyped
 
       # Checks if the WebSocket client has started.

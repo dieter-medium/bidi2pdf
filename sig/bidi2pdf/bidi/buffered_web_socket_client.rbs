@@ -1,0 +1,54 @@
+module Bidi2pdf
+  module Bidi
+    # websocket-client-simple reads its socket one byte at a time (`getc`, then a frame-parse attempt
+    # per byte). A printed PDF comes back as one base64 message, and every network event for a
+    # `data:` navigation echoes the whole URL, so that loop ran millions of times per render -
+    # measured at ~730 ms to decode a 700 KB frame, against ~0.5 ms when fed in 16 KB chunks.
+    # Only the read loop differs from the parent; events, #send and #close are inherited.
+    class BufferedWebSocketClient < ::WebSocket::Client::Simple::Client
+      @close_monitor: untyped
+
+      @url: untyped
+
+      @socket: untyped
+
+      @handshake: untyped
+
+      @handshaked: untyped
+
+      @pipe_broken: untyped
+
+      @closed: untyped
+
+      @thread: untyped
+
+      READ_CHUNK_BYTES: 16384
+
+      def self.connect: (untyped url, ?::Hash[untyped, untyped] options) ?{ (untyped) -> untyped } -> untyped
+
+      def initialize: () -> void
+
+      def connect: (untyped url, ?::Hash[untyped, untyped] options) -> (nil | untyped)
+
+      # Replaces the parent's #close, which could rely on its reader never noticing the peer hang
+      # up. This reader does, so two things differ. It is serialised: the reader (on EOF) and the
+      # caller may close concurrently, one closing the socket while the other still writes the close
+      # frame - re-entrant, because :__close's handler calls #close again. And it never kills the
+      # thread it is running on: the parent's unconditional Thread.kill would stop the reader before
+      # it could emit :close.
+      def close: () -> untyped
+
+      private
+
+      def send_close_frame: () -> untyped
+
+      def open_socket: (untyped uri, untyped options) -> untyped
+
+      def ssl_context: (untyped options) -> untyped
+
+      def read_loop: (untyped frame) -> untyped
+
+      def consume: (untyped chunk, untyped frame) -> (nil | untyped)
+    end
+  end
+end
