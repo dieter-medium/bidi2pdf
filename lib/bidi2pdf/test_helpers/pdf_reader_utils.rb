@@ -49,7 +49,7 @@ module Bidi2pdf
         # @param pdf_data [String, StringIO, File] The PDF data to be converted.
         # @return [IO] An IO object containing the PDF data.
         def convert_data_to_io(pdf_data)
-          # rubocop:disable Lint/DuplicateBranch
+          # rubocop:disable-next Lint/DuplicateBranch
           if pdf_data.is_a?(String) && (pdf_data.start_with?("JVBERi") || pdf_data.start_with?("JVBER"))
             StringIO.new(Base64.decode64(pdf_data))
           elsif pdf_data.start_with?("%PDF-")
@@ -61,7 +61,6 @@ module Bidi2pdf
           else
             StringIO.new(pdf_data)
           end
-          # rubocop:enable Lint/DuplicateBranch
         end
       end
 

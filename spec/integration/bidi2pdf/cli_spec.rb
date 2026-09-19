@@ -3,7 +3,7 @@
 require "spec_helper"
 require "bidi2pdf/cli"
 
-# rubocop:disable  RSpec/AnyInstance
+# rubocop:disable-next  RSpec/AnyInstance
 RSpec.describe Bidi2pdf::CLI do
   let(:cli_runner) { described_class.new }
 
@@ -41,4 +41,3 @@ RSpec.describe Bidi2pdf::CLI do
     end
   end
 end
-# rubocop:enable  RSpec/AnyInstance

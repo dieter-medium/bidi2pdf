@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe Bidi2pdf::Bidi::Interceptor do
   subject(:interceptor) { interceptor_class.new }
 
-  # rubocop: disable Style/MultilineBlockChain
+  # rubocop: disable-next Style/MultilineBlockChain
   let(:interceptor_class) do
     Class.new do
       class << self
@@ -35,7 +35,6 @@ RSpec.describe Bidi2pdf::Bidi::Interceptor do
       attr_reader :intercepted
     end.tap { |clazz| clazz.include described_class }
   end
-  # rubocop: enable Style/MultilineBlockChain
 
   let(:client) { DummyClient.new(response) }
   let(:response) do
