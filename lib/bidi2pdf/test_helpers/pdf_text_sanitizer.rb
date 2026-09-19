@@ -6,7 +6,7 @@ require "diff/lcs/hunk"
 
 module Bidi2pdf
   module TestHelpers
-    # rubocop: disable Metrics/ModuleLength
+    # rubocop: disable-next Metrics/ModuleLength
     module PDFTextSanitizer
       class << self
         def clean(text)
@@ -148,6 +148,5 @@ module Bidi2pdf
         end
       end
     end
-    # rubocop:enable Metrics/ModuleLength
   end
 end

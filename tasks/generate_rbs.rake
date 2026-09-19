@@ -6,7 +6,7 @@ require "rbs"
 SOURCE_DIR = "lib"
 OUTPUT_DIR = "sig"
 
-# rubocop:disable  Metrics/BlockLength
+# rubocop:disable-next  Metrics/BlockLength
 namespace :rbs do
   file_list = FileList["#{SOURCE_DIR}/**/*.rb"]
 
@@ -61,4 +61,3 @@ namespace :rbs do
     puts "🧹 Cleaned up all RBS files"
   end
 end
-# rubocop:enable Metrics/BlockLength
