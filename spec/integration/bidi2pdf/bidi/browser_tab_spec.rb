@@ -104,6 +104,65 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
     end
   end
 
+  describe "#screenshot" do
+    let(:tmp_path) { random_tmp_dir }
+    let(:png_path) { File.join(tmp_path, "test.png") }
+
+    before do
+      FileUtils.mkdir_p(tmp_path)
+      browser_tab.navigate_to "file:///var/www/html/simple.html"
+    end
+
+    after do
+      FileUtils.rm_f(tmp_path)
+    end
+
+    it "saves a real screenshot to the given filename" do
+      browser_tab.screenshot(png_path)
+
+      expect(File.size(png_path)).to be > 0
+    end
+
+    it "returns the image data, when no filename is given" do
+      png_base64 = browser_tab.screenshot
+
+      expect(Base64.decode64(png_base64)).not_to be_empty
+    end
+  end
+
+  describe "#set_viewport" do
+    before do
+      # bidi2pdf/test_helpers/images is this gem's one sanctioned opt-in gateway to ruby-vips (a
+      # dev-only dependency - see bidi2pdf.gemspec) - it already rescues a missing vips/dhash-vips
+      # with a warn (not a raise), and now also calls Vips.block_untrusted(true) once for every
+      # consumer of it (CVE-2026-66066 hardening). Routed through it here, rather than a bare
+      # `require "vips"`, so this test never has its own second, out-of-band way to load/harden
+      # vips - every other describe block in this file stays independent of libvips either way.
+      require "bidi2pdf/test_helpers/images"
+
+      # images.rb's own require swallows LoadError (warns instead of raising), so check the
+      # constant rather than rescue - skips with a message instead of failing when vips isn't
+      # installed, keeping the suite green for anyone who doesn't want this dependency.
+      unless defined?(Vips::Image)
+        skip "ruby-vips/libvips not installed - install libvips to run this example " \
+               "(it's a dev-only, opt-in dependency; see bidi2pdf.gemspec)"
+      end
+
+      browser_tab.navigate_to "file:///var/www/html/simple.html"
+    end
+
+    it "changes the dimensions of a subsequent viewport screenshot" do
+      browser_tab.set_viewport(width: 800, height: 600)
+
+      # origin: "viewport" (not #screenshot's own "document" default) captures exactly the set
+      # viewport, regardless of the fixture page's own content size - the direct effect of
+      # #set_viewport, not incidentally the same size because the page happens to be small.
+      image = Vips::Image.new_from_buffer(Base64.decode64(browser_tab.screenshot(origin: "viewport")), "")
+
+      expect([image.width, image.height]).to eq([800, 600])
+    end
+  end
+
   describe "#inject_script" do
     before do
       # a website is required to inject a script

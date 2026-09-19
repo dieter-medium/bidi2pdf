@@ -390,6 +390,18 @@ This also provides the helper methods:
 With the environment variable `DISABLE_CHROME_SANDBOX` set to `true`, the container will run Chrome without
 the sandbox. This is useful for CI environments where the sandbox may cause issues.
 
+Container URLs (`session_url` and similar) are built from the Docker host's address plus the container's
+mapped port. That address is resolved by the `testcontainers` gem — which already handles a `tcp:`/`ssh:`
+`DOCKER_HOST`, a native local daemon, and a sibling container reaching the daemon over the bridge gateway —
+falling back to `"localhost"` only if the gem can't resolve a host at all (a known gap in
+`testcontainers-core` 0.2.0 when the test process itself runs in a container on a custom network).
+
+To override the Docker host address explicitly, set `TC_HOST` (e.g. `TC_HOST=localhost` for a test process
+running in a container that shares the Docker daemon's network namespace — true docker-in-docker). `TC_HOST`
+is a single global setting for where the daemon's published ports are reachable; it is not the name, URL, or
+IP of an individual container. To reach one container *from another* container, join the shared network and
+address it by alias instead (see `nginx_url(use_alias: true)` in the spec helpers).
+
 #### Example
 
 ```ruby

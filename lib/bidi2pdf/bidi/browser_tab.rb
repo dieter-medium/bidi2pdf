@@ -444,6 +444,58 @@ module Bidi2pdf
 
       # rubocop:enable Metrics/AbcSize, Metrics/PerceivedComplexity
 
+      # Captures a screenshot of the browser tab, mirroring #print's own
+      # file/block/base64-return trichotomy.
+      #
+      # @param [String, nil] outputfile The output file for the PNG. Defaults to nil.
+      # @param [String] origin "document" (default) or "viewport" - see browsingContext.captureScreenshot.
+      # @param [String, nil] format Image format override, e.g. "image/png". Defaults to the browser's own default.
+      # @param [Hash, nil] clip A clip rectangle/element, passed through verbatim. Defaults to nil (full capture).
+      # @yield [png_base64] A block to handle the PNG content.
+      # @return [String, nil] The base64-encoded PNG content, or nil if outputfile or block is provided.
+      # rubocop:disable Metrics/AbcSize
+      def screenshot(outputfile = nil, origin: "document", format: nil, clip: nil, &block)
+        Bidi2pdf.notification_service.instrument("screenshot.bidi2pdf") do |instrumentation_payload|
+          cmd = Commands::CaptureScreenshot.new(context: browsing_context_id, origin: origin, format: format, clip: clip)
+
+          instrumentation_payload[:cmd] = cmd
+
+          client.send_cmd_and_wait(cmd) do |response|
+            if response["result"]
+              png_base64 = response.dig("result", "data")
+
+              instrumentation_payload[:png_base64] = png_base64
+
+              if outputfile
+                raise ScreenshotError, "Folder does not exist: #{File.dirname(outputfile)}" unless File.directory?(File.dirname(outputfile))
+
+                File.binwrite(outputfile, Base64.decode64(png_base64))
+                Bidi2pdf.logger.info "Screenshot saved as '#{outputfile}'."
+              end
+
+              block.call(png_base64) if block_given?
+
+              return png_base64 unless outputfile || block_given?
+            else
+              Bidi2pdf.logger.error "Error capturing screenshot: #{response}"
+            end
+          end
+        end
+      end
+
+      # rubocop:enable Metrics/AbcSize
+
+      # Sets the browsing context's viewport - makes a headless render deterministic across
+      # machines, unlike leaving it at the browser's own default.
+      #
+      # @param [Integer] width
+      # @param [Integer] height
+      # @param [Float, nil] device_pixel_ratio Defaults to nil (browser default).
+      def set_viewport(width:, height:, device_pixel_ratio: nil)
+        cmd = Commands::SetViewport.new(context: browsing_context_id, width: width, height: height, device_pixel_ratio: device_pixel_ratio)
+        client.send_cmd_and_wait(cmd) { |response| response }
+      end
+
       private
 
       def build_command_and_extractor(print_options)

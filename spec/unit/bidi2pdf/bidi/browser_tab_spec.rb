@@ -137,4 +137,51 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
       expect(File).to exist(pdf_path)
     end
   end
+
+  describe "#screenshot" do
+    let(:response) do
+      {
+        "result" => {
+          "data" => "some base64 image data"
+        }
+      }
+    end
+
+    let(:tmp_path) { random_tmp_dir }
+    let(:png_path) { File.join(tmp_path, "test.png") }
+
+    before do
+      FileUtils.mkdir_p(tmp_path)
+    end
+
+    after do
+      FileUtils.rm_f(tmp_path)
+    end
+
+    it "sends the captureScreenshot command to the client" do
+      browser_tab.screenshot
+      expect(client.cmd_params.first).to eq(Bidi2pdf::Bidi::Commands::CaptureScreenshot.new(context: browsing_context_id))
+    end
+
+    it "returns the image data, when no filename is given" do
+      expect(browser_tab.screenshot).to eq("some base64 image data")
+    end
+
+    it "yields the image data, when a block is given" do
+      expect { |b| browser_tab.screenshot(&b) }.to yield_with_args("some base64 image data")
+    end
+
+    it "saves the image data to the given filename" do
+      browser_tab.screenshot(png_path)
+      expect(File).to exist(png_path)
+    end
+  end
+
+  describe "#set_viewport" do
+    it "sends the setViewport command to the client" do
+      browser_tab.set_viewport(width: 1280, height: 800)
+
+      expect(client.cmd_params.first).to eq(Bidi2pdf::Bidi::Commands::SetViewport.new(context: browsing_context_id, width: 1280, height: 800))
+    end
+  end
 end

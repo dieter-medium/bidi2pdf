@@ -36,6 +36,24 @@ module Bidi2pdf
         def create_session(session_url)
           Bidi2pdf::Bidi::Session.new(session_url: session_url, headless: true, chrome_args: chrome_args)
         end
+
+        # Full session/tab lifecycle in one call - create_session above only builds the session
+        # object, it never starts or closes it, and there is no after(:each) teardown for a spec
+        # that uses it directly. Mirrors Bidi2pdf::DSL.with_tab's own ensure-based teardown, but
+        # against a session_url this module already knows about (a long-lived remote-chrome
+        # reached over `session:` metadata, not a freshly spawned local chromedriver per call).
+        def with_tab(session_url)
+          session = create_session(session_url)
+          session.start
+          user_context = session.browser.create_user_context
+          tab = user_context.create_browser_window
+
+          yield tab
+        ensure
+          tab&.close
+          user_context&.close
+          session&.close
+        end
       end
     end
   end

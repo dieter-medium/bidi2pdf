@@ -9,3 +9,7 @@
 
 # rspec failure tracking
 .rspec_status
+/.claude-state/
+/.claude/
+/docker-claude/
+/vendor/bundle/
