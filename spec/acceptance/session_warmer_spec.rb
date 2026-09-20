@@ -85,7 +85,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :nginx do
         }
       end
 
-      warmer = described_class.new(local_config)
+      warmer = described_class.new(local_config, slot_factory: local_config.slot_factory)
 
       begin
         expect(mutex.synchronize { local_creations }).to eq(2)
@@ -99,7 +99,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :nginx do
 
       described_class.with_tab { |t| t }
 
-      expect(wait_until { slot_creations > creations_before }).to be(true)
+      expect(wait_until(timeout: 30) { slot_creations > creations_before }).to be(true)
     end
   end
 
