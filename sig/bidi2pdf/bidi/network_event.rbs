@@ -15,6 +15,8 @@ module Bidi2pdf
 
       @http_method: untyped
 
+      @navigation: untyped
+
       @end_timestamp: untyped
 
       @bytes_received: untyped
@@ -37,9 +39,17 @@ module Bidi2pdf
 
       attr_reader bytes_received: untyped
 
+      attr_reader navigation: untyped
+
       STATE_MAP: { "network.responseStarted" => "started", "network.responseCompleted" => "completed", "network.fetchError" => "error" }
 
-      def initialize: (id: untyped, url: untyped, timestamp: untyped, timing: untyped, state: untyped, ?http_status_code: untyped?, ?http_method: untyped?) -> void
+      # @param [String, nil] navigation The BiDi navigation ID this request belongs to - present on
+      #   the main-frame document request, letting a caller correlate a specific
+      #   browsingContext.navigate call to the network event carrying its actual HTTP status. A
+      #   sub-resource request (an image, a script, ...) has no real BiDi navigation ID and stays
+      #   nil here - #id already distinguishes one event from another in logs, so this field is
+      #   left alone rather than filled with a value the protocol never sent.
+      def initialize: (id: untyped, url: untyped, timestamp: untyped, timing: untyped, state: untyped, ?http_status_code: untyped?, ?http_method: untyped?, ?navigation: untyped?) -> void
 
       def update_state: (untyped new_state, ?timestamp: untyped?, ?timing: untyped?, ?http_status_code: untyped?, ?bytes_received: untyped?) -> untyped
 

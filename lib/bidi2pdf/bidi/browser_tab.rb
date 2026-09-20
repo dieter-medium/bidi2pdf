@@ -533,11 +533,21 @@ module Bidi2pdf
 
         cmd = Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new url: url, context: browsing_context_id, wait: wait
 
-        client.send_cmd_and_wait(cmd) do |response|
-          Bidi2pdf.logger.debug "Navigated to page url: #{url} response: #{response}"
+        navigation_id = client.send_cmd_and_wait(cmd) do |response|
+          logged_url = url.start_with?("data:") ? "data:[#{url.bytesize} bytes]" : url
+          response_navigation_id = response.dig("result", "navigation")
+          Bidi2pdf.logger.debug "Navigated to page url: #{logged_url} navigation: #{response_navigation_id}"
+
+          response_navigation_id
         end
+
+        check_navigation_http_status(url, navigation_id)
       rescue Bidi2pdf::CmdError => e
-        msg = e.response["message"]
+        raise_navigation_error_for(url, e)
+      end
+
+      def raise_navigation_error_for(url, error)
+        msg = error.response["message"]
         case msg
         when /^net::ERR_INVALID_AUTH_CREDENTIALS/
           raise NavigationAuthError.new(url, msg)
@@ -546,8 +556,39 @@ module Bidi2pdf
         when /^net::/
           raise NavigationError, "Connection error: #{url} #{msg}"
         else
-          raise e
+          raise error
         end
+      end
+
+      # browsingContext.navigate's own response never carries an HTTP status - only a
+      # network.responseCompleted event does, correlated back to this specific navigation via its
+      # "navigation" field (a Chrome/redirect-chain-wide ID, not the network request's own id).
+      # register_event_listeners already ran above, so network_events has been tracking since
+      # before the navigate command was even sent. Deliberately conservative: with no navigation
+      # ID, or no correlated *completed* request found, this stays silent rather than guessing -
+      # only a positively confirmed >= 400 status raises. max_by(&:start_timestamp) picks the last
+      # hop of a redirect chain (every hop shares the same navigation ID), matching the page the
+      # browser actually ended up on.
+      def check_navigation_http_status(url, navigation_id)
+        return unless navigation_id
+
+        final_response = correlated_navigation_response(navigation_id)
+        return unless final_response
+
+        status = final_response.http_status_code
+        return if status < 400
+
+        raise NavigationNotFoundError, "Navigation to #{url} failed: HTTP 404 Not Found" if status == 404
+
+        raise NavigationError, "Navigation to #{url} failed: HTTP #{status}"
+      end
+
+      # The last hop of a redirect chain (every hop shares the same navigation ID) - the page the
+      # browser actually ended up on, not wherever the chain started.
+      def correlated_navigation_response(navigation_id)
+        network_events.all_events
+                      .select { |event| event.navigation == navigation_id && event.http_status_code }
+                      .max_by(&:start_timestamp)
       end
 
       def register_event_listeners

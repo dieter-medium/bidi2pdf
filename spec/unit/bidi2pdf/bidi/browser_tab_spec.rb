@@ -82,6 +82,41 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
     it "raises an error, when url is invalid" do
       expect { browser_tab.navigate_to("hello world") }.to raise_error(Bidi2pdf::NavigationError)
     end
+
+    context "when the navigate response carries a navigation id" do
+      let(:response) { { "result" => { "context" => "abc123", "navigation" => "nav-1" } } }
+
+      def seed_completed_request(navigation:, http_status_code:)
+        browser_tab.network_events.events["req-1"] = Bidi2pdf::Bidi::NetworkEvent.new(
+          id: "req-1", url: "https://example.com", timestamp: 1000.0, timing: nil,
+          state: "network.responseCompleted", http_status_code: http_status_code, navigation: navigation
+        )
+      end
+
+      it "raises NavigationNotFoundError when the correlated request completed with a 404" do
+        seed_completed_request(navigation: "nav-1", http_status_code: 404)
+
+        expect { browser_tab.navigate_to("https://example.com") }.to raise_error(Bidi2pdf::NavigationNotFoundError)
+      end
+
+      it "raises NavigationError when the correlated request completed with another error status" do
+        seed_completed_request(navigation: "nav-1", http_status_code: 500)
+
+        expect { browser_tab.navigate_to("https://example.com") }.to raise_error(Bidi2pdf::NavigationError, /HTTP 500/)
+      end
+
+      it "does not raise when the correlated request completed successfully" do
+        seed_completed_request(navigation: "nav-1", http_status_code: 200)
+
+        expect { browser_tab.navigate_to("https://example.com") }.not_to raise_error
+      end
+
+      it "does not raise when no network event is correlated to this navigation" do
+        seed_completed_request(navigation: "some-other-navigation", http_status_code: 404)
+
+        expect { browser_tab.navigate_to("https://example.com") }.not_to raise_error
+      end
+    end
   end
 
   describe "#render_html_content" do

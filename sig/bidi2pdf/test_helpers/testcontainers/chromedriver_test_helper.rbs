@@ -41,5 +41,5 @@ class Object
 
   def test_of_kind_present?: (untyped type) -> untyped
 
-  def start_chromedriver_container: (build_dir: untyped, mounts: untyped, shared_network: untyped) -> untyped
+  def start_chromedriver_container: (build_dir: untyped, mounts: untyped, shared_network: untyped, ?chromedriver_log_level: ::String) -> untyped
 end

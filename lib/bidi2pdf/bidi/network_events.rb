@@ -41,6 +41,13 @@ module Bidi2pdf
         timing = request["timings"]
         http_method = request["method"]
 
+        # A top-level sibling of "request"/"response" in BiDi's own network.BaseParameters, not
+        # nested under either - present for the main-frame document request of a navigation, nil
+        # for an unrelated sub-resource fetch (an image, a script, ...). Lets a caller correlate a
+        # specific browsingContext.navigate call to the exact network event carrying its real HTTP
+        # status, which the navigate command's own response never includes.
+        navigation = event["navigation"]
+
         timestamp = event["timestamp"]
 
         Bidi2pdf.notification_service.instrument("network_event_received.bidi2pdf",
@@ -57,7 +64,8 @@ module Bidi2pdf
               timestamp: timestamp,
               timing: timing,
               state: method,
-              http_method: http_method
+              http_method: http_method,
+              navigation: navigation
             )
           elsif events.key?(id)
             events[id].update_state(method, timestamp: timestamp, timing: timing, http_status_code: http_status_code, bytes_received: bytes_received)

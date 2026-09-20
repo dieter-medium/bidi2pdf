@@ -235,6 +235,23 @@ module Bidi2pdf
 
       def navigate_with_listeners: (untyped url, ?wait: ::String) -> untyped
 
+      def raise_navigation_error_for: (untyped url, untyped error) -> untyped
+
+      # browsingContext.navigate's own response never carries an HTTP status - only a
+      # network.responseCompleted event does, correlated back to this specific navigation via its
+      # "navigation" field (a Chrome/redirect-chain-wide ID, not the network request's own id).
+      # register_event_listeners already ran above, so network_events has been tracking since
+      # before the navigate command was even sent. Deliberately conservative: with no navigation
+      # ID, or no correlated *completed* request found, this stays silent rather than guessing -
+      # only a positively confirmed >= 400 status raises. max_by(&:start_timestamp) picks the last
+      # hop of a redirect chain (every hop shares the same navigation ID), matching the page the
+      # browser actually ended up on.
+      def check_navigation_http_status: (untyped url, untyped navigation_id) -> (nil | untyped)
+
+      # The last hop of a redirect chain (every hop shares the same navigation ID) - the page the
+      # browser actually ended up on, not wherever the chain started.
+      def correlated_navigation_response: (untyped navigation_id) -> untyped
+
       def register_event_listeners: () -> (nil | untyped)
 
       def handle_injection_exception: (untyped response, untyped url, untyped exception_class) -> untyped

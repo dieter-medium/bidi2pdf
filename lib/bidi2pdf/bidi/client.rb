@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-require "websocket-client-simple"
-
+require_relative "buffered_web_socket_client"
 require_relative "web_socket_dispatcher"
 require_relative "command_manager"
 require_relative "connection_manager"
@@ -44,11 +43,11 @@ module Bidi2pdf
 
       # Starts the WebSocket client and establishes a connection.
       #
-      # @return [WebSocket::Client::Simple] The WebSocket connection object.
+      # @return [BufferedWebSocketClient] The WebSocket connection object.
       def start
         return @socket if started?
 
-        WebSocket::Client::Simple.connect(ws_url) do |socket|
+        BufferedWebSocketClient.connect(ws_url) do |socket|
           @socket = socket
           @command_manager = CommandManager.new(@socket)
 
