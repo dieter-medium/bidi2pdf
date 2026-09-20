@@ -125,7 +125,13 @@ module Bidi2pdf
         until @closed
           begin
             consume(socket.readpartial(READ_CHUNK_BYTES), frame)
-          rescue IOError, Errno::ECONNRESET => e # EOFError is an IOError
+            # Same terminal-error list as #send/#say_goodbye - Errno::ECONNRESET is already a
+            # SystemCallError, so listing it separately was both redundant and, worse, incomplete: any
+            # *other* SystemCallError or OpenSSL::SSL::SSLError fell through to the generic rescue
+            # below, which only emits :error and loops back into readpartial - on a permanently broken
+            # socket (not just ECONNRESET) that re-raises the same error every iteration forever
+            # instead of ever closing.
+          rescue IOError, SystemCallError, OpenSSL::SSL::SSLError => e # EOFError is an IOError
             close e
           rescue StandardError => e
             emit :error, e
@@ -147,6 +153,23 @@ module Bidi2pdf
         end
 
         while (message = frame.next)
+          dispatch_frame(message)
+        end
+      end
+
+      # WebSocket control frames (ping/pong/close) must never reach a JSON-parsing consumer -
+      # WebSocketDispatcher tries to parse every :message payload as JSON, so a raw close frame
+      # would raise JSON::ParserError, and an unanswered ping can make chromedriver or an
+      # intermediate proxy tear down an otherwise healthy connection on its own keepalive timeout.
+      def dispatch_frame(message)
+        case message.type
+        when :ping
+          send(message.data, type: :pong)
+        when :pong
+          nil
+        when :close
+          close
+        else
           emit :message, message
         end
       end

@@ -68,6 +68,37 @@ RSpec.describe Bidi2pdf::Bidi::BufferedWebSocketClient do
     connection.close
   end
 
+  # Completes the handshake, sends one frame of the given type/data to the client, then records
+  # every frame (type + data) the client sends back until it hangs up - for asserting how the
+  # client responds to a control frame (ping/close), as opposed to with_recording_server above,
+  # which only ever records :text frames and is used by the plain data-transfer specs.
+  def with_server_frame(type:, data: nil)
+    server = TCPServer.new("127.0.0.1", 0)
+    received = Thread::Queue.new
+    thread = Thread.new do
+      connection = server.accept
+      handshake = accept_handshake(connection)
+      connection.write ::WebSocket::Frame::Outgoing::Server.new(data: data, type: type, version: handshake.version).to_s
+
+      frame = WebSocket::Frame::Incoming::Server.new(version: handshake.version)
+      loop do
+        frame << connection.readpartial(65_536)
+        while (message = frame.next)
+          received << message
+        end
+      end
+    rescue IOError, SystemCallError
+      nil
+    ensure
+      connection.close
+    end
+
+    yield "ws://127.0.0.1:#{server.addr[1]}/", received
+  ensure
+    thread&.join(2)
+    server&.close
+  end
+
   def accept_handshake(connection)
     WebSocket::Handshake::Server.new.tap do |handshake|
       handshake << connection.readpartial(4096) until handshake.finished?
@@ -135,6 +166,60 @@ RSpec.describe Bidi2pdf::Bidi::BufferedWebSocketClient do
       sleep 0.05 until client.closed?
 
       expect { client.send("too late") }.not_to raise_error
+    end
+  end
+
+  it "replies to a real ping frame with a pong of the same payload, and does not emit :message for it" do
+    with_server_frame(type: :ping, data: "keepalive") do |url, received|
+      messages = Thread::Queue.new
+      client = described_class.connect(url) { |socket| socket.on(:message) { |m| messages << m } }
+
+      reply = received.pop(timeout: 5)
+
+      expect(reply.type).to eq(:pong)
+      expect(reply.data).to eq("keepalive")
+      expect(messages).to be_empty
+
+      client.close
+    end
+  end
+
+  it "emits :close and not :message for a real close frame from the peer (not just a dropped TCP connection)" do
+    with_server_frame(type: :close) do |url, received|
+      closed = Thread::Queue.new
+      messages = Thread::Queue.new
+      client = described_class.connect(url) do |socket|
+        socket.on(:close) { |error| closed << error }
+        socket.on(:message) { |m| messages << m }
+      end
+
+      reply = received.pop(timeout: 5)
+
+      expect(reply.type).to eq(:close)
+      expect(closed.pop(timeout: 5)).to be_nil
+      expect(messages).to be_empty
+    end
+  end
+
+  # SystemCallError/OpenSSL::SSL::SSLError previously fell through read_loop's generic
+  # `rescue StandardError` (only Errno::ECONNRESET was treated as terminal), which would loop
+  # forever re-raising the same error on a permanently broken socket instead of ever closing -
+  # a real socket can't reliably be made to raise these on demand, so a minimal double stands in
+  # for the socket here, isolating exactly the exception-routing behavior under test.
+  [Errno::ETIMEDOUT, OpenSSL::SSL::SSLError].each do |error_class|
+    it "closes rather than looping forever on a #{error_class} from the read loop" do
+      client = described_class.new
+      received_error = nil
+      client.on(:close) { |error| received_error = error }
+
+      socket = Object.new
+      socket.define_singleton_method(:readpartial) { |_bytes| raise error_class }
+      frame = Object.new
+
+      client.send(:read_loop, socket, frame)
+
+      expect(client.closed?).to be(true)
+      expect(received_error).to be_a(error_class)
     end
   end
 end

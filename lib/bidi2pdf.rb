@@ -116,15 +116,18 @@ module Bidi2pdf
     # lines, reading as a hung job even though the process underneath is fine).
     #
     # @param [Object] value The value to truncate (converted via #to_s).
-    # @param [Integer] limit The maximum number of characters to keep. Defaults to
+    # @param [Integer] limit The maximum number of bytes to keep. Defaults to
     #   +Bidi2pdf.log_truncate_limit+, itself configurable via +Bidi2pdf.configure+.
     # @return [String] The value unchanged if short enough, otherwise a truncated prefix plus a
-    #   byte-count marker.
+    #   byte-count marker. Truncation is byte-based (not character-based), since the goal is
+    #   bounding actual log-entry size; a partial trailing multi-byte character is scrubbed rather
+    #   than left as invalid UTF-8.
     def truncate_for_log(value, limit: log_truncate_limit)
       str = value.to_s
-      return str if str.length <= limit
+      return str if str.bytesize <= limit
 
-      "#{str[0, limit]}... (#{str.length} bytes total)"
+      truncated = str.byteslice(0, limit).scrub("")
+      "#{truncated}... (#{str.bytesize} bytes total)"
     end
 
     def translate_paper_format(format)
