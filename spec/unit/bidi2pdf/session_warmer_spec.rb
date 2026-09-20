@@ -9,7 +9,8 @@ RSpec.describe Bidi2pdf::SessionWarmer do
   let(:window) { instance_double(Bidi2pdf::Bidi::BrowserTab, create_browser_tab: tab, close: nil) }
   let(:user_context) { instance_double(Bidi2pdf::Bidi::UserContext, create_browser_window: window, close: nil) }
   let(:browser) { instance_double(Bidi2pdf::Bidi::Browser, create_user_context: user_context) }
-  let(:session) { instance_double(Bidi2pdf::Bidi::Session, started?: true, close: nil) }
+  let(:client) { instance_double(Bidi2pdf::Bidi::Client, open?: true) }
+  let(:session) { instance_double(Bidi2pdf::Bidi::Session, started?: true, close: nil, client: client) }
   let(:manager) { instance_double(Bidi2pdf::ChromedriverManager, stop: nil) }
   let(:slot) { { session: session, browser: browser, manager: manager } }
 
@@ -98,7 +99,15 @@ RSpec.describe Bidi2pdf::SessionWarmer do
   end
 
   describe "class-level singleton API" do
-    after { described_class.configure { |c| c } }
+    # .configure now eagerly instantiates (see the "eagerly pre-warms" example below), so every
+    # call here needs a stub slot_factory - otherwise it would spawn real Chrome via
+    # default_slot_factory, which this fast unit tier must never do. .shutdown right after resets
+    # @instance to nil so it doesn't linger holding this example's doubles into the next example's
+    # own reset, where rspec-mocks would reject them as leaked.
+    after do
+      described_class.configure { |c| c.slot_factory = -> { slot } }
+      described_class.shutdown
+    end
 
     describe ".config" do
       it "returns a Configuration instance" do
@@ -109,15 +118,35 @@ RSpec.describe Bidi2pdf::SessionWarmer do
     describe ".configure" do
       it "yields a Configuration object to the block" do
         yielded = nil
-        described_class.configure { |c| yielded = c }
+        described_class.configure do |c|
+          c.slot_factory = -> { slot }
+          yielded = c
+        end
 
         expect(yielded).to be_a(described_class::Configuration)
       end
 
       it "stores configuration so .config reflects new values" do
-        described_class.configure { |c| c.size = 3 }
+        described_class.configure do |c|
+          c.size = 3
+          c.slot_factory = -> { slot }
+        end
 
         expect(described_class.config.size).to eq(3)
+      end
+
+      it "eagerly pre-warms config.size slots, rather than lazily on the first request" do
+        calls = 0
+        mutex = Mutex.new
+        described_class.configure do |c|
+          c.size = 2
+          c.slot_factory = lambda {
+            mutex.synchronize { calls += 1 }
+            slot
+          }
+        end
+
+        expect(mutex.synchronize { calls }).to eq(2)
       end
     end
 
@@ -217,7 +246,7 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       end
     end
 
-    context "when a pre-warmed slot has died before checkout" do
+    context "when a pre-warmed slot never started" do
       before { allow(session).to receive(:started?).and_return(false) }
 
       it "discards it and falls back to a fresh slot from the factory" do
@@ -236,6 +265,25 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       end
     end
 
+    context "when a pre-warmed slot started fine but died externally while idle" do
+      # Session#started? alone can't see this - it's just an internal flag, never updated by an
+      # external death. The client's own #open? is what actually notices (see #healthy?).
+      before { allow(client).to receive(:open?).and_return(false) }
+
+      it "does not hand out the stale slot - falls back to a fresh one from the factory" do
+        yielded = nil
+        warmer.with_tab { |t| yielded = t }
+
+        expect(yielded).to eq(tab)
+      end
+
+      it "still stops the stale slot's manager" do
+        warmer.with_tab { |t| t }
+
+        expect(manager).to have_received(:stop).at_least(:once)
+      end
+    end
+
     context "when the warm cache is empty" do
       let(:config) { described_class::Configuration.new.tap { |c| c.size = 0 } }
 
@@ -244,6 +292,28 @@ RSpec.describe Bidi2pdf::SessionWarmer do
         warmer.with_tab { |t| yielded = t }
 
         expect(yielded).to eq(tab)
+      end
+
+      # Regression for a real bug: checkout used to call replenish_async unconditionally, even on a
+      # miss that took nothing from @available - so a burst of misses each created one cold slot
+      # *plus* one background spare, growing @available past config.size without bound.
+      it "does not also warm a background spare for a miss - nothing was taken from the cache to replace" do
+        calls = 0
+        mutex = Mutex.new
+        counted_factory = lambda do
+          mutex.synchronize { calls += 1 }
+          slot
+        end
+        warmer_empty = described_class.new(config, slot_factory: counted_factory)
+
+        begin
+          warmer_empty.with_tab { |t| t }
+          sleep 0.2 # give a wrongly-triggered background replenishment a real chance to run
+
+          expect(mutex.synchronize { calls }).to eq(1)
+        ensure
+          warmer_empty.shutdown
+        end
       end
     end
   end

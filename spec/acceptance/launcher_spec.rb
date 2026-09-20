@@ -60,7 +60,10 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
       @golden_sample_pages = reader.page_count
     end
 
-    @chromedriver_manager = Bidi2pdf::ChromedriverManager.new(port: 0, headless: true)
+    chrome_args = Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS.dup
+    chrome_args << "--no-sandbox" if ENV["DISABLE_CHROME_SANDBOX"]
+
+    @chromedriver_manager = Bidi2pdf::ChromedriverManager.new(port: 0, headless: true, chrome_args: chrome_args)
     @chromedriver_manager.start
   end
 

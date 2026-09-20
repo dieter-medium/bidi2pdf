@@ -50,12 +50,15 @@ module Bidi2pdf
     end
 
     class << self
-      # Configures and resets the singleton warmer instance.
+      # Configures the warmer and eagerly (re)creates the singleton, warming config.size slots right
+      # here - at boot/configuration time, off the request path - instead of lazily on whichever
+      # request happens to trigger the first #with_tab (which would otherwise pay for every
+      # configured slot, serially, on that one unlucky request).
       def configure
         @config = Configuration.new
         yield @config if block_given?
         @instance&.shutdown
-        @instance = nil
+        @instance = new(@config, slot_factory: @config.slot_factory)
       end
 
       # Returns the warmer's configuration, initializing defaults if needed.
@@ -150,8 +153,13 @@ module Bidi2pdf
       @slot_factory.call
     end
 
+    # Session#started? is just an internal flag set once at startup - it never flips back if Chrome,
+    # ChromeDriver, or the WebSocket dies externally while a slot sits idle in the cache. The
+    # client's own #open? is kept live by the reader thread noticing a real socket error, so
+    # checking it too catches that case - cheap (no network round trip), though still a heuristic,
+    # not a full liveness guarantee (a stuck-but-not-yet-disconnected socket still reads healthy).
     def healthy?(slot)
-      slot[:session].started?
+      slot[:session].started? && slot[:session].client&.open? == true
     end
 
     # A warm hit takes the spare and triggers a background replacement; a miss (empty cache, or a
@@ -159,14 +167,19 @@ module Bidi2pdf
     # raises, so an under-provisioned warmer is never worse than not having one.
     def checkout
       slot = @mutex.synchronize { @available.pop }
-      hit = !slot.nil? && healthy?(slot)
+      had_spare = !slot.nil?
+      hit = had_spare && healthy?(slot)
       taken = nil
 
       Bidi2pdf.notification_service.instrument("session_warmer.checkout.bidi2pdf", { hit: hit }) do
         taken = hit ? slot : cold_checkout(slot)
       end
 
-      replenish_async
+      # Replenish exactly what was actually removed from @available (a healthy hit, or a dead spare
+      # discarded below) - never on an empty-cache miss, which took nothing from it. Firing
+      # unconditionally here let @available grow past config.size without bound under concurrent
+      # misses: each one created a synchronous cold slot *and* a background spare, forever.
+      replenish_async if had_spare
       taken
     end
 

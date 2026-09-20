@@ -67,7 +67,10 @@ module Bidi2pdf
       def initialize: () -> void
     end
 
-    # Configures and resets the singleton warmer instance.
+    # Configures the warmer and eagerly (re)creates the singleton, warming config.size slots right
+    # here - at boot/configuration time, off the request path - instead of lazily on whichever
+    # request happens to trigger the first #with_tab (which would otherwise pay for every
+    # configured slot, serially, on that one unlucky request).
     def self.configure: () ?{ (untyped) -> untyped } -> untyped
 
     # Returns the warmer's configuration, initializing defaults if needed.
@@ -101,6 +104,11 @@ module Bidi2pdf
 
     def create_slot: () -> untyped
 
+    # Session#started? is just an internal flag set once at startup - it never flips back if Chrome,
+    # ChromeDriver, or the WebSocket dies externally while a slot sits idle in the cache. The
+    # client's own #open? is kept live by the reader thread noticing a real socket error, so
+    # checking it too catches that case - cheap (no network round trip), though still a heuristic,
+    # not a full liveness guarantee (a stuck-but-not-yet-disconnected socket still reads healthy).
     def healthy?: (untyped slot) -> untyped
 
     # A warm hit takes the spare and triggers a background replacement; a miss (empty cache, or a
