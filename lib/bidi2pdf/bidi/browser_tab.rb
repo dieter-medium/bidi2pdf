@@ -534,8 +534,11 @@ module Bidi2pdf
         cmd = Bidi2pdf::Bidi::Commands::BrowsingContextNavigate.new url: url, context: browsing_context_id, wait: wait
 
         navigation_id = client.send_cmd_and_wait(cmd) do |response|
-          Bidi2pdf.logger.debug "Navigated to page url: #{url} response: #{response}"
-          response.dig("result", "navigation")
+          logged_url = url.start_with?("data:") ? "data:[#{url.bytesize} bytes]" : url
+          response_navigation_id = response.dig("result", "navigation")
+          Bidi2pdf.logger.debug "Navigated to page url: #{logged_url} navigation: #{response_navigation_id}"
+
+          response_navigation_id
         end
 
         check_navigation_http_status(url, navigation_id)
