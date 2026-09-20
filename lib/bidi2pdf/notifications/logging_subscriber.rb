@@ -95,6 +95,8 @@ module Bidi2pdf
           end
         when Array
           obj.map { |item| redact_sensitive_fields(item, sensitive_keys) }
+        when String
+          Bidi2pdf.truncate_for_log(obj)
         else
           obj
         end
