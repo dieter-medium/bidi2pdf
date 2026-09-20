@@ -43,10 +43,12 @@ module Bidi2pdf
 
       STATE_MAP: { "network.responseStarted" => "started", "network.responseCompleted" => "completed", "network.fetchError" => "error" }
 
-      # @param [String, nil] navigation The BiDi navigation ID this request belongs to (nil for a
-      #   sub-resource request that isn't itself a navigation, e.g. an image or script fetch) -
-      #   present on the main-frame document request, letting a caller correlate a specific
-      #   browsingContext.navigate call to the network event carrying its actual HTTP status.
+      # @param [String, nil] navigation The BiDi navigation ID this request belongs to - present on
+      #   the main-frame document request, letting a caller correlate a specific
+      #   browsingContext.navigate call to the network event carrying its actual HTTP status. A
+      #   sub-resource request (an image, a script, ...) has no real BiDi navigation ID, but still
+      #   gets one generated here so distinct sub-resource events remain distinguishable from each
+      #   other in logs instead of all showing the same nil/blank value.
       def initialize: (id: untyped, url: untyped, timestamp: untyped, timing: untyped, state: untyped, ?http_status_code: untyped?, ?http_method: untyped?, ?navigation: untyped?) -> void
 
       def update_state: (untyped new_state, ?timestamp: untyped?, ?timing: untyped?, ?http_status_code: untyped?, ?bytes_received: untyped?) -> untyped
