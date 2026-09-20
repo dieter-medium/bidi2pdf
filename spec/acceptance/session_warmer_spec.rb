@@ -8,7 +8,13 @@ RSpec.describe Bidi2pdf::SessionWarmer, :nginx do
   end
 
   before(:all) do
-    Bidi2pdf.configure { |c| c.logger.level = Logger::INFO }
+    # chromedriver_log_level decoupled from logger.level, same as the :chromedriver-tagged Docker
+    # path (chromedriver_test_helper.rb) - otherwise INFO here means every warmed Chrome dumps its
+    # full BiDi command/response traffic.
+    Bidi2pdf.configure do |c|
+      c.logger.level = Logger::INFO
+      c.chromedriver_log_level = "WARNING"
+    end
 
     @creations_mutex = Mutex.new
     @slot_creations = 0
@@ -27,13 +33,14 @@ RSpec.describe Bidi2pdf::SessionWarmer, :nginx do
         real_factory.call
       }
     end
-
-    described_class.instance # force warm-up before any example runs
   end
 
   after(:all) do
     described_class.shutdown
-    Bidi2pdf.configure { |c| c.logger.level = Logger::FATAL }
+    Bidi2pdf.configure do |c|
+      c.logger.level = Logger::FATAL
+      c.chromedriver_log_level = nil
+    end
   end
 
   def slot_creations

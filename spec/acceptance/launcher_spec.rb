@@ -38,6 +38,11 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
       config.logger.level = Logger::INFO
       config.network_events_logger.level = Logger::INFO
 
+      # Otherwise chromedriver's own verbosity mirrors logger.level (INFO here), dumping every
+      # BiDi command/response in full - the same noise already fixed for the :chromedriver-tagged
+      # Docker path (chromedriver_test_helper.rb), decoupled the same way here.
+      config.chromedriver_log_level = "WARNING"
+
       Chromedriver::Binary.configure { |c| c.logger.level = Logger::INFO }
     end
 
@@ -72,6 +77,7 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
 
     Bidi2pdf.configure do |config|
       config.network_events_logger.level = Logger::FATAL
+      config.chromedriver_log_level = nil
     end
 
     Chromedriver::Binary.configure do |config|
