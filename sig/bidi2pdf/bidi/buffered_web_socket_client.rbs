@@ -1,12 +1,26 @@
 module Bidi2pdf
   module Bidi
-    # websocket-client-simple reads its socket one byte at a time (`getc`, then a frame-parse attempt
-    # per byte). A printed PDF comes back as one base64 message, and every network event for a
-    # `data:` navigation echoes the whole URL, so that loop ran millions of times per render -
-    # measured at ~730 ms to decode a 700 KB frame, against ~0.5 ms when fed in 16 KB chunks.
-    # Only the read loop differs from the parent; events, #send and #close are inherited.
-    class BufferedWebSocketClient < ::WebSocket::Client::Simple::Client
+    # A threaded WebSocket client on the `websocket` gem's framing - the same shape Selenium's Ruby
+    # BiDi client uses. It replaces websocket-client-simple, whose reader pulled one byte at a time
+    # (`getc`, then a frame-parse attempt per byte): a printed PDF comes back as one base64 message
+    # and every network event for a `data:` navigation echoes the whole URL, so that loop ran
+    # millions of times per render - ~730 ms to decode a 700 KB frame, against ~0.5 ms in 16 KB
+    # chunks.
+    #
+    # Emits :open, :message (a WebSocket frame, payload in #data), :error and :close.
+    class BufferedWebSocketClient
+      @listeners: untyped
+
+      @listeners_mutex: untyped
+
+      @write_mutex: untyped
+
+      # Re-entrant: a failed write inside #close closes again.
       @close_monitor: untyped
+
+      @handshaked: untyped
+
+      @closed: untyped
 
       @url: untyped
 
@@ -14,39 +28,46 @@ module Bidi2pdf
 
       @handshake: untyped
 
-      @handshaked: untyped
-
-      @pipe_broken: untyped
-
-      @closed: untyped
-
       @thread: untyped
 
       READ_CHUNK_BYTES: 16384
+
+      attr_reader url: untyped
 
       def self.connect: (untyped url, ?::Hash[untyped, untyped] options) ?{ (untyped) -> untyped } -> untyped
 
       def initialize: () -> void
 
+      def on: (untyped event) { (?) -> untyped } -> untyped
+
       def connect: (untyped url, ?::Hash[untyped, untyped] options) -> (nil | untyped)
 
-      # Replaces the parent's #close, which could rely on its reader never noticing the peer hang
-      # up. This reader does, so two things differ. It is serialised: the reader (on EOF) and the
-      # caller may close concurrently, one closing the socket while the other still writes the close
-      # frame - re-entrant, because :__close's handler calls #close again. And it never kills the
-      # thread it is running on: the parent's unconditional Thread.kill would stop the reader before
-      # it could emit :close.
-      def close: () -> untyped
+      # Commands are sent from whichever thread issues them. On a plain TCP socket one IO#write is
+      # already atomic, but OpenSSL::SSL::SSLSocket#write is not, so writes share a lock for wss://.
+      def send: (untyped data, ?type: ::Symbol) -> untyped
+
+      # Safe from any thread, including the reader's own: the reader sees the peer hang up and
+      # closes from inside its loop, so it must neither race a caller closing at the same moment
+      # nor be killed before :close has been emitted.
+      def close: (?untyped? error) -> untyped
+
+      def open?: () -> untyped
+
+      def closed?: () -> untyped
 
       private
 
-      def send_close_frame: () -> untyped
+      def emit: (untyped event, *untyped) -> untyped
+
+      def write: (untyped bytes) -> untyped
+
+      def say_goodbye: () -> untyped
 
       def open_socket: (untyped uri, untyped options) -> untyped
 
       def ssl_context: (untyped options) -> untyped
 
-      def read_loop: (untyped frame) -> untyped
+      def read_loop: (untyped socket, untyped frame) -> untyped
 
       def consume: (untyped chunk, untyped frame) -> (nil | untyped)
     end
