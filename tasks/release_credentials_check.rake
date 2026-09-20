@@ -28,7 +28,12 @@ task :release_credentials_check do
   abort "release aborted: ~/.gem/credentials has no keys at all (missing, empty, or not mounted)." if available_keys.empty?
 
   if configured_key.nil?
-    puts "NOTE: no gem.push_key configured - this will push using the default :rubygems_api_key."
+    if available_keys.include?("rubygems_api_key")
+      puts "NOTE: no gem.push_key configured - this will push using the default :rubygems_api_key."
+    else
+      abort "release aborted: no gem.push_key configured and ~/.gem/credentials has no default " \
+              "'rubygems_api_key' key (found: #{available_keys.inspect})."
+    end
   elsif !available_keys.include?(configured_key)
     abort "release aborted: configured key '#{configured_key}' is not among ~/.gem/credentials' keys #{available_keys.inspect}."
   end
