@@ -24,11 +24,12 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 7. [Architecture](#architecture)
 8. [Docker](#docker)
 9. [Configuration Options](#configuration-options)
-10. [Rails Integration](#rails-integration)
-11. [Test Helpers](#test-helpers)
-12. [Development](#development)
-13. [Contributing](#contributing)
-14. [License](#license)
+10. [Programmatic Configuration](#programmatic-configuration)
+11. [Rails Integration](#rails-integration)
+12. [Test Helpers](#test-helpers)
+13. [Development](#development)
+14. [Contributing](#contributing)
+15. [License](#license)
 
 ## ✨ Key Features
 
@@ -331,6 +332,32 @@ docker compose -f docker/docker-compose.yml down
 | `--log_level`          | Log level: debug, info, warn, error, fatal |
 | `--remote_browser_url` | Connect to remote Chrome session           |
 | `--default_timeout`    | Operation timeout (default: 60s)           |
+
+---
+
+## 🔧 Programmatic Configuration
+
+Beyond the per-render CLI flags above, a few gem-wide defaults are set once via `Bidi2pdf.configure`:
+
+```ruby
+Bidi2pdf.configure do |config|
+  config.default_timeout = 60 # seconds - default BiDi command timeout
+  config.enable_default_logging_subscriber = true
+  config.log_truncate_limit = 200 # bytes - see below
+  config.chromedriver_log_level = "WARNING" # see below
+end
+```
+
+| Setting                             | Default | Description                                                                                                                                                                                                                      |
+|-------------------------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `default_timeout`                   | `60`    | Default timeout (seconds) for BiDi commands that don't specify their own.                                                                                                                                                        |
+| `enable_default_logging_subscriber` | `true`  | Subscribes a default logger to the gem's internal instrumentation events.                                                                                                                                                        |
+| `log_truncate_limit`                | `200`   | Max bytes kept when logging a value that can be large (e.g. a `data:` URL) - truncated at a byte, not character, boundary.                                                                                                       |
+| `chromedriver_log_level`            | `nil`   | ChromeDriver's own `--log-level` (`"ALL"`/`"INFO"`/`"WARNING"`/`"SEVERE"`). Unset mirrors `Bidi2pdf.logger.level`; set explicitly to quiet ChromeDriver's own (often very verbose) output independently of your app's log level. |
+
+`Bidi2pdf.logger`, `Bidi2pdf.network_events_logger`, `Bidi2pdf.browser_console_logger`, and
+`Bidi2pdf.notification_service` are also configurable in the same block, for more advanced
+logging/instrumentation needs.
 
 ---
 
