@@ -61,10 +61,18 @@ module Bidi2pdf
         @socket
       end
 
-      # Checks if the WebSocket client has started.
+      # Checks if the WebSocket client has started. Unlike #open?, this never flips back to false on
+      # its own if the connection dies externally - it only reflects whether #start has run.
       #
       # @return [Boolean] True if the client has started, false otherwise.
       def started? = @started
+
+      # Checks if the underlying WebSocket connection is actually open right now - false before
+      # #start, after #close, or if the reader thread noticed the connection died on its own (a
+      # real liveness signal, not just an internal "did we ever start" flag).
+      #
+      # @return [Boolean] True if the underlying socket reports itself open.
+      def open? = !!@socket&.open?
 
       # Waits until the WebSocket connection is open.
       #

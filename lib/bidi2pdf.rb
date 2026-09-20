@@ -9,6 +9,7 @@ require_relative "bidi2pdf/bidi/session"
 require_relative "bidi2pdf/dsl"
 require_relative "bidi2pdf/notifications"
 require_relative "bidi2pdf/notifications/logging_subscriber"
+require_relative "bidi2pdf/session_warmer"
 require_relative "bidi2pdf/verbose_logger"
 
 module Bidi2pdf

@@ -3,7 +3,7 @@
 require "spec_helper"
 require "pdf-reader"
 
-RSpec.describe "PDF Generation", :nginx, :pdf do
+RSpec.describe "PDF Generation", :chromedriver, :nginx, :pdf do
   def reporter
     RSpec.configuration.reporter
   end
@@ -16,7 +16,8 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
       cookies: cookies,
       headers: headers,
       auth: auth,
-      remote_browser_url: @chromedriver_manager.session_url,
+      remote_browser_url: session_url,
+      chrome_args: chrome_args,
       headless: true,
       wait_window_loaded: true,
       wait_network_idle: true,
@@ -26,27 +27,26 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
   end
 
   # Default values
-  let(:url) { nginx_url "/sample.html" }
+  let(:url) { nginx_url("/sample.html", use_alias: true) }
   let(:output) { nil }
   let(:headers) { nil }
   let(:auth) { nil }
   let(:cookies) { nil }
   let(:print_options) { {} }
 
+  # Same conditional every :chromedriver-tagged spec in this repo applies against the shared
+  # container's own sessions - within GitHub Actions (and this kind of nested-container setup),
+  # the sandbox isn't available.
+  let(:chrome_args) do
+    args = Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS.dup
+    args << "--no-sandbox" if ENV["DISABLE_CHROME_SANDBOX"]
+    args
+  end
+
   before(:all) do
     Bidi2pdf.configure do |config|
       config.logger.level = Logger::INFO
       config.network_events_logger.level = Logger::INFO
-
-      Chromedriver::Binary.configure { |c| c.logger.level = Logger::INFO }
-    end
-
-    tmp_dir = random_tmp_dir("chromedriver")
-    FileUtils.mkdir_p(tmp_dir)
-
-    Chromedriver::Binary.configure do |config|
-      @old_install_dir = config.install_dir
-      config.install_dir = tmp_dir
     end
 
     @golden_sample_text = nil
@@ -59,22 +59,11 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
       @golden_sample_text = reader.pages.map(&:text)
       @golden_sample_pages = reader.page_count
     end
-
-    @chromedriver_manager = Bidi2pdf::ChromedriverManager.new(port: 0, headless: true)
-    @chromedriver_manager.start
   end
 
   after(:all) do
-    @chromedriver_manager&.stop
-
     Bidi2pdf.configure do |config|
       config.network_events_logger.level = Logger::FATAL
-    end
-
-    Chromedriver::Binary.configure do |config|
-      current_dir = config.install_dir
-      FileUtils.rm_rf(current_dir)
-      config.install_dir = @old_install_dir
     end
   end
 
@@ -83,28 +72,28 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
   end
 
   describe "As a user with basic authentication credentials" do
-    let(:url) { nginx_url "/basic/sample.html" }
+    let(:url) { nginx_url("/basic/sample.html", use_alias: true) }
     let(:auth) { { username: "admin", password: "secret" } }
 
     it_behaves_like "a PDF downloader"
   end
 
   describe "As a user with an API key" do
-    let(:url) { nginx_url "/header/sample.html" }
+    let(:url) { nginx_url("/header/sample.html", use_alias: true) }
     let(:headers) { { "x-api-key" => "secret" } }
 
     it_behaves_like "a PDF downloader"
   end
 
   describe "As a user with an authentication cookie" do
-    let(:url) { nginx_url "/cookie/sample.html" }
+    let(:url) { nginx_url("/cookie/sample.html", use_alias: true) }
     let(:cookies) { { "auth" => "secret" } }
 
     it_behaves_like "a PDF downloader"
   end
 
   describe "As a user who needs custom PDF formatting" do
-    let(:url) { nginx_url "/sample-without-page-settings.html" }
+    let(:url) { nginx_url("/sample-without-page-settings.html", use_alias: true) }
     let(:print_options) do
       {
         background: true,
@@ -157,7 +146,7 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
   end
 
   describe "As a user who needs cdp dependent PDF options" do
-    let(:url) { nginx_url "/sample-without-page-settings.html" }
+    let(:url) { nginx_url("/sample-without-page-settings.html", use_alias: true) }
     let(:print_options) do
       {
         background: true,
@@ -220,7 +209,8 @@ RSpec.describe "PDF Generation", :nginx, :pdf do
         cookies: cookies,
         headers: headers,
         auth: auth,
-        remote_browser_url: @chromedriver_manager.session_url,
+        remote_browser_url: session_url,
+        chrome_args: chrome_args,
         headless: true,
         wait_window_loaded: false, # the assets have relative paths and are not loaded, so we can't wait for the event
         wait_network_idle: true,

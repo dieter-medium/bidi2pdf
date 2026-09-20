@@ -62,7 +62,7 @@ module Bidi2pdf
         "--disable-breakpad", # Disable the Breakpad crash-reporting library entirely
         "--enable-features=PdfOopif", # Enable out-of-process iframe (OOPIF) architecture for PDF rendering
         "--disable-features=Translate,AcceptCHFrame,MediaRouter,OptimizationHints,ProcessPerSiteUpToMainFrameThreshold,IsolateSandboxedIframes",
-        "--disable-extensions about:blank"
+        "--disable-extensions" # Don't load extensions. One switch per entry: it used to read "--disable-extensions about:blank", which Chrome rejected whole ("Ignoring switch with invalid name").
       ].freeze
 
       # @return [URI] The URI of the session.

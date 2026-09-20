@@ -24,11 +24,12 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 7. [Architecture](#architecture)
 8. [Docker](#docker)
 9. [Configuration Options](#configuration-options)
-10. [Rails Integration](#rails-integration)
-11. [Test Helpers](#test-helpers)
-12. [Development](#development)
-13. [Contributing](#contributing)
-14. [License](#license)
+10. [Programmatic Configuration](#programmatic-configuration)
+11. [Rails Integration](#rails-integration)
+12. [Test Helpers](#test-helpers)
+13. [Development](#development)
+14. [Contributing](#contributing)
+15. [License](#license)
 
 ## ✨ Key Features
 
@@ -331,6 +332,68 @@ docker compose -f docker/docker-compose.yml down
 | `--log_level`          | Log level: debug, info, warn, error, fatal |
 | `--remote_browser_url` | Connect to remote Chrome session           |
 | `--default_timeout`    | Operation timeout (default: 60s)           |
+
+---
+
+## 🔧 Programmatic Configuration
+
+Beyond the per-render CLI flags above, a few gem-wide defaults are set once via `Bidi2pdf.configure`:
+
+```ruby
+Bidi2pdf.configure do |config|
+  config.default_timeout = 60 # seconds - default BiDi command timeout
+  config.enable_default_logging_subscriber = true
+  config.log_truncate_limit = 200 # bytes - see below
+  config.chromedriver_log_level = "WARNING" # see below
+end
+```
+
+| Setting                             | Default | Description                                                                                                                                                                                                                      |
+|-------------------------------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `default_timeout`                   | `60`    | Default timeout (seconds) for BiDi commands that don't specify their own.                                                                                                                                                        |
+| `enable_default_logging_subscriber` | `true`  | Subscribes a default logger to the gem's internal instrumentation events.                                                                                                                                                        |
+| `log_truncate_limit`                | `200`   | Max bytes kept when logging a value that can be large (e.g. a `data:` URL) - truncated at a byte, not character, boundary.                                                                                                       |
+| `chromedriver_log_level`            | `nil`   | ChromeDriver's own `--log-level` (`"ALL"`/`"INFO"`/`"WARNING"`/`"SEVERE"`). Unset mirrors `Bidi2pdf.logger.level`; set explicitly to quiet ChromeDriver's own (often very verbose) output independently of your app's log level. |
+
+`Bidi2pdf.logger`, `Bidi2pdf.network_events_logger`, `Bidi2pdf.browser_console_logger`, and
+`Bidi2pdf.notification_service` are also configurable in the same block, for more advanced
+logging/instrumentation needs.
+
+### Pre-warmed sessions (`Bidi2pdf::SessionWarmer`)
+
+Optional. Keeps a few Chrome sessions started in the background so a render skips browser startup.
+Every slot is still used for exactly one render and then discarded - isolation is the same as
+launching a fresh Chrome per PDF.
+
+```ruby
+Bidi2pdf::SessionWarmer.configure do |c|
+  # warms c.size sessions right here, e.g. at boot
+  c.size = 2
+  c.max_idle_age = 300
+  # c.remote_browser_url = "http://remote-chrome:3000/session"
+end
+
+Bidi2pdf::SessionWarmer.with_tab do |tab|
+  tab.navigate_to(url)
+  tab.print("invoice.pdf")
+end
+
+Bidi2pdf::SessionWarmer.shutdown
+```
+
+| Setting              | Default               | Description                                                                                               |
+|----------------------|-----------------------|-----------------------------------------------------------------------------------------------------------|
+| `size`               | `1`                   | Number of sessions kept warm. With none ready, a render starts its own session as usual - it never waits. |
+| `max_idle_age`       | `300`                 | Seconds a warm session may sit unused before it is retired and replaced. `nil` disables the limit.        |
+| `headless`           | `true`                | Run Chrome headless.                                                                                      |
+| `chrome_args`        | `DEFAULT_CHROME_ARGS` | Chrome launch arguments.                                                                                  |
+| `remote_browser_url` | `nil`                 | Connect each slot to a remote chromedriver instead of starting a local one.                               |
+
+> **Security note:** an idle warm session is an open, unauthenticated automation endpoint
+> (chromedriver's port, Chrome's debugging port - loopback only for a local chromedriver) for as
+> long as it waits. `max_idle_age` bounds that window; keep it set unless the process runs somewhere
+> nothing else can reach those ports. With `remote_browser_url`, who can reach that endpoint on the
+> network is what matters, exactly as it does without the warmer.
 
 ---
 
