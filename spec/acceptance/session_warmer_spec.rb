@@ -112,7 +112,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
 
     it "produces a non-empty PDF file" do
       described_class.with_tab do |tab|
-        tab.navigate_to(nginx_url("/sample.html"))
+        tab.navigate_to(nginx_url("/sample.html", use_alias: true))
         tab.wait_until_network_idle
         tab.print(pdf_path)
       end
@@ -132,7 +132,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
 
       paths.each do |path|
         described_class.with_tab do |tab|
-          tab.navigate_to(nginx_url("/sample.html"))
+          tab.navigate_to(nginx_url("/sample.html", use_alias: true))
           tab.wait_until_network_idle
           tab.print(path)
         end
@@ -160,7 +160,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
       threads = paths.map do |path|
         Thread.new do
           described_class.with_tab do |tab|
-            tab.navigate_to(nginx_url("/sample.html"))
+            tab.navigate_to(nginx_url("/sample.html", use_alias: true))
             tab.wait_until_network_idle
             tab.print(path)
           end

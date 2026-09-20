@@ -27,7 +27,7 @@ RSpec.describe "PDF Generation", :chromedriver, :nginx, :pdf do
   end
 
   # Default values
-  let(:url) { nginx_url "/sample.html" }
+  let(:url) { nginx_url("/sample.html", use_alias: true) }
   let(:output) { nil }
   let(:headers) { nil }
   let(:auth) { nil }
@@ -72,28 +72,28 @@ RSpec.describe "PDF Generation", :chromedriver, :nginx, :pdf do
   end
 
   describe "As a user with basic authentication credentials" do
-    let(:url) { nginx_url "/basic/sample.html" }
+    let(:url) { nginx_url("/basic/sample.html", use_alias: true) }
     let(:auth) { { username: "admin", password: "secret" } }
 
     it_behaves_like "a PDF downloader"
   end
 
   describe "As a user with an API key" do
-    let(:url) { nginx_url "/header/sample.html" }
+    let(:url) { nginx_url("/header/sample.html", use_alias: true) }
     let(:headers) { { "x-api-key" => "secret" } }
 
     it_behaves_like "a PDF downloader"
   end
 
   describe "As a user with an authentication cookie" do
-    let(:url) { nginx_url "/cookie/sample.html" }
+    let(:url) { nginx_url("/cookie/sample.html", use_alias: true) }
     let(:cookies) { { "auth" => "secret" } }
 
     it_behaves_like "a PDF downloader"
   end
 
   describe "As a user who needs custom PDF formatting" do
-    let(:url) { nginx_url "/sample-without-page-settings.html" }
+    let(:url) { nginx_url("/sample-without-page-settings.html", use_alias: true) }
     let(:print_options) do
       {
         background: true,
@@ -146,7 +146,7 @@ RSpec.describe "PDF Generation", :chromedriver, :nginx, :pdf do
   end
 
   describe "As a user who needs cdp dependent PDF options" do
-    let(:url) { nginx_url "/sample-without-page-settings.html" }
+    let(:url) { nginx_url("/sample-without-page-settings.html", use_alias: true) }
     let(:print_options) do
       {
         background: true,
