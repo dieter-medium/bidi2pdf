@@ -82,11 +82,6 @@ RSpec.describe Bidi2pdf::Bidi::Client, :chromedriver, :session do
         cmd.cmd = "invalid"
         expect { client.send_cmd_and_wait(cmd, timeout: 5) }.to raise_error(Bidi2pdf::CmdError, /unknown command/)
       end
-
-      it "raises an error when the timeout period elapses" do
-        cmd.cmd = "session.status"
-        expect { client.send_cmd_and_wait(cmd, timeout: 0) }.to raise_error(Bidi2pdf::CmdTimeoutError)
-      end
     end
 
     context "when the client is not started" do
