@@ -10,8 +10,10 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
   before(:all) do
     Bidi2pdf.configure { |c| c.logger.level = Logger::INFO }
 
-    @creations_mutex = Mutex.new
-    @slot_creations = 0
+    # Must be one shared mutable object, not an Integer: before(:all) ivars are handed to each example
+    # by reference at example start, so `@count += 1` here (a rebind on this hook's own object) would
+    # be invisible to an example that is already running.
+    @slot_creations = Concurrent::AtomicFixnum.new(0)
 
     # Same conditional every :chromedriver-tagged spec in this repo applies against the shared
     # container's own sessions - within GitHub Actions (and this kind of nested-container setup),
@@ -31,7 +33,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
 
       real_factory = described_class.default_slot_factory(c)
       c.slot_factory = lambda {
-        @creations_mutex.synchronize { @slot_creations += 1 }
+        @slot_creations.increment
         real_factory.call
       }
     end
@@ -43,7 +45,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
   end
 
   def slot_creations
-    @creations_mutex.synchronize { @slot_creations }
+    @slot_creations.value
   end
 
   def with_pdf_debug(pdf_path)
