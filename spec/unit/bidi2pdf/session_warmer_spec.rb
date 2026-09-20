@@ -338,6 +338,65 @@ RSpec.describe Bidi2pdf::SessionWarmer do
     end
   end
 
+  describe "replenishing towards config.size" do
+    # Counts factory calls and fails the ones whose (1-based) call number is listed in fail_on.
+    def counting_factory(fail_on: [])
+      mutex = Mutex.new
+      calls = 0
+      factory = lambda do
+        number = mutex.synchronize { calls += 1 }
+        raise "chrome is down" if fail_on.include?(number)
+
+        slot
+      end
+
+      [factory, -> { mutex.synchronize { calls } }]
+    end
+
+    # Regression: replenishment used to fire only when a checkout popped a spare, so one failed warm
+    # on a size-1 cache left it empty forever - every later checkout was a miss, and misses never
+    # replenished.
+    it "recovers after a failed replenishment instead of staying cold forever" do
+      factory, calls = counting_factory(fail_on: [2])
+      healing = described_class.new(config, slot_factory: factory)
+
+      begin
+        healing.with_tab { |t| t } # hit; its background warm (call 2) fails
+        eventually { calls.call >= 2 }
+        healing.with_tab { |t| t } # miss: cold slot (call 3) + a new warm attempt (call 4)
+
+        expect(eventually { calls.call >= 4 }).to be(true)
+      ensure
+        healing.shutdown
+      end
+    end
+
+    it "never holds more spares than config.size, however many checkouts ran" do
+      factory, = counting_factory
+      bounded = described_class.new(config, slot_factory: factory)
+
+      begin
+        5.times { bounded.with_tab { |t| t } }
+        sleep 0.2 # let any over-eager warmer finish before looking
+
+        expect(bounded.instance_variable_get(:@available).size).to be <= config.size
+      ensure
+        bounded.shutdown
+      end
+    end
+
+    it "has nothing still warming once #shutdown returns" do
+      factory, calls = counting_factory
+      stopping = described_class.new(config, slot_factory: factory)
+      stopping.with_tab { |t| t }
+      stopping.shutdown
+      calls_at_shutdown = calls.call
+      sleep 0.2
+
+      expect(calls.call).to eq(calls_at_shutdown)
+    end
+  end
+
   describe "#shutdown" do
     it "stops every currently-warm spare's manager" do
       warmer.shutdown

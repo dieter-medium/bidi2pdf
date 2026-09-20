@@ -151,8 +151,12 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
     # Deliberately more renders than config.size: proves the never-blocks-never-raises design
     # (checkout falls back to a synchronous slot rather than queueing or failing once the warm
     # cache runs dry), which the old blocking-pool design couldn't do at all.
+    #
+    # Re-raises the first render failure (after every thread has finished) rather than returning
+    # it - an example that only looks at the PDFs would otherwise report "file missing" instead of
+    # the exception that actually caused it.
     def render_concurrently(paths)
-      errors = []
+      errors = Queue.new
       threads = paths.map do |path|
         Thread.new do
           described_class.with_tab do |tab|
@@ -165,15 +169,13 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
         end
       end
       threads.each(&:join)
-      errors
+      raise errors.pop unless errors.empty?
     end
 
     it "serves more simultaneous renders than the warm cache holds, without error" do
       paths = Array.new(3) { |i| File.join(pdf_dir, "page-#{i}.pdf") }
 
-      errors = render_concurrently(paths)
-
-      expect(errors).to be_empty
+      expect { render_concurrently(paths) }.not_to raise_error
     end
 
     it "still produces a valid, non-empty PDF for every concurrent render" do

@@ -33,6 +33,8 @@ module Bidi2pdf
 
     @replenish_threads: untyped
 
+    @warming: untyped
+
     @shutdown: untyped
 
     # Configuration for the session warmer.
@@ -118,12 +120,23 @@ module Bidi2pdf
 
     def cold_checkout: (untyped dead_slot) -> untyped
 
+    # Tops the cache up towards config.size, counting warmers already in flight. Deficit-based on
+    # purpose, not "replace what this checkout popped": that rule could never recover from a single
+    # failed warm (nothing stashed -> every later checkout a miss -> never replenished again), while
+    # replenishing unconditionally let @available grow without bound under a burst of misses.
+    # available + warming never exceeds config.size, and a failed warm frees its reservation, so the
+    # next checkout simply tries again.
+    #
+    # Threads are created and registered inside the same critical section, so #shutdown's snapshot
+    # can't miss one that has started but isn't listed yet (#warm_one needs this mutex to finish,
+    # so it just waits for it).
     def replenish_async: () -> untyped
 
     def warm_one: () -> untyped
 
     # A replacement warmed after #shutdown has nothing to stash into - retire it immediately rather
-    # than leaking a live Chrome process that nothing will ever check out.
+    # than leaking a live Chrome process that nothing will ever check out. Either way this warmer's
+    # reservation is released here, in the same critical section as the stash.
     def stash_or_retire: (untyped slot) -> untyped
 
     def retire: (untyped slot) -> untyped

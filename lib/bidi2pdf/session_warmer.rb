@@ -108,6 +108,7 @@ module Bidi2pdf
       @mutex = Mutex.new
       @available = []
       @replenish_threads = []
+      @warming = 0
       @shutdown = false
       @config.size.times { @available << create_slot }
     end
@@ -175,11 +176,9 @@ module Bidi2pdf
         taken = hit ? slot : cold_checkout(slot)
       end
 
-      # Replenish exactly what was actually removed from @available (a healthy hit, or a dead spare
-      # discarded below) - never on an empty-cache miss, which took nothing from it. Firing
-      # unconditionally here let @available grow past config.size without bound under concurrent
-      # misses: each one created a synchronous cold slot *and* a background spare, forever.
-      replenish_async if had_spare
+      # Every checkout tops the cache back up, hit or miss - #replenish_async itself bounds the work
+      # to the current deficit, so a miss on an already-full-or-filling cache starts nothing.
+      replenish_async
       taken
     end
 
@@ -188,20 +187,33 @@ module Bidi2pdf
       create_slot
     end
 
+    # Tops the cache up towards config.size, counting warmers already in flight. Deficit-based on
+    # purpose, not "replace what this checkout popped": that rule could never recover from a single
+    # failed warm (nothing stashed -> every later checkout a miss -> never replenished again), while
+    # replenishing unconditionally let @available grow without bound under a burst of misses.
+    # available + warming never exceeds config.size, and a failed warm frees its reservation, so the
+    # next checkout simply tries again.
+    #
+    # Threads are created and registered inside the same critical section, so #shutdown's snapshot
+    # can't miss one that has started but isn't listed yet (#warm_one needs this mutex to finish,
+    # so it just waits for it).
     def replenish_async
-      thread = Thread.new { warm_one }
-
       @mutex.synchronize do
-        @replenish_threads.reject!(&:alive?)
-        @replenish_threads << thread
-      end
+        next if @shutdown
 
-      thread
+        @replenish_threads.select!(&:alive?)
+        deficit = @config.size - (@available.size + @warming)
+        deficit.times do
+          @warming += 1
+          @replenish_threads << Thread.new { warm_one }
+        end
+      end
     end
 
     def warm_one
       slot = create_slot
     rescue StandardError => e
+      @mutex.synchronize { @warming -= 1 }
       Bidi2pdf.logger.warn "session_warmer: failed to warm a replacement slot: #{e.message}"
       Bidi2pdf.notification_service.instrument("session_warmer.warm_failed.bidi2pdf", { error: e.class.name })
     else
@@ -209,9 +221,12 @@ module Bidi2pdf
     end
 
     # A replacement warmed after #shutdown has nothing to stash into - retire it immediately rather
-    # than leaking a live Chrome process that nothing will ever check out.
+    # than leaking a live Chrome process that nothing will ever check out. Either way this warmer's
+    # reservation is released here, in the same critical section as the stash.
     def stash_or_retire(slot)
       discard = @mutex.synchronize do
+        @warming -= 1
+
         if @shutdown
           true
         else
