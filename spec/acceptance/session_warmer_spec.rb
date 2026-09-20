@@ -55,6 +55,20 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
     raise e
   end
 
+  # sample.html hands its body to the (async-loaded) Paged.js polyfill, which tears it down and
+  # rebuilds it as pages, then sets window.loaded. Network idle alone is not "rendered": printing
+  # before window.loaded caught the page mid-rebuild and produced a blank ~1 KB PDF (confirmed in CI).
+  def render_sample(tab, path)
+    tab.navigate_to(nginx_url("/sample.html", use_alias: true))
+    tab.wait_until_network_idle
+    tab.wait_until_page_loaded
+    tab.print(path)
+  end
+
+  # A blank Chrome PDF is ~1 KB and the real sample render is several hundred KB (the golden
+  # sample.pdf is ~590 KB), so this sits far from both - the old 1_000 let blank pages pass.
+  def min_rendered_pdf_bytes = 100_000
+
   # Bytes per PDF, 0 for one that was never written - so a failure shows whether a file is missing
   # or merely too small, which "all satisfy File.exist? && size > n" could not tell apart.
   def pdf_sizes(paths)
@@ -118,12 +132,10 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
 
     it "produces a non-empty PDF file" do
       described_class.with_tab do |tab|
-        tab.navigate_to(nginx_url("/sample.html", use_alias: true))
-        tab.wait_until_network_idle
-        tab.print(pdf_path)
+        render_sample(tab, pdf_path)
       end
 
-      with_pdf_debug(pdf_path) { expect(File.size(pdf_path)).to be > 1_000 }
+      with_pdf_debug(pdf_path) { expect(File.size(pdf_path)).to be > min_rendered_pdf_bytes }
     end
   end
 
@@ -138,13 +150,11 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
 
       paths.each do |path|
         described_class.with_tab do |tab|
-          tab.navigate_to(nginx_url("/sample.html", use_alias: true))
-          tab.wait_until_network_idle
-          tab.print(path)
+          render_sample(tab, path)
         end
       end
 
-      expect(pdf_sizes(paths)).to all(be > 1_000)
+      expect(pdf_sizes(paths)).to all(be > min_rendered_pdf_bytes)
     end
   end
 
@@ -166,9 +176,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
       threads = paths.map do |path|
         Thread.new do
           described_class.with_tab do |tab|
-            tab.navigate_to(nginx_url("/sample.html", use_alias: true))
-            tab.wait_until_network_idle
-            tab.print(path)
+            render_sample(tab, path)
           end
         rescue StandardError => e
           errors << e
@@ -189,7 +197,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
 
       render_concurrently(paths)
 
-      expect(pdf_sizes(paths)).to all(be > 1_000)
+      expect(pdf_sizes(paths)).to all(be > min_rendered_pdf_bytes)
     end
   end
 end
