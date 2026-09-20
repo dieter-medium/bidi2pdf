@@ -87,7 +87,7 @@ module Bidi2pdf
   # Global configuration for Bidi2pdf
 
   class << self
-    attr_accessor :default_timeout, :enable_default_logging_subscriber, :log_truncate_limit
+    attr_accessor :default_timeout, :enable_default_logging_subscriber, :log_truncate_limit, :chromedriver_log_level
     attr_reader :logging_subscriber, :logger, :network_events_logger, :browser_console_logger, :notification_service
 
     # Allow configuration through a block

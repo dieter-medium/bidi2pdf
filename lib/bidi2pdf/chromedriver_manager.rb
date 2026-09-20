@@ -194,13 +194,17 @@ module Bidi2pdf
       cmd.join(" ")
     end
 
+    # Chromedriver's own internal log verbosity is independent from this app's - defaults to
+    # mirroring Bidi2pdf.logger.level for backward compatibility, but Bidi2pdf.chromedriver_log_level
+    # lets a consumer quiet chromedriver's own (often much more verbose, e.g. full BiDi command/
+    # response dumps at its own INFO level) output without changing their app's own log level.
     def chromedriver_log_level
-      case Bidi2pdf.logger.level
-      when Logger::DEBUG then "ALL"
-      when Logger::INFO then "INFO"
-      when Logger::WARN then "WARNING"
-      else "SEVERE"
-      end
+      Bidi2pdf.chromedriver_log_level || case Bidi2pdf.logger.level
+                                         when Logger::DEBUG then "ALL"
+                                         when Logger::INFO then "INFO"
+                                         when Logger::WARN then "WARNING"
+                                         else "SEVERE"
+                                         end
     end
 
     def user_data_dir_arg

@@ -87,6 +87,8 @@ module Bidi2pdf
 
   attr_accessor self.log_truncate_limit: untyped
 
+  attr_accessor self.chromedriver_log_level: untyped
+
   attr_reader self.logging_subscriber: untyped
 
   attr_reader self.logger: untyped
