@@ -43,12 +43,42 @@ module Bidi2pdf
       #   only retire a slot it was actually handed.
       attr_accessor :slot_factory
 
+      # @return [Numeric, nil] Seconds a warm slot may sit unused before it is retired and replaced.
+      #   A warm slot is an open, unauthenticated automation endpoint (chromedriver's port, Chrome's
+      #   debugging port) for as long as it idles, so that window is bounded by default. A slot older
+      #   than this is never handed out, and a background reaper recycles idle ones within roughly
+      #   1.25x this value even when no render ever comes. +nil+ disables the limit.
+      attr_accessor :max_idle_age
+
+      DEFAULT_MAX_IDLE_AGE = 300
+
       def initialize
         @size = 1
         @headless = true
         @chrome_args = Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS
         @remote_browser_url = nil
         @slot_factory = nil
+        @max_idle_age = DEFAULT_MAX_IDLE_AGE
+      end
+
+      # @raise [ArgumentError] if a setting can't be honored - checked once, at construction.
+      def validate!
+        validate_size!
+        validate_max_idle_age!
+      end
+
+      private
+
+      def validate_size!
+        return if size.is_a?(Integer) && !size.negative?
+
+        raise ArgumentError, "size must be a non-negative Integer, got #{size.inspect}"
+      end
+
+      def validate_max_idle_age!
+        return if max_idle_age.nil? || (max_idle_age.is_a?(Numeric) && max_idle_age.positive?)
+
+        raise ArgumentError, "max_idle_age must be nil or a positive number of seconds, got #{max_idle_age.inspect}"
       end
     end
 
@@ -142,6 +172,7 @@ module Bidi2pdf
     end
 
     def initialize(config, slot_factory: nil)
+      config.validate!
       @config = config
       @slot_factory = slot_factory || self.class.default_slot_factory(config)
       @mutex = Mutex.new
@@ -149,7 +180,9 @@ module Bidi2pdf
       @replenish_threads = []
       @warming = 0
       @shutdown = false
+      @reaper_wakeup = Thread::Queue.new
       prewarm
+      @reaper = Thread.new { reap_loop } if @config.max_idle_age
     end
 
     # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
@@ -183,6 +216,8 @@ module Bidi2pdf
         [@available.dup.tap { @available.clear }, @replenish_threads.dup.tap { @replenish_threads.clear }]
       end
 
+      @reaper_wakeup << :stop
+      @reaper&.join
       threads.each(&:join)
       spares.each { |slot| retire(slot) }
     end
@@ -192,7 +227,7 @@ module Bidi2pdf
     # Fail-fast on purpose (a Chrome that can't start at boot should be loud), but not leaky: if slot
     # N fails, no instance is returned to own slots 1..N-1, so they are retired here first.
     def prewarm
-      @config.size.times { @available << create_slot }
+      @config.size.times { @available << stamp(create_slot) }
     rescue StandardError
       @available.each { |slot| retire(slot) }
       @available.clear
@@ -212,14 +247,57 @@ module Bidi2pdf
       slot[:session].started? && slot[:session].client&.open? == true
     end
 
+    def now
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+
+    # Marks the moment a slot entered the cache - idle age counts from here, not from when its
+    # Chrome started, since it is the unattended waiting that max_idle_age bounds.
+    def stamp(slot)
+      slot.merge(warmed_at: now)
+    end
+
+    def expired?(slot)
+      !@config.max_idle_age.nil? && now - slot[:warmed_at] > @config.max_idle_age
+    end
+
+    # Checkout alone can't bound idle time: with no traffic nothing would ever look at a spare. This
+    # thread does, four times per max_idle_age, so an unused slot is recycled within ~1.25x of it.
+    # Thread::Queue#pop(timeout:) doubles as an interruptible sleep - #shutdown pushes :stop.
+    def reap_loop
+      interval = [@config.max_idle_age / 4.0, 0.05].max
+      recycle_expired until @reaper_wakeup.pop(timeout: interval) == :stop
+    end
+
+    def recycle_expired
+      expired = @mutex.synchronize do
+        next [] if @shutdown
+
+        old, fresh = @available.partition { |slot| expired?(slot) }
+        @available.replace(fresh)
+        old
+      end
+      return if expired.empty?
+
+      Bidi2pdf.notification_service.instrument("session_warmer.expired.bidi2pdf", { count: expired.size })
+      replenish_async
+      expired.each { |slot| retire(slot) }
+    rescue StandardError => e
+      Bidi2pdf.logger.warn "session_warmer: recycling idle slots failed: #{e.message}"
+    end
+
     # A warm hit takes the spare and triggers a background replacement; a miss (empty cache, or a
     # spare that died while idle) falls straight through to a synchronous slot - it never waits, so
     # an under-provisioned warmer is never worse than not having one. A cold start that fails raises,
     # as it would without the warmer.
+    #
+    # Oldest spare first (shift, not pop), so no slot lingers at the bottom of the cache while newer
+    # ones are used; and one past max_idle_age is never handed out, even if the reaper hasn't got to
+    # it yet - it is retired like a dead spare and this render cold-starts instead.
     def checkout
-      slot = @mutex.synchronize { @available.pop }
+      slot = @mutex.synchronize { @available.shift }
       had_spare = !slot.nil?
-      hit = had_spare && healthy?(slot)
+      hit = had_spare && !expired?(slot) && healthy?(slot)
       taken = nil
 
       Bidi2pdf.notification_service.instrument("session_warmer.checkout.bidi2pdf", { hit: hit }) do
@@ -280,7 +358,7 @@ module Bidi2pdf
         if @shutdown
           true
         else
-          @available << slot
+          @available << stamp(slot)
           false
         end
       end

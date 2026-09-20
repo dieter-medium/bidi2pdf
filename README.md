@@ -359,6 +359,42 @@ end
 `Bidi2pdf.notification_service` are also configurable in the same block, for more advanced
 logging/instrumentation needs.
 
+### Pre-warmed sessions (`Bidi2pdf::SessionWarmer`)
+
+Optional. Keeps a few Chrome sessions started in the background so a render skips browser startup.
+Every slot is still used for exactly one render and then discarded - isolation is the same as
+launching a fresh Chrome per PDF.
+
+```ruby
+Bidi2pdf::SessionWarmer.configure do |c|
+  # warms c.size sessions right here, e.g. at boot
+  c.size = 2
+  c.max_idle_age = 300
+  # c.remote_browser_url = "http://remote-chrome:3000/session"
+end
+
+Bidi2pdf::SessionWarmer.with_tab do |tab|
+  tab.navigate_to(url)
+  tab.print("invoice.pdf")
+end
+
+Bidi2pdf::SessionWarmer.shutdown
+```
+
+| Setting              | Default               | Description                                                                                               |
+|----------------------|-----------------------|-----------------------------------------------------------------------------------------------------------|
+| `size`               | `1`                   | Number of sessions kept warm. With none ready, a render starts its own session as usual - it never waits. |
+| `max_idle_age`       | `300`                 | Seconds a warm session may sit unused before it is retired and replaced. `nil` disables the limit.        |
+| `headless`           | `true`                | Run Chrome headless.                                                                                      |
+| `chrome_args`        | `DEFAULT_CHROME_ARGS` | Chrome launch arguments.                                                                                  |
+| `remote_browser_url` | `nil`                 | Connect each slot to a remote chromedriver instead of starting a local one.                               |
+
+> **Security note:** an idle warm session is an open, unauthenticated automation endpoint
+> (chromedriver's port, Chrome's debugging port - loopback only for a local chromedriver) for as
+> long as it waits. `max_idle_age` bounds that window; keep it set unless the process runs somewhere
+> nothing else can reach those ports. With `remote_browser_url`, who can reach that endpoint on the
+> network is what matters, exactly as it does without the warmer.
+
 ---
 
 ## 🚂 Rails Integration

@@ -40,6 +40,10 @@ module Bidi2pdf
 
     @shutdown: untyped
 
+    @reaper_wakeup: untyped
+
+    @reaper: untyped
+
     # Configuration for the session warmer.
     class Configuration
       @size: untyped
@@ -51,6 +55,8 @@ module Bidi2pdf
       @remote_browser_url: untyped
 
       @slot_factory: untyped
+
+      @max_idle_age: untyped
 
       # @return [Integer] Number of Chrome slots to keep pre-warmed.
       attr_accessor size: untyped
@@ -71,7 +77,25 @@ module Bidi2pdf
       #   only retire a slot it was actually handed.
       attr_accessor slot_factory: untyped
 
+      # @return [Numeric, nil] Seconds a warm slot may sit unused before it is retired and replaced.
+      #   A warm slot is an open, unauthenticated automation endpoint (chromedriver's port, Chrome's
+      #   debugging port) for as long as it idles, so that window is bounded by default. A slot older
+      #   than this is never handed out, and a background reaper recycles idle ones within roughly
+      #   1.25x this value even when no render ever comes. +nil+ disables the limit.
+      attr_accessor max_idle_age: untyped
+
+      DEFAULT_MAX_IDLE_AGE: 300
+
       def initialize: () -> void
+
+      # @raise [ArgumentError] if a setting can't be honored - checked once, at construction.
+      def validate!: () -> untyped
+
+      private
+
+      def validate_size!: () -> (nil | untyped)
+
+      def validate_max_idle_age!: () -> (nil | untyped)
     end
 
     # Configures the warmer and eagerly (re)creates the singleton, warming config.size slots right
@@ -144,10 +168,29 @@ module Bidi2pdf
     # not a full liveness guarantee (a stuck-but-not-yet-disconnected socket still reads healthy).
     def healthy?: (untyped slot) -> untyped
 
+    def now: () -> untyped
+
+    # Marks the moment a slot entered the cache - idle age counts from here, not from when its
+    # Chrome started, since it is the unattended waiting that max_idle_age bounds.
+    def stamp: (untyped slot) -> untyped
+
+    def expired?: (untyped slot) -> untyped
+
+    # Checkout alone can't bound idle time: with no traffic nothing would ever look at a spare. This
+    # thread does, four times per max_idle_age, so an unused slot is recycled within ~1.25x of it.
+    # Thread::Queue#pop(timeout:) doubles as an interruptible sleep - #shutdown pushes :stop.
+    def reap_loop: () -> untyped
+
+    def recycle_expired: () -> untyped
+
     # A warm hit takes the spare and triggers a background replacement; a miss (empty cache, or a
     # spare that died while idle) falls straight through to a synchronous slot - it never waits, so
     # an under-provisioned warmer is never worse than not having one. A cold start that fails raises,
     # as it would without the warmer.
+    #
+    # Oldest spare first (shift, not pop), so no slot lingers at the bottom of the cache while newer
+    # ones are used; and one past max_idle_age is never handed out, even if the reaper hasn't got to
+    # it yet - it is retired like a dead spare and this render cold-starts instead.
     def checkout: () -> untyped
 
     def cold_checkout: (untyped dead_slot) -> untyped

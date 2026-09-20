@@ -55,6 +55,12 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
     raise e
   end
 
+  # Bytes per PDF, 0 for one that was never written - so a failure shows whether a file is missing
+  # or merely too small, which "all satisfy File.exist? && size > n" could not tell apart.
+  def pdf_sizes(paths)
+    paths.map { |path| File.exist?(path) ? File.size(path) : 0 }
+  end
+
   # Background replenishment is async, so "a replacement was warmed" is a polled condition, not an
   # immediate one - fails loudly instead of hanging forever if it never becomes true.
   def wait_until(timeout: 15)
@@ -138,7 +144,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
         end
       end
 
-      expect(paths).to all(satisfy { |p| File.exist?(p) && File.size(p) > 1_000 })
+      expect(pdf_sizes(paths)).to all(be > 1_000)
     end
   end
 
@@ -183,7 +189,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
 
       render_concurrently(paths)
 
-      expect(paths).to all(satisfy { |p| File.exist?(p) && File.size(p) > 1_000 })
+      expect(pdf_sizes(paths)).to all(be > 1_000)
     end
   end
 end

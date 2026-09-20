@@ -51,6 +51,38 @@ RSpec.describe Bidi2pdf::SessionWarmer do
     it "defaults slot_factory to nil" do
       expect(cfg.slot_factory).to be_nil
     end
+
+    it "bounds idle time by default rather than leaving warm slots open indefinitely" do
+      expect(cfg.max_idle_age).to eq(300)
+    end
+
+    describe "#validate!" do
+      it "accepts the defaults" do
+        expect { cfg.validate! }.not_to raise_error
+      end
+
+      it "accepts nil max_idle_age (limit disabled)" do
+        cfg.max_idle_age = nil
+
+        expect { cfg.validate! }.not_to raise_error
+      end
+
+      [0, -5, "300"].each do |bad|
+        it "rejects max_idle_age #{bad.inspect}" do
+          cfg.max_idle_age = bad
+
+          expect { cfg.validate! }.to raise_error(ArgumentError, /max_idle_age/)
+        end
+      end
+
+      [-1, 1.5, "2"].each do |bad|
+        it "rejects size #{bad.inspect}" do
+          cfg.size = bad
+
+          expect { cfg.validate! }.to raise_error(ArgumentError, /size/)
+        end
+      end
+    end
   end
 
   describe ".default_slot_factory" do
@@ -486,6 +518,91 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       sleep 0.2
 
       expect(calls.call).to eq(calls_at_shutdown)
+    end
+  end
+
+  describe "max_idle_age" do
+    def counting_factory
+      mutex = Mutex.new
+      calls = 0
+      factory = lambda do
+        mutex.synchronize { calls += 1 }
+        slot
+      end
+
+      [factory, -> { mutex.synchronize { calls } }]
+    end
+
+    def warmer_with(max_idle_age:, factory:)
+      aged = described_class::Configuration.new.tap do |c|
+        c.size = 1
+        c.max_idle_age = max_idle_age
+      end
+
+      described_class.new(aged, slot_factory: factory)
+    end
+
+    # The point of the setting: with no traffic at all, nothing but the reaper would ever look at
+    # an idle slot.
+    context "when a spare idles past it with no render ever arriving" do
+      it "warms a replacement" do
+        factory, calls = counting_factory
+        idle = warmer_with(max_idle_age: 0.2, factory: factory)
+
+        begin
+          expect(eventually { calls.call >= 2 }).to be(true)
+        ensure
+          idle.shutdown
+        end
+      end
+
+      it "retires the expired spare" do
+        factory, = counting_factory
+        stopped = Concurrent::AtomicBoolean.new(false)
+        allow(manager).to receive(:stop) { stopped.make_true }
+        idle = warmer_with(max_idle_age: 0.2, factory: factory)
+
+        begin
+          expect(eventually { stopped.true? }).to be(true)
+        ensure
+          idle.shutdown
+        end
+      end
+    end
+
+    # Reaper interval here is 250s, so only #checkout's own check can be what rejects the slot.
+    it "never hands out a spare older than it, even before the reaper gets there" do
+      factory, calls = counting_factory
+      strict = warmer_with(max_idle_age: 1000, factory: factory)
+
+      begin
+        strict.instance_variable_get(:@available).first[:warmed_at] -= 2000
+        strict.with_tab { |t| t }
+
+        # initial + cold start + replenishment; a (wrong) warm hit would stop at 2.
+        expect(eventually { calls.call >= 3 }).to be(true)
+      ensure
+        strict.shutdown
+      end
+    end
+
+    it "runs no reaper when disabled" do
+      factory, = counting_factory
+      unlimited = warmer_with(max_idle_age: nil, factory: factory)
+
+      begin
+        expect(unlimited.instance_variable_get(:@reaper)).to be_nil
+      ensure
+        unlimited.shutdown
+      end
+    end
+
+    it "stops the reaper on #shutdown" do
+      factory, = counting_factory
+      stopping = warmer_with(max_idle_age: 60, factory: factory)
+      stopping.shutdown
+
+      expect(stopping.instance_variable_get(:@reaper)).not_to be_alive
     end
   end
 
