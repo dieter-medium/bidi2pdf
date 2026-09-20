@@ -70,7 +70,8 @@ RSpec.configure do |config|
       config.chromedriver_container = start_chromedriver_container(
         build_dir: File.join(Bidi2pdf::TestHelpers.configuration.docker_dir, ".."),
         mounts: config.respond_to?(:chromedriver_mounts) ? config.chromedriver_mounts : {},
-        shared_network: config.shared_network
+        shared_network: config.shared_network,
+        chromedriver_log_level: config.respond_to?(:chromedriver_log_level) ? config.chromedriver_log_level : "WARNING"
       )
 
       reporter.message("🚀 chromedriver container started for tests")
@@ -121,12 +122,13 @@ end
 # alias the long class name
 ChromedriverTestcontainer = Bidi2pdf::TestHelpers::Testcontainers::ChromedriverContainer
 
-def start_chromedriver_container(build_dir:, mounts:, shared_network:)
+def start_chromedriver_container(build_dir:, mounts:, shared_network:, chromedriver_log_level: "WARNING")
   container = ChromedriverTestcontainer.new(ChromedriverTestcontainer::DEFAULT_IMAGE,
                                             build_dir: build_dir,
                                             docker_file: "docker/Dockerfile.chromedriver")
                                        .with_network(shared_network)
                                        .with_network_aliases("remote-chrome")
+                                       .with_env("CHROMEDRIVER_LOG_LEVEL", chromedriver_log_level)
 
   container.with_filesystem_binds(mounts) if mounts&.any?
 
