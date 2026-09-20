@@ -1,0 +1,125 @@
+module Bidi2pdf
+  # Keeps a small number of Chrome sessions pre-warmed (chromedriver started, WebSocket connected,
+  # browser ready) so a render can skip that startup latency on the request path. Isolation matches
+  # today's one-Chrome-per-render model exactly: every checked-out slot is used for exactly one
+  # +with_tab+ block and then retired (never returned to the cache) - only a fresh replacement is
+  # warmed in its place, off the request path. Checkout never blocks or raises: a warm slot is used
+  # if one is ready, otherwise a slot is created synchronously on the spot, i.e. today's exact
+  # behavior for that one render.
+  #
+  # @example Rails initializer
+  #   Bidi2pdf::SessionWarmer.configure do |c|
+  #     c.size = 2
+  #     c.headless = true
+  #   end
+  #
+  # @example Per-request usage
+  #   Bidi2pdf::SessionWarmer.with_tab do |tab|
+  #     tab.navigate_to(url)
+  #     tab.print("invoice.pdf")
+  #   end
+  class SessionWarmer
+    self.@config: untyped
+
+    self.@instance: untyped
+
+    @config: untyped
+
+    @slot_factory: untyped
+
+    @mutex: untyped
+
+    @available: untyped
+
+    @replenish_threads: untyped
+
+    @shutdown: untyped
+
+    # Configuration for the session warmer.
+    class Configuration
+      @size: untyped
+
+      @headless: untyped
+
+      @chrome_args: untyped
+
+      @remote_browser_url: untyped
+
+      @slot_factory: untyped
+
+      # @return [Integer] Number of Chrome slots to keep pre-warmed.
+      attr_accessor size: untyped
+
+      # @return [Boolean] Whether to run Chrome in headless mode.
+      attr_accessor headless: untyped
+
+      # @return [Array<String>] Chrome launch arguments.
+      attr_accessor chrome_args: untyped
+
+      # @return [String, nil] A remote chromedriver session URL (e.g. a `remote-chrome` sidecar). When
+      #   set, a slot connects directly to it instead of spawning a local ChromedriverManager -
+      #   mirrors Launcher#session's own local/remote branch.
+      attr_accessor remote_browser_url: untyped
+
+      # @return [#call, nil] Optional factory callable that returns a slot hash - injectable for tests.
+      attr_accessor slot_factory: untyped
+
+      def initialize: () -> void
+    end
+
+    # Configures and resets the singleton warmer instance.
+    def self.configure: () ?{ (untyped) -> untyped } -> untyped
+
+    # Returns the warmer's configuration, initializing defaults if needed.
+    def self.config: () -> untyped
+
+    # Returns a callable that creates one real, fully-warmed Chrome slot from +config+.
+    def self.default_slot_factory: (untyped config) -> untyped
+
+    # Returns the shared singleton warmer instance, creating it (and pre-warming it) on first call.
+    def self.instance: () -> untyped
+
+    # Checks out a slot, yields a fresh tab for one render, then retires the slot.
+    def self.with_tab: () { (?) -> untyped } -> untyped
+
+    # Retires every currently-warm spare and resets the singleton.
+    def self.shutdown: () -> untyped
+
+    def initialize: (untyped config, ?slot_factory: untyped?) -> void
+
+    # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
+    # then unconditionally closes those resources and retires the underlying slot.
+    def with_tab: () { (untyped) -> untyped } -> untyped
+
+    # Retires every currently-warm spare and waits for any in-flight background replenishment to
+    # finish (each of those, seeing @shutdown, retires its own result instead of stashing it - see
+    # #stash_or_retire). A subsequent #with_tab still works (falls back to a synchronous slot),
+    # matching checkout's own never-blocks-never-raises design.
+    def shutdown: () -> untyped
+
+    private
+
+    def create_slot: () -> untyped
+
+    def healthy?: (untyped slot) -> untyped
+
+    # A warm hit takes the spare and triggers a background replacement; a miss (empty cache, or a
+    # spare that died while idle) falls straight through to a synchronous slot - never blocks or
+    # raises, so an under-provisioned warmer is never worse than not having one.
+    def checkout: () -> untyped
+
+    def cold_checkout: (untyped dead_slot) -> untyped
+
+    def replenish_async: () -> untyped
+
+    def warm_one: () -> untyped
+
+    # A replacement warmed after #shutdown has nothing to stash into - retire it immediately rather
+    # than leaking a live Chrome process that nothing will ever check out.
+    def stash_or_retire: (untyped slot) -> untyped
+
+    def retire: (untyped slot) -> untyped
+
+    def safe_close: (untyped label) { () -> untyped } -> untyped
+  end
+end
