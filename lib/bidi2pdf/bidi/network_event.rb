@@ -4,7 +4,7 @@ module Bidi2pdf
   module Bidi
     class NetworkEvent
       attr_reader :id, :url, :state, :start_timestamp, :end_timestamp, :timing, :http_status_code,
-                  :http_method, :bytes_received
+                  :http_method, :bytes_received, :navigation
 
       STATE_MAP = {
         "network.responseStarted" => "started",
@@ -12,7 +12,11 @@ module Bidi2pdf
         "network.fetchError" => "error"
       }.freeze
 
-      def initialize(id:, url:, timestamp:, timing:, state:, http_status_code: nil, http_method: nil)
+      # @param [String, nil] navigation The BiDi navigation ID this request belongs to (nil for a
+      #   sub-resource request that isn't itself a navigation, e.g. an image or script fetch) -
+      #   present on the main-frame document request, letting a caller correlate a specific
+      #   browsingContext.navigate call to the network event carrying its actual HTTP status.
+      def initialize(id:, url:, timestamp:, timing:, state:, http_status_code: nil, http_method: nil, navigation: nil)
         @id = id
         @url = url
         @start_timestamp = timestamp
@@ -20,6 +24,7 @@ module Bidi2pdf
         @state = map_state(state)
         @http_status_code = http_status_code
         @http_method = http_method
+        @navigation = navigation
       end
 
       def update_state(new_state, timestamp: nil, timing: nil, http_status_code: nil, bytes_received: nil)
@@ -76,7 +81,8 @@ module Bidi2pdf
           timing: @timing&.dup,
           state: @state,
           http_status_code: @http_status_code,
-          http_method: @http_method
+          http_method: @http_method,
+          navigation: @navigation
         ).tap do |duped|
           duped.instance_variable_set(:@end_timestamp, @end_timestamp)
           duped.instance_variable_set(:@bytes_received, @bytes_received)
