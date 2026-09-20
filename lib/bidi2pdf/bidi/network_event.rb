@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "securerandom"
-
 module Bidi2pdf
   module Bidi
     class NetworkEvent
@@ -17,9 +15,9 @@ module Bidi2pdf
       # @param [String, nil] navigation The BiDi navigation ID this request belongs to - present on
       #   the main-frame document request, letting a caller correlate a specific
       #   browsingContext.navigate call to the network event carrying its actual HTTP status. A
-      #   sub-resource request (an image, a script, ...) has no real BiDi navigation ID, but still
-      #   gets one generated here so distinct sub-resource events remain distinguishable from each
-      #   other in logs instead of all showing the same nil/blank value.
+      #   sub-resource request (an image, a script, ...) has no real BiDi navigation ID and stays
+      #   nil here - #id already distinguishes one event from another in logs, so this field is
+      #   left alone rather than filled with a value the protocol never sent.
       def initialize(id:, url:, timestamp:, timing:, state:, http_status_code: nil, http_method: nil, navigation: nil)
         @id = id
         @url = url
@@ -28,7 +26,7 @@ module Bidi2pdf
         @state = map_state(state)
         @http_status_code = http_status_code
         @http_method = http_method
-        @navigation = navigation || SecureRandom.hex(4)
+        @navigation = navigation
       end
 
       def update_state(new_state, timestamp: nil, timing: nil, http_status_code: nil, bytes_received: nil)

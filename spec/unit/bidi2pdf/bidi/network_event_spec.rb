@@ -15,17 +15,10 @@ RSpec.describe Bidi2pdf::Bidi::NetworkEvent do
       expect(event.navigation).to eq("nav-1")
     end
 
-    it "generates a value for a request unrelated to any navigation (a sub-resource fetch)" do
+    it "stays nil for a request unrelated to any navigation (a sub-resource fetch), rather than inventing one" do
       sub_resource = described_class.new(id: "req-2", url: "https://example.com/logo.png", timestamp: 1000.0, timing: nil, state: "network.beforeRequestSent")
 
-      expect(sub_resource.navigation).not_to be_nil
-    end
-
-    it "generates a distinct value per instance, so unrelated sub-resource fetches stay distinguishable" do
-      first = described_class.new(id: "req-2", url: "https://example.com/logo.png", timestamp: 1000.0, timing: nil, state: "network.beforeRequestSent")
-      second = described_class.new(id: "req-3", url: "https://example.com/style.css", timestamp: 1000.0, timing: nil, state: "network.beforeRequestSent")
-
-      expect(first.navigation).not_to eq(second.navigation)
+      expect(sub_resource.navigation).to be_nil
     end
   end
 
