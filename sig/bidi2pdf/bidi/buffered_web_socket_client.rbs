@@ -70,6 +70,12 @@ module Bidi2pdf
       def read_loop: (untyped socket, untyped frame) -> untyped
 
       def consume: (untyped chunk, untyped frame) -> (nil | untyped)
+
+      # WebSocket control frames (ping/pong/close) must never reach a JSON-parsing consumer -
+      # WebSocketDispatcher tries to parse every :message payload as JSON, so a raw close frame
+      # would raise JSON::ParserError, and an unanswered ping can make chromedriver or an
+      # intermediate proxy tear down an otherwise healthy connection on its own keepalive timeout.
+      def dispatch_frame: (untyped message) -> untyped
     end
   end
 end

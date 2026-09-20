@@ -32,15 +32,10 @@ RSpec.describe Bidi2pdf do
       expect(described_class.truncate_for_log(value, limit: 10)).to eq("#{"x" * 10}... (50 bytes total)")
     end
 
-    it "reports the real byte size, not the character count, for multi-byte UTF-8 content" do
-      value = "ä" * 500 # 2 bytes/char in UTF-8 - byte count differs from character count
+    it "returns multi-byte UTF-8 content unchanged when its byte size is within the limit" do
+      value = "ä" * 500 # 2 bytes/char in UTF-8 = 1000 bytes total - length alone would misjudge this
 
-      result = described_class.truncate_for_log(value, limit: 1000)
-
-      expect(result).to eq(value)
-      expect("ä" * 500).to eq(value)
-      expect(value.length).to eq(500)
-      expect(value.bytesize).to eq(1000)
+      expect(described_class.truncate_for_log(value, limit: 1000)).to eq(value)
     end
 
     it "truncates multi-byte UTF-8 content at a valid character boundary and reports the real byte size" do
@@ -48,8 +43,7 @@ RSpec.describe Bidi2pdf do
 
       result = described_class.truncate_for_log(value)
 
-      expect(result).to eq("#{"€" * 66}... (1500 bytes total)")
-      expect(result).to be_valid_encoding
+      expect(result).to eq("#{"€" * 66}... (1500 bytes total)").and be_valid_encoding
     end
 
     it "defaults to Bidi2pdf.log_truncate_limit, so it's configurable without passing limit: everywhere" do

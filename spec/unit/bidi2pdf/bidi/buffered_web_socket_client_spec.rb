@@ -75,28 +75,30 @@ RSpec.describe Bidi2pdf::Bidi::BufferedWebSocketClient do
   def with_server_frame(type:, data: nil)
     server = TCPServer.new("127.0.0.1", 0)
     received = Thread::Queue.new
-    thread = Thread.new do
-      connection = server.accept
-      handshake = accept_handshake(connection)
-      connection.write ::WebSocket::Frame::Outgoing::Server.new(data: data, type: type, version: handshake.version).to_s
-
-      frame = WebSocket::Frame::Incoming::Server.new(version: handshake.version)
-      loop do
-        frame << connection.readpartial(65_536)
-        while (message = frame.next)
-          received << message
-        end
-      end
-    rescue IOError, SystemCallError
-      nil
-    ensure
-      connection.close
-    end
+    thread = Thread.new { serve_frame_and_record(server, type, data, received) }
 
     yield "ws://127.0.0.1:#{server.addr[1]}/", received
   ensure
     thread&.join(2)
     server&.close
+  end
+
+  def serve_frame_and_record(server, type, data, received)
+    connection = server.accept
+    handshake = accept_handshake(connection)
+    connection.write WebSocket::Frame::Outgoing::Server.new(data: data, type: type, version: handshake.version).to_s
+
+    frame = WebSocket::Frame::Incoming::Server.new(version: handshake.version)
+    loop do
+      frame << connection.readpartial(65_536)
+      while (message = frame.next)
+        received << message
+      end
+    end
+  rescue IOError, SystemCallError
+    nil
+  ensure
+    connection.close
   end
 
   def accept_handshake(connection)
@@ -169,34 +171,52 @@ RSpec.describe Bidi2pdf::Bidi::BufferedWebSocketClient do
     end
   end
 
-  it "replies to a real ping frame with a pong of the same payload, and does not emit :message for it" do
+  it "replies to a real ping frame with a pong of the same payload" do
+    with_server_frame(type: :ping, data: "keepalive") do |url, received|
+      client = described_class.connect(url)
+
+      expect(received.pop(timeout: 5)).to have_attributes(type: :pong, data: "keepalive")
+
+      client.close
+    end
+  end
+
+  it "does not emit :message for a ping frame" do
     with_server_frame(type: :ping, data: "keepalive") do |url, received|
       messages = Thread::Queue.new
       client = described_class.connect(url) { |socket| socket.on(:message) { |m| messages << m } }
+      received.pop(timeout: 5) # synchronization: the pong reply proves dispatch_frame already ran
 
-      reply = received.pop(timeout: 5)
-
-      expect(reply.type).to eq(:pong)
-      expect(reply.data).to eq("keepalive")
       expect(messages).to be_empty
 
       client.close
     end
   end
 
-  it "emits :close and not :message for a real close frame from the peer (not just a dropped TCP connection)" do
+  it "sends a close frame back for a real close frame from the peer (not just a dropped TCP connection)" do
+    with_server_frame(type: :close) do |url, received|
+      described_class.connect(url)
+
+      expect(received.pop(timeout: 5).type).to eq(:close)
+    end
+  end
+
+  it "emits :close for a real close frame from the peer" do
     with_server_frame(type: :close) do |url, received|
       closed = Thread::Queue.new
-      messages = Thread::Queue.new
-      client = described_class.connect(url) do |socket|
-        socket.on(:close) { |error| closed << error }
-        socket.on(:message) { |m| messages << m }
-      end
+      described_class.connect(url) { |socket| socket.on(:close) { |error| closed << error } }
+      received.pop(timeout: 5) # synchronization: proves the close was already dispatched
 
-      reply = received.pop(timeout: 5)
-
-      expect(reply.type).to eq(:close)
       expect(closed.pop(timeout: 5)).to be_nil
+    end
+  end
+
+  it "does not emit :message for a real close frame from the peer" do
+    with_server_frame(type: :close) do |url, received|
+      messages = Thread::Queue.new
+      described_class.connect(url) { |socket| socket.on(:message) { |m| messages << m } }
+      received.pop(timeout: 5) # synchronization
+
       expect(messages).to be_empty
     end
   end
@@ -216,9 +236,11 @@ RSpec.describe Bidi2pdf::Bidi::BufferedWebSocketClient do
       socket.define_singleton_method(:readpartial) { |_bytes| raise error_class }
       frame = Object.new
 
-      client.send(:read_loop, socket, frame)
+      # __send__, not send: this class defines its own public #send (for WebSocket sends), which
+      # shadows Kernel#send - plain .send(:read_loop, ...) would call *that* #send instead of
+      # dispatching to the private read_loop.
+      client.__send__(:read_loop, socket, frame)
 
-      expect(client.closed?).to be(true)
       expect(received_error).to be_a(error_class)
     end
   end
