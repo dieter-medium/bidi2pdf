@@ -2,23 +2,20 @@
 
 require "spec_helper"
 
-RSpec.describe Bidi2pdf::SessionWarmer, :nginx do
+RSpec.describe Bidi2pdf::SessionWarmer, :chromedriver, :nginx do
   def reporter
     RSpec.configuration.reporter
   end
 
   before(:all) do
-    # chromedriver_log_level decoupled from logger.level, same as the :chromedriver-tagged Docker
-    # path (chromedriver_test_helper.rb) - otherwise INFO here means every warmed Chrome dumps its
-    # full BiDi command/response traffic.
-    Bidi2pdf.configure do |c|
-      c.logger.level = Logger::INFO
-      c.chromedriver_log_level = "WARNING"
-    end
+    Bidi2pdf.configure { |c| c.logger.level = Logger::INFO }
 
     @creations_mutex = Mutex.new
     @slot_creations = 0
 
+    # Same conditional every :chromedriver-tagged spec in this repo applies against the shared
+    # container's own sessions - within GitHub Actions (and this kind of nested-container setup),
+    # the sandbox isn't available.
     chrome_args = Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS.dup
     chrome_args << "--no-sandbox" if ENV["DISABLE_CHROME_SANDBOX"]
 
@@ -26,6 +23,11 @@ RSpec.describe Bidi2pdf::SessionWarmer, :nginx do
       c.size = 2
       c.headless = true
       c.chrome_args = chrome_args
+      # Remote mode: each slot/replenishment is a lightweight /session POST against the one
+      # already-running shared chromedriver container, not a brand-new local chromedriver process -
+      # this is what keeps the acceptance suite from spawning dozens of separate chromedriver
+      # binaries and starving the container (confirmed live: that's what was happening before).
+      c.remote_browser_url = session_url
 
       real_factory = described_class.default_slot_factory(c)
       c.slot_factory = lambda {
@@ -37,10 +39,7 @@ RSpec.describe Bidi2pdf::SessionWarmer, :nginx do
 
   after(:all) do
     described_class.shutdown
-    Bidi2pdf.configure do |c|
-      c.logger.level = Logger::FATAL
-      c.chromedriver_log_level = nil
-    end
+    Bidi2pdf.configure { |c| c.logger.level = Logger::FATAL }
   end
 
   def slot_creations
