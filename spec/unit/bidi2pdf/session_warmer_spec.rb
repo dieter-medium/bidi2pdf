@@ -96,6 +96,84 @@ RSpec.describe Bidi2pdf::SessionWarmer do
         expect(built).to eq(session: session, browser: browser, manager: nil)
       end
     end
+
+    # Regression: a failure after chromedriver was up (or the session had started) used to strand
+    # it - the factory never returned a slot, so no caller had anything to retire.
+    def build_and_swallow
+      described_class.default_slot_factory(config).call
+    rescue RuntimeError
+      nil
+    end
+
+    context "when building a local slot fails part-way" do
+      before do
+        allow(session).to receive(:browser).and_raise("browser never came up")
+        allow(Bidi2pdf::ChromedriverManager).to receive(:new).and_return(manager)
+        allow(manager).to receive_messages(start: nil, session: session)
+      end
+
+      it "still propagates the error" do
+        expect { described_class.default_slot_factory(config).call }.to raise_error("browser never came up")
+      end
+
+      it "stops the chromedriver it had already started" do
+        build_and_swallow
+
+        expect(manager).to have_received(:stop)
+      end
+
+      it "closes the partially started session" do
+        build_and_swallow
+
+        expect(session).to have_received(:close)
+      end
+    end
+
+    context "when building a remote slot fails part-way" do
+      before do
+        config.remote_browser_url = "http://remote-chrome:9515/session"
+        allow(session).to receive(:browser).and_raise("browser never came up")
+        allow(Bidi2pdf::Bidi::Session).to receive(:new).and_return(session)
+      end
+
+      it "closes the partially started session" do
+        build_and_swallow
+
+        expect(session).to have_received(:close)
+      end
+    end
+  end
+
+  describe "pre-warming at construction" do
+    # Regression: if slot N failed, `new` raised and slots 1..N-1 were live Chromes nobody owned.
+    context "when a later slot fails" do
+      let(:config) { described_class::Configuration.new.tap { |c| c.size = 2 } }
+      let(:failing_second_factory) do
+        calls = 0
+        lambda do
+          calls += 1
+          raise "chrome is down" if calls == 2
+
+          slot
+        end
+      end
+
+      def construct_and_swallow
+        described_class.new(config, slot_factory: failing_second_factory)
+      rescue RuntimeError
+        nil
+      end
+
+      it "still fails fast" do
+        expect { described_class.new(config, slot_factory: failing_second_factory) }.to raise_error("chrome is down")
+      end
+
+      it "retires the slots it had already created" do
+        construct_and_swallow
+
+        expect(manager).to have_received(:stop)
+      end
+    end
   end
 
   describe "class-level singleton API" do
@@ -147,6 +225,20 @@ RSpec.describe Bidi2pdf::SessionWarmer do
         end
 
         expect(mutex.synchronize { calls }).to eq(2)
+      end
+
+      # Regression: a failed construction used to leave the previous, already-shut-down instance
+      # registered - still serving cold slots, but never warming again.
+      it "does not keep a stale, shut-down instance registered when construction fails" do
+        described_class.configure { |c| c.slot_factory = -> { slot } }
+
+        begin
+          described_class.configure { |c| c.slot_factory = -> { raise "chrome is down" } }
+        rescue RuntimeError
+          nil
+        end
+
+        expect(described_class.instance_variable_get(:@instance)).to be_nil
       end
     end
 

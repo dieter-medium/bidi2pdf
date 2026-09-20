@@ -3,9 +3,10 @@ module Bidi2pdf
   # browser ready) so a render can skip that startup latency on the request path. Isolation matches
   # today's one-Chrome-per-render model exactly: every checked-out slot is used for exactly one
   # +with_tab+ block and then retired (never returned to the cache) - only a fresh replacement is
-  # warmed in its place, off the request path. Checkout never blocks or raises: a warm slot is used
-  # if one is ready, otherwise a slot is created synchronously on the spot, i.e. today's exact
-  # behavior for that one render.
+  # warmed in its place, off the request path. Checkout never waits for a warm slot: one is used if
+  # it is ready, otherwise a slot is created synchronously on the spot, i.e. today's exact behavior
+  # for that one render - including its failure mode: if that cold start fails, the error propagates
+  # out of +with_tab+ exactly as it would without the warmer.
   #
   # @example Rails initializer
   #   Bidi2pdf::SessionWarmer.configure do |c|
@@ -21,6 +22,8 @@ module Bidi2pdf
   class SessionWarmer
     self.@config: untyped
 
+    # Cleared first: if the constructor below raises, a stale, already-shut-down instance must
+    # not stay registered (it would keep serving cold slots but never warm again).
     self.@instance: untyped
 
     @config: untyped
@@ -64,6 +67,8 @@ module Bidi2pdf
       attr_accessor remote_browser_url: untyped
 
       # @return [#call, nil] Optional factory callable that returns a slot hash - injectable for tests.
+      #   A custom factory owns the cleanup of anything it half-built before raising: the warmer can
+      #   only retire a slot it was actually handed.
       attr_accessor slot_factory: untyped
 
       def initialize: () -> void
@@ -78,8 +83,18 @@ module Bidi2pdf
     # Returns the warmer's configuration, initializing defaults if needed.
     def self.config: () -> untyped
 
-    # Returns a callable that creates one real, fully-warmed Chrome slot from +config+.
+    # Returns a callable that creates one real, fully-warmed Chrome slot from +config+. If building
+    # fails part-way (chromedriver up, but the session or its browser never came ready), whatever
+    # already exists is retired before the error propagates - no caller ever gets a reference to a
+    # half-built slot, so nobody else could clean it up.
     def self.default_slot_factory: (untyped config) -> untyped
+
+    # Closes a slot's session and stops its chromedriver (nil for a remote slot, or for a part that
+    # was never created). Each step is independent: a failure in one is logged, never raised, and
+    # never skips the other.
+    def self.retire_slot: (session: untyped, manager: untyped) -> untyped
+
+    def self.safe_close: (untyped label) { () -> untyped } -> untyped
 
     # Returns the shared singleton warmer instance, creating it (and pre-warming it) on first call.
     def self.instance: () -> untyped
@@ -90,6 +105,18 @@ module Bidi2pdf
     # Retires every currently-warm spare and resets the singleton.
     def self.shutdown: () -> untyped
 
+    private
+
+    # Records each part in +parts+ the moment it exists, so #default_slot_factory's rescue can
+    # retire exactly what was created so far. Mirrors Launcher#session's local/remote branch.
+    def self.build_slot: (untyped config, untyped parts) -> { session: untyped, browser: untyped, manager: untyped }
+
+    def self.connect_remote: (untyped config, untyped parts) -> untyped
+
+    def self.start_local: (untyped config, untyped parts) -> untyped
+
+    public
+
     def initialize: (untyped config, ?slot_factory: untyped?) -> void
 
     # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
@@ -98,11 +125,15 @@ module Bidi2pdf
 
     # Retires every currently-warm spare and waits for any in-flight background replenishment to
     # finish (each of those, seeing @shutdown, retires its own result instead of stashing it - see
-    # #stash_or_retire). A subsequent #with_tab still works (falls back to a synchronous slot),
-    # matching checkout's own never-blocks-never-raises design.
+    # #stash_or_retire). A subsequent #with_tab still works - it just falls back to a synchronous
+    # slot, since checkout never depends on a warm one being there.
     def shutdown: () -> untyped
 
     private
+
+    # Fail-fast on purpose (a Chrome that can't start at boot should be loud), but not leaky: if slot
+    # N fails, no instance is returned to own slots 1..N-1, so they are retired here first.
+    def prewarm: () -> untyped
 
     def create_slot: () -> untyped
 
@@ -114,8 +145,9 @@ module Bidi2pdf
     def healthy?: (untyped slot) -> untyped
 
     # A warm hit takes the spare and triggers a background replacement; a miss (empty cache, or a
-    # spare that died while idle) falls straight through to a synchronous slot - never blocks or
-    # raises, so an under-provisioned warmer is never worse than not having one.
+    # spare that died while idle) falls straight through to a synchronous slot - it never waits, so
+    # an under-provisioned warmer is never worse than not having one. A cold start that fails raises,
+    # as it would without the warmer.
     def checkout: () -> untyped
 
     def cold_checkout: (untyped dead_slot) -> untyped
@@ -141,6 +173,6 @@ module Bidi2pdf
 
     def retire: (untyped slot) -> untyped
 
-    def safe_close: (untyped label) { () -> untyped } -> untyped
+    def safe_close: (untyped label) { (?) -> untyped } -> untyped
   end
 end

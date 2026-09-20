@@ -5,9 +5,10 @@ module Bidi2pdf
   # browser ready) so a render can skip that startup latency on the request path. Isolation matches
   # today's one-Chrome-per-render model exactly: every checked-out slot is used for exactly one
   # +with_tab+ block and then retired (never returned to the cache) - only a fresh replacement is
-  # warmed in its place, off the request path. Checkout never blocks or raises: a warm slot is used
-  # if one is ready, otherwise a slot is created synchronously on the spot, i.e. today's exact
-  # behavior for that one render.
+  # warmed in its place, off the request path. Checkout never waits for a warm slot: one is used if
+  # it is ready, otherwise a slot is created synchronously on the spot, i.e. today's exact behavior
+  # for that one render - including its failure mode: if that cold start fails, the error propagates
+  # out of +with_tab+ exactly as it would without the warmer.
   #
   # @example Rails initializer
   #   Bidi2pdf::SessionWarmer.configure do |c|
@@ -38,6 +39,8 @@ module Bidi2pdf
       attr_accessor :remote_browser_url
 
       # @return [#call, nil] Optional factory callable that returns a slot hash - injectable for tests.
+      #   A custom factory owns the cleanup of anything it half-built before raising: the warmer can
+      #   only retire a slot it was actually handed.
       attr_accessor :slot_factory
 
       def initialize
@@ -58,6 +61,9 @@ module Bidi2pdf
         @config = Configuration.new
         yield @config if block_given?
         @instance&.shutdown
+        # Cleared first: if the constructor below raises, a stale, already-shut-down instance must
+        # not stay registered (it would keep serving cold slots but never warm again).
+        @instance = nil
         @instance = new(@config, slot_factory: @config.slot_factory)
       end
 
@@ -66,23 +72,32 @@ module Bidi2pdf
         @config ||= Configuration.new
       end
 
-      # Returns a callable that creates one real, fully-warmed Chrome slot from +config+.
+      # Returns a callable that creates one real, fully-warmed Chrome slot from +config+. If building
+      # fails part-way (chromedriver up, but the session or its browser never came ready), whatever
+      # already exists is retired before the error propagates - no caller ever gets a reference to a
+      # half-built slot, so nobody else could clean it up.
       def default_slot_factory(config)
         lambda do
-          if config.remote_browser_url
-            session = Bidi2pdf::Bidi::Session.new(
-              session_url: config.remote_browser_url,
-              headless: config.headless,
-              chrome_args: config.chrome_args
-            )
-            { session: session, browser: session.browser, manager: nil }
-          else
-            manager = Bidi2pdf::ChromedriverManager.new(port: 0, headless: config.headless, chrome_args: config.chrome_args)
-            manager.start
-            session = manager.session
-            { session: session, browser: session.browser, manager: manager }
-          end
+          parts = {}
+          build_slot(config, parts)
+        rescue StandardError
+          retire_slot(session: parts[:session], manager: parts[:manager])
+          raise
         end
+      end
+
+      # Closes a slot's session and stops its chromedriver (nil for a remote slot, or for a part that
+      # was never created). Each step is independent: a failure in one is logged, never raised, and
+      # never skips the other.
+      def retire_slot(session:, manager:)
+        safe_close("session") { session&.close }
+        safe_close("manager") { manager&.stop }
+      end
+
+      def safe_close(label)
+        yield
+      rescue StandardError => e
+        Bidi2pdf.logger.warn "session_warmer: error closing #{label}: #{e.message}"
       end
 
       # Returns the shared singleton warmer instance, creating it (and pre-warming it) on first call.
@@ -100,6 +115,30 @@ module Bidi2pdf
         @instance&.shutdown
         @instance = nil
       end
+
+      private
+
+      # Records each part in +parts+ the moment it exists, so #default_slot_factory's rescue can
+      # retire exactly what was created so far. Mirrors Launcher#session's local/remote branch.
+      def build_slot(config, parts)
+        config.remote_browser_url ? connect_remote(config, parts) : start_local(config, parts)
+
+        { session: parts[:session], browser: parts[:session].browser, manager: parts[:manager] }
+      end
+
+      def connect_remote(config, parts)
+        parts[:session] = Bidi2pdf::Bidi::Session.new(
+          session_url: config.remote_browser_url,
+          headless: config.headless,
+          chrome_args: config.chrome_args
+        )
+      end
+
+      def start_local(config, parts)
+        parts[:manager] = Bidi2pdf::ChromedriverManager.new(port: 0, headless: config.headless, chrome_args: config.chrome_args)
+        parts[:manager].start
+        parts[:session] = parts[:manager].session
+      end
     end
 
     def initialize(config, slot_factory: nil)
@@ -110,7 +149,7 @@ module Bidi2pdf
       @replenish_threads = []
       @warming = 0
       @shutdown = false
-      @config.size.times { @available << create_slot }
+      prewarm
     end
 
     # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
@@ -136,8 +175,8 @@ module Bidi2pdf
 
     # Retires every currently-warm spare and waits for any in-flight background replenishment to
     # finish (each of those, seeing @shutdown, retires its own result instead of stashing it - see
-    # #stash_or_retire). A subsequent #with_tab still works (falls back to a synchronous slot),
-    # matching checkout's own never-blocks-never-raises design.
+    # #stash_or_retire). A subsequent #with_tab still works - it just falls back to a synchronous
+    # slot, since checkout never depends on a warm one being there.
     def shutdown
       spares, threads = @mutex.synchronize do
         @shutdown = true
@@ -149,6 +188,16 @@ module Bidi2pdf
     end
 
     private
+
+    # Fail-fast on purpose (a Chrome that can't start at boot should be loud), but not leaky: if slot
+    # N fails, no instance is returned to own slots 1..N-1, so they are retired here first.
+    def prewarm
+      @config.size.times { @available << create_slot }
+    rescue StandardError
+      @available.each { |slot| retire(slot) }
+      @available.clear
+      raise
+    end
 
     def create_slot
       @slot_factory.call
@@ -164,8 +213,9 @@ module Bidi2pdf
     end
 
     # A warm hit takes the spare and triggers a background replacement; a miss (empty cache, or a
-    # spare that died while idle) falls straight through to a synchronous slot - never blocks or
-    # raises, so an under-provisioned warmer is never worse than not having one.
+    # spare that died while idle) falls straight through to a synchronous slot - it never waits, so
+    # an under-provisioned warmer is never worse than not having one. A cold start that fails raises,
+    # as it would without the warmer.
     def checkout
       slot = @mutex.synchronize { @available.pop }
       had_spare = !slot.nil?
@@ -239,14 +289,11 @@ module Bidi2pdf
     end
 
     def retire(slot)
-      safe_close("session") { slot[:session].close }
-      safe_close("manager") { slot[:manager]&.stop }
+      self.class.retire_slot(session: slot[:session], manager: slot[:manager])
     end
 
-    def safe_close(label)
-      yield
-    rescue StandardError => e
-      Bidi2pdf.logger.warn "session_warmer: error closing #{label}: #{e.message}"
+    def safe_close(label, &)
+      self.class.safe_close(label, &)
     end
   end
 end
