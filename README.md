@@ -395,6 +395,28 @@ Bidi2pdf::SessionWarmer.shutdown
 > nothing else can reach those ports. With `remote_browser_url`, who can reach that endpoint on the
 > network is what matters, exactly as it does without the warmer.
 
+### Customizing Chrome arguments (and blank PDFs from inline HTML)
+
+`Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS` already contains one `--disable-features=...` entry,
+and Chrome only honors the **last** occurrence of that switch. To turn another feature off, extend
+that entry instead of appending a second switch, which would silently drop the defaults:
+
+```ruby
+chrome_args = Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS.map do |arg|
+  arg.start_with?("--disable-features=") ? "#{arg},LocalNetworkAccessChecks" : arg
+end
+```
+
+`LocalNetworkAccessChecks` is the one you are most likely to need. HTML rendered through
+`BrowserTab#render_html_content` is loaded as a `data:` URL, which Chrome treats as a public origin;
+if that HTML references assets on a private address (`localhost`, a Docker hostname, ...), recent
+Chrome versions (confirmed with Chrome 153) block those requests before they are sent. Nothing
+raises - the assets show up as failed network events, the server never sees a request, and the PDF
+comes out unstyled or blank. Disable the check only where the asset host really is private, and keep
+it on when rendering pages you do not control.
+The [bidi2pdf-rails README](https://github.com/dieter-medium/bidi2pdf-rails#readme) has the full
+walkthrough under "Blank PDFs: Chrome's Local Network Access Check".
+
 ---
 
 ## 🚂 Rails Integration
