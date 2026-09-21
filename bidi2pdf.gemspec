@@ -56,7 +56,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "chromedriver-binary"
   spec.add_dependency "concurrent-ruby", "~> 1.0", ">= 1.3.1"
   spec.add_dependency "json", ">= 2.10", "< 4.0"
-  spec.add_dependency "rubyzip", "~> 2.4"
+  spec.add_dependency "rubyzip", ">= 2.4", "< 4.0"
   spec.add_dependency "sys-proctable", "~> 1.3"
   spec.add_dependency "thor", "~> 1.3"
   spec.add_dependency "websocket", "~> 1.2"
