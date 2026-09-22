@@ -18,6 +18,8 @@ module Bidi2pdf
         check_source
         check_steps("actions", @recipe.actions, Recipe::KNOWN_ACTIONS)
         check_steps("assert", @recipe.assertions, Recipe::KNOWN_ASSERTIONS)
+        check_wait_for_conditions
+        check_presence_assertions
         check_pdf_assertions_need_pdf_inspection
         check_output
         check_print_options
@@ -50,6 +52,36 @@ module Bidi2pdf
           next if known.include?(name)
 
           fail!("Unknown #{section == "actions" ? "action" : "assertion"} '#{name}'. Known: #{known.join(", ")}", path: "#{section}[#{index}].#{name}")
+        end
+      end
+
+      # Mirrors Schema::RECIPE_ACTIONS' own wait_for oneOf: exactly one of selector/paged_js/script.
+      # --validate runs this check itself rather than relying on Runner#wait_for_condition, whose
+      # own "needs one of" error only fires mid-run (after a browser is already launched) and does
+      # not catch "more than one given" at all - it just silently prefers paged_js, then selector.
+      def check_wait_for_conditions
+        @recipe.actions.each_with_index do |step, index|
+          next unless @recipe.step_name(step) == "wait_for"
+
+          given = %w[selector paged_js script] & @recipe.step_options(step).keys
+
+          next if given.size == 1
+
+          fail!("wait_for needs exactly one of selector, paged_js, script (got: #{given.empty? ? "none" : given.join(", ")})",
+                path: "actions[#{index}].wait_for")
+        end
+      end
+
+      # Mirrors Schema::RECIPE_ASSERT's own const: true for the 4 presence-only assertions -
+      # Runner never reads the value beside them, so anything but `true` is misleading rather than
+      # merely unusual (see Recipe::PRESENCE_ONLY_ASSERTIONS' own comment).
+      def check_presence_assertions
+        @recipe.assertions.each_with_index do |step, index|
+          name = @recipe.step_name(step)
+          next unless Recipe::PRESENCE_ONLY_ASSERTIONS.include?(name)
+          next if @recipe.step_value(step) == true
+
+          fail!("#{name} must be true - a false or missing value is misleading; omit the assertion instead", path: "assert[#{index}].#{name}")
         end
       end
 

@@ -249,6 +249,13 @@ Actions (`wait_for`, `click`, `evaluate`, `inject_script`, `inject_style`, `set_
 `pdf_text_present`, `pdf_not_blank`) need the `pdf-reader` gem - a recipe using one fails
 `--validate` immediately, before any browser launches, when it isn't installed.
 
+`no_console_errors`, `no_network_failures`, `fonts_loaded`, and `pdf_not_blank` are presence-only
+assertions - the step is either there or it isn't, nothing reads the value beside it - so they must
+be written as `true` exactly, e.g. `- no_console_errors: true`; `false` (or any other value) is
+rejected by both `bidi2pdf schema recipe` and `--validate` rather than being silently ignored.
+`wait_for` needs exactly one of `selector`, `paged_js`, `script` - zero or more than one is
+rejected the same way, before any browser launches.
+
 ---
 
 ## 🧠 Programmatic API

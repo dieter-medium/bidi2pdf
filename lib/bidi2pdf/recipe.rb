@@ -16,6 +16,11 @@ module Bidi2pdf
     PDF_ASSERTIONS = %w[page_count pdf_text_present pdf_not_blank].freeze
     KNOWN_ASSERTIONS = (PAGE_ASSERTIONS + PDF_ASSERTIONS).freeze
     KNOWN_OUTPUTS = %w[pdf manifest screenshot].freeze
+    # These four assertions are pure presence checks - Runner never reads the value beside them
+    # (see #assertion_no_console_errors and friends), so a bare key is really what's being
+    # asserted. `false`/anything but `true` is therefore misleading, not merely unusual: schema
+    # recipe encodes this as `const: true` and Validator#check_presence_assertions enforces it too.
+    PRESENCE_ONLY_ASSERTIONS = %w[no_console_errors no_network_failures fonts_loaded pdf_not_blank].freeze
 
     attr_reader :data, :path
 

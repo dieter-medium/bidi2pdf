@@ -20,6 +20,12 @@ module Bidi2pdf
 
     KNOWN_OUTPUTS: ::Array["pdf" | "manifest" | "screenshot"]
 
+    # These four assertions are pure presence checks - Runner never reads the value beside them
+    # (see #assertion_no_console_errors and friends), so a bare key is really what's being
+    # asserted. `false`/anything but `true` is therefore misleading, not merely unusual: schema
+    # recipe encodes this as `const: true` and Validator#check_presence_assertions enforces it too.
+    PRESENCE_ONLY_ASSERTIONS: ::Array["no_console_errors" | "no_network_failures" | "fonts_loaded" | "pdf_not_blank"]
+
     attr_reader data: untyped
 
     attr_reader path: untyped

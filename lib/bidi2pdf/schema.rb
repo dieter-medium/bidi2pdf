@@ -213,7 +213,7 @@ module Bidi2pdf
       "oneOf" => [
         { "type" => "object", "required" => %w[url], "properties" => { "url" => { "type" => "string" } }, "additionalProperties" => false },
         { "type" => "object", "required" => %w[file], "properties" => { "file" => { "type" => "string" } }, "additionalProperties" => false },
-        { "type" => "object", "required" => %w[stdin], "properties" => { "stdin" => { "type" => "boolean" } }, "additionalProperties" => false }
+        { "type" => "object", "required" => %w[stdin], "properties" => { "stdin" => { "const" => true } }, "additionalProperties" => false }
       ]
     }.freeze
 
@@ -225,10 +225,16 @@ module Bidi2pdf
           "type" => "object", "required" => %w[wait_for], "additionalProperties" => false,
           "properties" => {
             "wait_for" => {
-              "type" => "object", "additionalProperties" => false,
-              "properties" => { "selector" => { "type" => "string" }, "paged_js" => { "type" => "boolean" }, "script" => { "type" => "string" },
-                                "timeout" => { "type" => "number" } },
-              "description" => "exactly one of selector, paged_js, script"
+              "type" => "object",
+              "description" => "exactly one of selector, paged_js, script; timeout is always optional",
+              "oneOf" => [
+                { "type" => "object", "required" => %w[selector], "additionalProperties" => false,
+                  "properties" => { "selector" => { "type" => "string" }, "timeout" => { "type" => "number" } } },
+                { "type" => "object", "required" => %w[paged_js], "additionalProperties" => false,
+                  "properties" => { "paged_js" => { "type" => "boolean" }, "timeout" => { "type" => "number" } } },
+                { "type" => "object", "required" => %w[script], "additionalProperties" => false,
+                  "properties" => { "script" => { "type" => "string" }, "timeout" => { "type" => "number" } } }
+              ]
             }
           }
         },
@@ -269,10 +275,12 @@ module Bidi2pdf
     }.freeze
 
     RECIPE_ASSERT = {
-      "description" => "one of the 8 known assertions. The bare-boolean ones (no_console_errors, no_network_failures, " \
-                        "fonts_loaded, pdf_not_blank) ignore the boolean's own value - only the key's presence matters, " \
-                        "matching Recipe::Runner exactly. The last 3 require the pdf-reader gem at --validate time - " \
-                        "a runtime fact this schema cannot express, see the top-level description",
+      "description" => "one of the 8 known assertions. The presence-only ones (no_console_errors, no_network_failures, " \
+                        "fonts_loaded, pdf_not_blank) never have their value read at run time - Recipe::Runner only " \
+                        "checks the key is there - so they must be written as `true`; `false` or any other value is " \
+                        "rejected as misleading rather than silently ignored. The last 3 assertions also require the " \
+                        "pdf-reader gem at --validate time - a runtime fact this schema cannot express, see the " \
+                        "top-level description",
       "oneOf" => [
         {
           "type" => "object", "required" => %w[selector_exists], "additionalProperties" => false,
@@ -285,11 +293,11 @@ module Bidi2pdf
                                                 "properties" => { "text" => { "type" => "string" } } } }
         },
         { "type" => "object", "required" => %w[no_console_errors], "additionalProperties" => false,
-          "properties" => { "no_console_errors" => { "type" => "boolean" } } },
+          "properties" => { "no_console_errors" => { "const" => true } } },
         { "type" => "object", "required" => %w[no_network_failures], "additionalProperties" => false,
-          "properties" => { "no_network_failures" => { "type" => "boolean" } } },
+          "properties" => { "no_network_failures" => { "const" => true } } },
         { "type" => "object", "required" => %w[fonts_loaded], "additionalProperties" => false,
-          "properties" => { "fonts_loaded" => { "type" => "boolean" } } },
+          "properties" => { "fonts_loaded" => { "const" => true } } },
         {
           "type" => "object", "required" => %w[page_count], "additionalProperties" => false,
           "properties" => {
@@ -308,7 +316,7 @@ module Bidi2pdf
                                                     "properties" => { "text" => { "type" => "string" } } } }
         },
         { "type" => "object", "required" => %w[pdf_not_blank], "additionalProperties" => false,
-          "properties" => { "pdf_not_blank" => { "type" => "boolean" } } }
+          "properties" => { "pdf_not_blank" => { "const" => true } } }
       ]
     }.freeze
 
@@ -344,7 +352,7 @@ module Bidi2pdf
                         "gem to be installed at validation time (a runtime environment fact, not a document-shape " \
                         "one) - `--validate` still catches a violation, with error code PDF_INSPECTION_UNAVAILABLE.",
       "type" => "object",
-      "required" => %w[version source],
+      "required" => %w[version source output],
       "additionalProperties" => false,
       "properties" => {
         "version" => { "const" => 1 },
