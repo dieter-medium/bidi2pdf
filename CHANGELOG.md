@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.16] - 2026-09-22
 
 ### 🐛 Fixed
+- Give NavigationDNSError its own initializer
 - Enforce the complete recipe shape in --validate, not just semantic checks
 - Close schema/validator mismatches in recipe schema
 - Document and address blank PDFs from Chrome's network checks
