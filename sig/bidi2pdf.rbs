@@ -105,6 +105,12 @@ module Bidi2pdf
   end
 
   class NavigationDNSError < NavigationError
+    @url: untyped
+
+    attr_reader url: untyped
+
+    def initialize: (?untyped? url, ?untyped? message) -> void
+
     def retryable?: () -> true
 
     def hint: () -> "Check the hostname is correct and reachable from this machine/container"

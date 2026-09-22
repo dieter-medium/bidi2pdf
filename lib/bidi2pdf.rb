@@ -118,6 +118,13 @@ module Bidi2pdf # rubocop:disable Metrics/ModuleLength
   end
 
   class NavigationDNSError < NavigationError
+    attr_reader :url
+
+    def initialize(url = nil, message = nil)
+      @url = url
+      super(url ? "Navigation to #{url} failed: DNS resolution error. #{message}" : message)
+    end
+
     def retryable? = true
 
     def hint = "Check the hostname is correct and reachable from this machine/container"
