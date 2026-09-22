@@ -1,0 +1,21 @@
+module Bidi2pdf
+  # Maps an ErrorCodes string to the process exit status the CLI reports. Centralized here so
+  # render/diagnose/run share one table instead of each re-deciding what a given failure is worth.
+  module ExitCodes
+    SUCCESS: 0
+
+    CLI_ERROR: 2
+
+    BROWSER_ERROR: 3
+
+    PAGE_NOT_AS_EXPECTED: 4
+
+    OUTPUT_ERROR: 6
+
+    INTERNAL_ERROR: 70
+
+    CODE_TO_EXIT: { "MISSING_INPUT" => untyped, "MULTIPLE_INPUT_SOURCES" => untyped, "EMPTY_INPUT" => untyped, "INVALID_CONFIG" => untyped, "INVALID_PRINT_OPTION" => untyped, "INVALID_RECIPE" => untyped, "PDF_INSPECTION_UNAVAILABLE" => untyped, "BROWSER_LAUNCH_FAILED" => untyped, "BROWSER_DISCONNECTED" => untyped, "COMMAND_TIMEOUT" => untyped, "NAVIGATION_FAILED" => untyped, "NAVIGATION_TIMEOUT" => untyped, "NAVIGATION_AUTH" => untyped, "NAVIGATION_NOT_FOUND" => untyped, "DNS_ERROR" => untyped, "SELECTOR_NOT_FOUND" => untyped, "PAGE_NOT_AS_EXPECTED" => untyped, "SCRIPT_ERROR" => untyped, "STYLE_ERROR" => untyped, "PDF_GENERATION_FAILED" => untyped, "SCREENSHOT_FAILED" => untyped, "OUTPUT_WRITE_FAILED" => untyped, "INTERNAL_ERROR" => untyped }
+
+    def self.for: (untyped code) -> untyped
+  end
+end

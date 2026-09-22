@@ -60,6 +60,29 @@ module Bidi2pdf
       run_flow
     end
 
+    # Like #run, but stops after navigation (and the configured waits) instead of printing, and
+    # leaves the tab open for the caller to inspect - used by `bidi2pdf diagnose`, which has no PDF
+    # to produce. The caller is responsible for #close_all once done.
+    #
+    # @return [Bidi2pdf::Bidi::BrowserTab] the navigated tab.
+    def run_diagnose
+      @session.start
+      @session.client.on_close { Bidi2pdf.logger.info "WebSocket closed" }
+
+      setup_browser
+      navigate_and_wait
+
+      @tab
+    end
+
+    # Closes what #run_diagnose opened. #run's own run_flow already does this itself (in its
+    # ensure), so this is only ever needed after #run_diagnose.
+    def close_all
+      @tab&.close
+      @window&.close
+      @user_context&.close
+    end
+
     private
 
     def setup_browser
@@ -107,6 +130,25 @@ module Bidi2pdf
         username: @auth[:username],
         password: @auth[:password]
       )
+    end
+
+    # Navigate + wait only, no log_network_traffic/print side effects - #run_flow above
+    # intentionally keeps its own inline sequence (where log_network_traffic sits between the two
+    # waits) untouched rather than sharing this, since that render-only file-writing side effect
+    # has no place in a diagnose flow.
+    def navigate_and_wait
+      @session.status
+      @session.user_contexts
+
+      if @url
+        @tab.navigate_to(@url)
+      else
+        Bidi2pdf.logger.info "Loading HTML file #{@inputfile}"
+        @tab.render_html_content(File.read(@inputfile))
+      end
+
+      @tab.wait_until_network_idle if @wait_network_idle
+      @tab.wait_until_page_loaded if @wait_window_loaded
     end
 
     # rubocop: disable Metrics/AbcSize

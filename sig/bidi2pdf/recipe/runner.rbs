@@ -1,0 +1,92 @@
+module Bidi2pdf
+  class Recipe
+    # Runs a validated recipe's actions and assertions against a navigated tab. A thin dispatch
+    # over BrowserTab's own methods, not a parallel action/assertion class hierarchy - a step
+    # that needs something BrowserTab cannot do belongs there, not here.
+    class Runner
+      @recipe: untyped
+
+      @tab: untyped
+
+      @collector: untyped
+
+      @state: untyped
+
+      @pdf_bytes: untyped
+
+      # Raised on the first failing action/assertion; #entries carries every step run so far
+      # (successes and the failure itself), for the caller to report in the recipe result.
+      class StepFailure < StandardError
+        @entries: untyped
+
+        @cause: untyped
+
+        attr_reader entries: untyped
+
+        attr_reader cause: untyped
+
+        def initialize: (untyped entries, untyped cause) -> void
+      end
+
+      attr_reader state: untyped
+
+      attr_accessor pdf_bytes: untyped
+
+      # @param recipe [Bidi2pdf::Recipe]
+      # @param tab [Bidi2pdf::Bidi::BrowserTab] a navigated tab (e.g. from Launcher#diagnose)
+      # @param collector [Bidi2pdf::ResultCollector] source of #console/#network_failures -
+      #   exposed live, so assertions can read them mid-run (see ResultCollector's own docs)
+      def initialize: (recipe: untyped, tab: untyped, collector: untyped) -> void
+
+      # @return [Array<Hash>] one entry per action actually run
+      # @raise [StepFailure] on the first failing action
+      def run_actions: () -> untyped
+
+      # @return [Array<Hash>] one entry per assertion actually run
+      # @raise [StepFailure] on the first failing assertion
+      def run_assertions: () -> untyped
+
+      private
+
+      # rubocop:disable-next Metrics/AbcSize
+      def run_steps: (untyped steps) { (untyped, untyped) -> untyped } -> untyped
+
+      def now_ms: () -> untyped
+
+      def elapsed_ms: (untyped start) -> untyped
+
+      # rubocop:disable-next Metrics/AbcSize, Metrics/CyclomaticComplexity
+      def dispatch_action: (untyped name, untyped opts) -> untyped
+
+      def action_wait_for: (untyped opts) -> (nil | untyped)
+
+      def wait_for_condition: (untyped opts) -> ("document.querySelector('.pagedjs_page')" | ::String | untyped)
+
+      def action_click: (untyped opts) -> (nil | untyped)
+
+      def action_evaluate: (untyped opts) -> untyped
+
+      # rubocop:disable-next Metrics/CyclomaticComplexity
+      def dispatch_assertion: (untyped name, untyped step) -> untyped
+
+      def assertion_selector_exists: (untyped opts) -> ::Array[untyped | { selector: untyped }]
+
+      def assertion_text_present: (untyped opts) -> ::Array[untyped | { text: untyped }]
+
+      def assertion_no_console_errors: () -> ::Array[untyped]
+
+      # Filtering by resource type (a `types:` option) is not implemented: Bidi2pdf::Bidi::
+      # NetworkEvent carries an HTTP method, not a resource type, so there is nothing to filter
+      # by yet. Every captured failure counts.
+      def assertion_no_network_failures: () -> ::Array[untyped]
+
+      def assertion_fonts_loaded: () -> ::Array[untyped | nil]
+
+      def assertion_page_count: (untyped expected) -> ::Array[untyped | { expected: untyped, actual: untyped }]
+
+      def assertion_pdf_text_present: (untyped opts) -> ::Array[untyped | { text: untyped }]
+
+      def assertion_pdf_not_blank: () -> ::Array[untyped | { page_count: untyped, text_present: untyped }]
+    end
+  end
+end

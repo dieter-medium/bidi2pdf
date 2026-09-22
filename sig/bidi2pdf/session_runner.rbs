@@ -67,6 +67,17 @@ module Bidi2pdf
 
     def run: () -> untyped
 
+    # Like #run, but stops after navigation (and the configured waits) instead of printing, and
+    # leaves the tab open for the caller to inspect - used by `bidi2pdf diagnose`, which has no PDF
+    # to produce. The caller is responsible for #close_all once done.
+    #
+    # @return [Bidi2pdf::Bidi::BrowserTab] the navigated tab.
+    def run_diagnose: () -> untyped
+
+    # Closes what #run_diagnose opened. #run's own run_flow already does this itself (in its
+    # ensure), so this is only ever needed after #run_diagnose.
+    def close_all: () -> untyped
+
     private
 
     def setup_browser: () -> untyped
@@ -76,6 +87,12 @@ module Bidi2pdf
     def add_headers: () -> untyped
 
     def add_basic_auth: () -> (nil | untyped)
+
+    # Navigate + wait only, no log_network_traffic/print side effects - #run_flow above
+    # intentionally keeps its own inline sequence (where log_network_traffic sits between the two
+    # waits) untouched rather than sharing this, since that render-only file-writing side effect
+    # has no place in a diagnose flow.
+    def navigate_and_wait: () -> untyped
 
     # rubocop: disable Metrics/AbcSize
     def run_flow: () -> untyped

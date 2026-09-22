@@ -1,0 +1,71 @@
+module Bidi2pdf
+  # Structured result of a CLI command (render/diagnose/run) - the shape behind --json output, a
+  # render manifest, and the final "result" event of --json-stream. Construct via .success/
+  # .failure rather than .new directly so every Result is unambiguously one or the other.
+  class Result
+    @command: untyped
+
+    @ok: untyped
+
+    @output: untyped
+
+    @bytes: untyped
+
+    @sha256: untyped
+
+    @pages: untyped
+
+    @duration_ms: untyped
+
+    @navigation: untyped
+
+    @console: untyped
+
+    @network_failures: untyped
+
+    @warnings: untyped
+
+    @error: untyped
+
+    @metadata: untyped
+
+    SCHEMA_VERSION: 1
+
+    attr_reader command: untyped
+
+    attr_reader output: untyped
+
+    attr_reader bytes: untyped
+
+    attr_reader sha256: untyped
+
+    attr_reader pages: untyped
+
+    attr_reader duration_ms: untyped
+
+    attr_reader navigation: untyped
+
+    attr_reader console: untyped
+
+    attr_reader network_failures: untyped
+
+    attr_reader warnings: untyped
+
+    attr_reader error: untyped
+
+    attr_reader metadata: untyped
+
+    # rubocop:disable-next Metrics/ParameterLists, Naming/MethodParameterName
+    def initialize: (command: untyped, ok: untyped, ?output: untyped?, ?bytes: untyped?, ?sha256: untyped?, ?pages: untyped?, ?duration_ms: untyped?, ?navigation: untyped?, ?console: untyped, ?network_failures: untyped, ?warnings: untyped, ?error: untyped?, ?metadata: ::Hash[untyped, untyped]) -> void
+
+    def self.success: (**untyped) -> untyped
+
+    def self.failure: (error: untyped, **untyped) -> untyped
+
+    def ok?: () -> untyped
+
+    def to_h: () -> untyped
+
+    def to_json: (*untyped) -> untyped
+  end
+end

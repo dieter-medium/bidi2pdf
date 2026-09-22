@@ -1,0 +1,33 @@
+module Bidi2pdf
+  # Lazy, optional wrapper around the pdf-reader gem. pdf-reader is deliberately NOT a bidi2pdf
+  # runtime dependency - render works fine without it,
+  # just with `pages` left nil and a warning, and a recipe assertion that needs it fails
+  # INVALID_RECIPE at validation time rather than crashing mid-render. The official Docker images
+  # (docker/Dockerfile, docker/Dockerfile.slim) install it, so a render inside one of them - the
+  # environment an agent or CI job actually uses - always has page counts and PDF assertions
+  # available without anyone opting in by hand.
+  module PdfInspection
+    self.@available: untyped
+
+    def self.available?: () -> untyped
+
+    # @param bytes [String, nil] raw PDF bytes.
+    # @return [Integer, nil] page count, or nil when pdf-reader is unavailable, bytes is nil,
+    #   or the PDF is malformed.
+    def self.page_count: (untyped bytes) -> untyped
+
+    # @param bytes [String, nil] raw PDF bytes.
+    # @return [String, nil] extracted text across all pages, joined with newlines.
+    def self.text: (untyped bytes) -> untyped
+
+    # Clears the memoized availability check - test-only, so a spec can exercise both branches
+    # of #available? regardless of load order elsewhere in the process.
+    def self.reset_for_testing!: () -> (untyped | nil)
+
+    private
+
+    def self.load_pdf_reader: () -> untyped
+
+    def self.reader_for: (untyped bytes) -> untyped
+  end
+end

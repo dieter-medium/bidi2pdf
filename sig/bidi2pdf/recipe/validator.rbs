@@ -1,0 +1,36 @@
+module Bidi2pdf
+  class Recipe
+    # Validates a loaded recipe against the schema `bidi2pdf schema recipe` publishes, before any
+    # browser is launched - `bidi2pdf run --validate` runs exactly this and nothing else. Every
+    # failure is Bidi2pdf::InvalidRecipeError (or Bidi2pdf::PdfInspectionUnavailableError for a
+    # PDF assertion without pdf-reader installed), details carrying a `path` an agent can act on
+    # directly.
+    class Validator
+      @recipe: untyped
+
+      def initialize: (untyped recipe) -> void
+
+      def validate!: () -> untyped
+
+      private
+
+      def check_version: () -> (nil | untyped)
+
+      def check_top_level_keys: () -> (nil | untyped)
+
+      def check_source: () -> untyped
+
+      def check_steps: (untyped section, untyped steps, untyped known) -> untyped
+
+      def check_pdf_assertions_need_pdf_inspection: () -> (nil | untyped)
+
+      def check_output: () -> (nil | untyped)
+
+      def check_print_options: () -> untyped
+
+      def symbolize: (untyped hash) -> untyped
+
+      def fail!: (untyped reason, path: untyped) -> untyped
+    end
+  end
+end

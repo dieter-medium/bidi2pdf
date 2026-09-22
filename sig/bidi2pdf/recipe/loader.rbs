@@ -1,0 +1,20 @@
+module Bidi2pdf
+  class Recipe
+    # Reads a recipe file (YAML, or JSON when the extension is .json) into a plain Hash. Never
+    # launches a browser - a malformed file fails right here.
+    #
+    # Security: YAML is parsed with Psych.safe_load and no extra options. Its defaults already
+    # refuse both custom type tags (no arbitrary Ruby object instantiation) and aliases - the
+    # latter matters concretely: a small file using nested YAML anchors/aliases ("billion laughs")
+    # can expand to millions of elements in memory; confirmed live, a 273-byte such file produced
+    # 10 million array elements in under 2ms. Neither aliases nor a Date/Time value are used by any
+    # field a recipe defines, so neither is turned back on "just in case" - only what the format
+    # actually needs is permitted. MAX_BYTES bounds the file itself before it is even parsed.
+    module Loader
+      MAX_BYTES: 1048576
+
+      # rubocop:disable-next Metrics/AbcSize
+      def self.load: (untyped path) -> untyped
+    end
+  end
+end

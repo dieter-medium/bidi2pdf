@@ -77,7 +77,30 @@ module Bidi2pdf
       runner.run
     end
 
+    # Like #launch, but navigates only (see SessionRunner#run_diagnose) and leaves the tab open -
+    # used by `bidi2pdf diagnose`, which has no PDF to produce. #stop closes it, same as it stops
+    # everything else #launch/#diagnose started.
+    #
+    # @return [Bidi2pdf::Bidi::BrowserTab] the navigated tab.
+    def diagnose
+      @diagnose_runner = SessionRunner.new(
+        session: session,
+        url: @url,
+        inputfile: @inputfile,
+        output: @output,
+        cookies: @cookies,
+        headers: @headers,
+        auth: @auth,
+        wait_window_loaded: @wait_window_loaded,
+        wait_network_idle: @wait_network_idle,
+        print_options: @print_options,
+        network_log_format: @network_log_format
+      )
+      @diagnose_runner.run_diagnose
+    end
+
     def stop
+      @diagnose_runner&.close_all
       @manager&.stop
       @custom_session&.close
     end

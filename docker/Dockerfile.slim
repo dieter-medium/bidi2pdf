@@ -26,7 +26,11 @@ WORKDIR /app
 # Copy your gem into container
 COPY ./pkg/bidi2pdf-*.gem ./
 
-RUN gem install ./bidi2pdf-*.gem
+# pdf-reader is deliberately not a bidi2pdf runtime dependency - it is installed here, as its own
+# step, so the published image always has `pages`/PDF assertions available, the environment an
+# agent or CI job actually renders in.
+RUN gem install ./bidi2pdf-*.gem && \
+    gem install pdf-reader -v "~> 2.14"
 
 
 # Stage 2

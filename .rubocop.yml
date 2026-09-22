@@ -90,6 +90,15 @@ RSpec/DescribeClass:
   Exclude:
     - 'spec/acceptance/**/*_spec.rb'
 
+# Matches bidi2pdf-rails' own spec/rails_helper.rb: scenario/when_ are custom
+# alias_example_group_to groups there (and here, see spec/spec_helper.rb), not the single example
+# Capybara's own `scenario` conventionally means - this cop doesn't know that and miscounts every
+# then_/and_ nested underneath as belonging to one example.
+RSpec/MultipleExpectations:
+  Enabled: true
+  Exclude:
+    - 'spec/acceptance/**/*_spec.rb'
+
 plugins:
   - rubocop-rake
   - rubocop-rspec

@@ -11,13 +11,30 @@ module Bidi2pdf
 
   PAPER_FORMATS_CM: { letter: { width: ::Float, height: ::Float }, legal: { width: ::Float, height: ::Float }, tabloid: { width: ::Float, height: ::Float }, ledger: { width: ::Float, height: ::Float }, a0: { width: ::Float, height: ::Float }, a1: { width: ::Float, height: ::Float }, a2: { width: ::Float, height: ::Float }, a3: { width: ::Float, height: ::Float }, a4: { width: ::Float, height: ::Float }, a5: { width: ::Float, height: ::Float }, a6: { width: ::Float, height: ::Float } }
 
+  # Base class for every error this gem raises. Carries the machine-readable surface used by
+  # --json/--json-stream/manifests/recipe results (see Bidi2pdf::ErrorCodes): #retryable? and
+  # #hint are overridden per subclass below where a useful default exists; #details is set at
+  # raise time for structured, serializable context (e.g. which selector, which assertion).
   class Error < StandardError
+    @details: untyped
+
+    attr_reader details: untyped
+
+    def initialize: (?untyped? message, ?details: ::Hash[untyped, untyped]) -> void
+
+    def retryable?: () -> false
+
+    def hint: () -> nil
   end
 
   class SessionNotStartedError < Error
+    def retryable?: () -> true
+
+    def hint: () -> "Check Chrome/chromedriver are installed and reachable, or that --remote-browser-url points at a running instance"
   end
 
   class WebsocketError < Error
+    def retryable?: () -> true
   end
 
   class ClientError < WebsocketError
@@ -39,6 +56,9 @@ module Bidi2pdf
   end
 
   class CmdTimeoutError < ClientError
+    def retryable?: () -> true
+
+    def hint: () -> "Raise --default-timeout"
   end
 
   class PrintError < Error
@@ -70,15 +90,55 @@ module Bidi2pdf
     attr_reader url: untyped
 
     def initialize: (untyped url, ?untyped? message) -> void
+
+    def hint: () -> "Pass --auth user:pass, or check the credentials are still valid"
   end
 
   class NavigationTimeoutError < NavigationError
+    def retryable?: () -> true
+
+    def hint: () -> "Raise --default-timeout, or add --wait-network-idle if the page loads data after the load event"
   end
 
   class NavigationNotFoundError < NavigationError
+    def hint: () -> "Check the URL is correct"
   end
 
   class NavigationDNSError < NavigationError
+    def retryable?: () -> true
+
+    def hint: () -> "Check the hostname is correct and reachable from this machine/container"
+  end
+
+  class MissingInputError < Error
+  end
+
+  class MultipleInputSourcesError < Error
+  end
+
+  class EmptyInputError < Error
+  end
+
+  class InvalidConfigError < Error
+  end
+
+  class InvalidPrintOptionError < Error
+  end
+
+  class InvalidRecipeError < Error
+  end
+
+  class SelectorNotFoundError < Error
+  end
+
+  class PageNotAsExpectedError < Error
+  end
+
+  class OutputWriteError < Error
+  end
+
+  class PdfInspectionUnavailableError < Error
+    def hint: () -> "Install the pdf-reader gem, or drop assertions/fields that need it"
   end
 
   attr_accessor self.default_timeout: untyped

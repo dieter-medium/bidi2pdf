@@ -63,6 +63,17 @@ RSpec.configure do |config|
     metadata[:acceptance] = true
   end
 
+  # Given/When/Then aliases for acceptance specs, matching bidi2pdf-rails' own
+  # spec/rails_helper.rb - a `RSpec.feature "As a <persona>, I want to <goal>"` block reads as the
+  # use case itself, not as "a test of class X", which is what made that repo's acceptance suite
+  # the clearer of the two to a fresh reader (confirmed by direct comparison this session).
+  config.alias_example_group_to :feature, feature: true
+  config.alias_example_group_to :when_, feature: true
+  config.alias_example_group_to :given, feature: true
+  config.alias_example_group_to :scenario, feature: true
+  config.alias_example_to :then_, feature: true
+  config.alias_example_to :and_, feature: true
+
   config.include RSpec::Benchmark::Matchers, benchmark: true
 
   config.include Bidi2pdf::TestHelpers::SpecPathsHelper

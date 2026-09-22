@@ -9,10 +9,11 @@ require_relative "bidi2pdf/bidi/session"
 require_relative "bidi2pdf/dsl"
 require_relative "bidi2pdf/notifications"
 require_relative "bidi2pdf/notifications/logging_subscriber"
+require_relative "bidi2pdf/notifications/json_subscriber"
 require_relative "bidi2pdf/session_warmer"
 require_relative "bidi2pdf/verbose_logger"
 
-module Bidi2pdf
+module Bidi2pdf # rubocop:disable Metrics/ModuleLength
   PAPER_FORMATS_CM = {
     letter: { width: 21.59, height: 27.94 },
     legal: { width: 21.59, height: 35.56 },
@@ -27,11 +28,32 @@ module Bidi2pdf
     a6: { width: 10.5, height: 14.8 }
   }.freeze
 
-  class Error < StandardError; end
+  # Base class for every error this gem raises. Carries the machine-readable surface used by
+  # --json/--json-stream/manifests/recipe results (see Bidi2pdf::ErrorCodes): #retryable? and
+  # #hint are overridden per subclass below where a useful default exists; #details is set at
+  # raise time for structured, serializable context (e.g. which selector, which assertion).
+  class Error < StandardError
+    attr_reader :details
 
-  class SessionNotStartedError < Error; end
+    def initialize(message = nil, details: {})
+      @details = details
+      super(message)
+    end
 
-  class WebsocketError < Error; end
+    def retryable? = false
+
+    def hint = nil
+  end
+
+  class SessionNotStartedError < Error
+    def retryable? = true
+
+    def hint = "Check Chrome/chromedriver are installed and reachable, or that --remote-browser-url points at a running instance"
+  end
+
+  class WebsocketError < Error
+    def retryable? = true
+  end
 
   class ClientError < WebsocketError; end
 
@@ -48,7 +70,11 @@ module Bidi2pdf
 
   class CmdResponseNotStoredError < ClientError; end
 
-  class CmdTimeoutError < ClientError; end
+  class CmdTimeoutError < ClientError
+    def retryable? = true
+
+    def hint = "Raise --default-timeout"
+  end
 
   class PrintError < Error; end
 
@@ -77,13 +103,62 @@ module Bidi2pdf
       @url = url
       super("Navigation to #{url} failed due to authentication error. #{message}")
     end
+
+    def hint = "Pass --auth user:pass, or check the credentials are still valid"
   end
 
-  class NavigationTimeoutError < NavigationError; end
+  class NavigationTimeoutError < NavigationError
+    def retryable? = true
 
-  class NavigationNotFoundError < NavigationError; end
+    def hint = "Raise --default-timeout, or add --wait-network-idle if the page loads data after the load event"
+  end
 
-  class NavigationDNSError < NavigationError; end
+  class NavigationNotFoundError < NavigationError
+    def hint = "Check the URL is correct"
+  end
+
+  class NavigationDNSError < NavigationError
+    def retryable? = true
+
+    def hint = "Check the hostname is correct and reachable from this machine/container"
+  end
+
+  # --- Errors introduced for the CLI/recipe surface.
+  # Same style as the errors above: a thin subclass per failure mode, message text carried at the
+  # raise site so it stays exactly as specific as the situation warrants.
+
+  class MissingInputError < Error; end
+
+  class MultipleInputSourcesError < Error; end
+
+  class EmptyInputError < Error; end
+
+  class InvalidConfigError < Error; end
+
+  class InvalidPrintOptionError < Error; end
+
+  class InvalidRecipeError < Error; end
+
+  class SelectorNotFoundError < Error; end
+
+  class PageNotAsExpectedError < Error; end
+
+  class OutputWriteError < Error; end
+
+  class PdfInspectionUnavailableError < Error
+    def hint = "Install the pdf-reader gem, or drop assertions/fields that need it"
+  end
+
+  # Loaded here, after the error classes above, since these reference them at load time.
+  require_relative "bidi2pdf/error_codes"
+  require_relative "bidi2pdf/exit_codes"
+  require_relative "bidi2pdf/result"
+  require_relative "bidi2pdf/pdf_inspection"
+  require_relative "bidi2pdf/result_collector"
+  require_relative "bidi2pdf/manifest"
+  require_relative "bidi2pdf/schema"
+  require_relative "bidi2pdf/diagnose"
+  require_relative "bidi2pdf/recipe"
 
   # Global configuration for Bidi2pdf
 
