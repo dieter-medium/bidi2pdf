@@ -23,6 +23,7 @@ module Bidi2pdf
         check_pdf_assertions_need_pdf_inspection
         check_output
         check_print_options
+        check_shape
       end
 
       private
@@ -115,6 +116,18 @@ module Bidi2pdf
 
       def symbolize(hash)
         hash.to_h { |key, value| [key.to_sym, value] }
+      end
+
+      # Runs last, deliberately: everything above gives a friendlier, more specific message for
+      # the case it already knows about (an unknown action name, a non-true presence assertion, a
+      # real PrintParametersValidator error, ...), so this only ever fires for a shape violation
+      # none of them catches - an extra/unrecognized key sitting alongside an otherwise-valid one
+      # (SchemaShape's own doc comment has the concrete examples this closes).
+      def check_shape
+        violation = SchemaShape.first_violation(Bidi2pdf::Schema::RECIPE, @recipe.data)
+        return unless violation
+
+        fail!(violation[:reason], path: violation[:path])
       end
 
       def fail!(reason, path:)

@@ -1,0 +1,85 @@
+module Bidi2pdf
+  class Recipe
+    # Structural validation against Schema::RECIPE itself, not a hand-duplicated parallel list of
+    # rules. Validator's other #check_* methods each enforce one *semantic* rule (an action name
+    # is known, a source key is truthy, a presence assertion is `true`) with a friendly, specific
+    # message - none of them enforce the schema's own `additionalProperties: false` at every
+    # level, so an extra, unrecognized key sitting alongside an otherwise-valid one used to pass
+    # silently even though `bidi2pdf schema recipe` would reject it (`{url: "...", stdin: false}`,
+    # `{wait_for: {...}, extra: 1}` - two action names in one step, `wait_for: {selector: "#x",
+    # bogus: "y"}`). #check_shape (see Validator) closes that whole class of gap generically by
+    # walking the schema the CLI already publishes, instead of re-describing "what's allowed" a
+    # second time in Ruby - the schema is the one place that description can't drift from itself.
+    #
+    # Deliberately not a general JSON Schema engine and not a gem dependency: only the keywords
+    # Schema::RECIPE actually uses (type, const, enum, required, additionalProperties, properties,
+    # oneOf, anyOf, items, minimum, maximum). Extend the keyword list only if a future schema
+    # branch genuinely needs one this doesn't cover yet.
+    module SchemaShape
+      TYPE_CHECKS: { "object" => untyped, "array" => untyped, "string" => untyped, "integer" => untyped, "number" => untyped, "boolean" => untyped, "null" => untyped }
+
+      CHECKS: ::Array[:const_ok? | :enum_ok? | :type_ok? | :one_of_ok? | :any_of_ok? | :required_ok? | :additional_properties_ok? | :properties_ok? | :items_ok? | :bounds_ok?]
+
+      # @return [Boolean] whether value satisfies schema
+      def self?.matches?: (untyped schema, untyped value) -> untyped
+
+      VIOLATION_CHECKS: ::Array[:oneof_violation | :anyof_violation | :required_violation | :additional_properties_violation | :const_violation | :enum_violation | :type_violation | :bounds_violation | :nested_violation]
+
+      # @return [Hash, nil] {path:, reason:} for the first violation a depth-first walk finds, or
+      #   nil if value already satisfies schema. Not necessarily *the* most relevant violation
+      #   when several exist at once - good enough to point an agent at the right neighborhood,
+      #   not a substitute for reading `bidi2pdf schema recipe` for the exact shape.
+      def self?.first_violation: (untyped schema, untyped value, ?untyped path) -> (nil | untyped | { path: untyped, reason: "does not match the schema" })
+
+      def self?.const_ok?: (untyped schema, untyped value) -> untyped
+
+      def self?.enum_ok?: (untyped schema, untyped value) -> untyped
+
+      def self?.type_ok?: (untyped schema, untyped value) -> (true | untyped)
+
+      def self?.one_of_ok?: (untyped schema, untyped value) -> (true | untyped)
+
+      def self?.any_of_ok?: (untyped schema, untyped value) -> (true | untyped)
+
+      def self?.required_ok?: (untyped schema, untyped value) -> (true | untyped)
+
+      def self?.additional_properties_ok?: (untyped schema, untyped value) -> (true | untyped)
+
+      def self?.properties_ok?: (untyped schema, untyped value) -> (true | untyped)
+
+      def self?.items_ok?: (untyped schema, untyped value) -> (true | untyped)
+
+      def self?.bounds_ok?: (untyped schema, untyped value) -> (true | untyped)
+
+      def self?.display_path: (untyped path) -> untyped
+
+      # When zero branches match but exactly one is "plausible" (its own required key(s) are
+      # present, ignoring additionalProperties), recurse into that one branch for a specific
+      # reason/path instead of a bare "matched 0 of N" - this is what turns "actions[0] doesn't
+      # match any known action" into "actions[0].wait_for: unknown key(s): bogus".
+      def self?.oneof_violation: (untyped schema, untyped value, untyped path) -> (nil | untyped)
+
+      def self?.single_plausible_violation: (untyped schema, untyped value, untyped path) -> (nil | untyped)
+
+      def self?.anyof_violation: (untyped schema, untyped value, untyped path) -> (nil | { path: untyped, reason: ::String })
+
+      def self?.required_violation: (untyped schema, untyped value, untyped path) -> (nil | { path: untyped, reason: ::String })
+
+      def self?.additional_properties_violation: (untyped schema, untyped value, untyped path) -> (nil | { path: untyped, reason: ::String })
+
+      def self?.const_violation: (untyped schema, untyped value, untyped path) -> (nil | { path: untyped, reason: ::String })
+
+      def self?.enum_violation: (untyped schema, untyped value, untyped path) -> (nil | { path: untyped, reason: ::String })
+
+      def self?.type_violation: (untyped schema, untyped value, untyped path) -> (nil | { path: untyped, reason: ::String })
+
+      def self?.bounds_violation: (untyped schema, untyped value, untyped path) -> (nil | { path: untyped, reason: ::String })
+
+      def self?.nested_violation: (untyped schema, untyped value, untyped path) -> untyped
+
+      def self?.properties_violation: (untyped schema, untyped value, untyped path) -> (nil | untyped)
+
+      def self?.items_violation: (untyped schema, untyped value, untyped path) -> (nil | untyped)
+    end
+  end
+end

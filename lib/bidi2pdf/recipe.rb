@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "recipe/schema_shape"
 require_relative "recipe/loader"
 require_relative "recipe/validator"
 require_relative "recipe/runner"
