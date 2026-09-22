@@ -219,4 +219,41 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
       expect(client.cmd_params.first).to eq(Bidi2pdf::Bidi::Commands::SetViewport.new(context: browsing_context_id, width: 1280, height: 800))
     end
   end
+
+  # Private, tested directly via #send: this had zero coverage before a real DNS failure against a
+  # real remote browser crashed with `Bidi2pdf::Error#initialize: wrong number of arguments (given
+  # 2, expected 0..1)` instead of reporting DNS_ERROR - NavigationDNSError never defined its own
+  # initializer, so `NavigationDNSError.new(url, msg)` here silently relied on the base Error
+  # class's old, unconstrained arity, which broke the moment Error#initialize gained a fixed
+  # (message = nil, details: {}) signature elsewhere. Confirmed live against a reachable remote
+  # Chrome; NavigationDNSError now has its own initializer, matching NavigationAuthError's own.
+  describe "#raise_navigation_error_for" do
+    def cmd_error(message)
+      Bidi2pdf::CmdError.new("cmd", { "message" => message })
+    end
+
+    it "raises NavigationAuthError for an invalid-auth-credentials response" do
+      error = cmd_error("net::ERR_INVALID_AUTH_CREDENTIALS")
+
+      expect { browser_tab.send(:raise_navigation_error_for, "https://x", error) }.to raise_error(Bidi2pdf::NavigationAuthError, %r{https://x})
+    end
+
+    it "raises NavigationDNSError for a name-not-resolved response, without crashing on construction" do
+      error = cmd_error("net::ERR_NAME_NOT_RESOLVED")
+
+      expect { browser_tab.send(:raise_navigation_error_for, "https://x", error) }.to raise_error(Bidi2pdf::NavigationDNSError, /DNS resolution error/)
+    end
+
+    it "raises a generic NavigationError for any other net:: failure" do
+      error = cmd_error("net::ERR_CONNECTION_REFUSED")
+
+      expect { browser_tab.send(:raise_navigation_error_for, "https://x", error) }.to raise_error(Bidi2pdf::NavigationError, /Connection error/)
+    end
+
+    it "re-raises the original error for anything that isn't a recognized net:: failure" do
+      error = cmd_error("some other kind of failure")
+
+      expect { browser_tab.send(:raise_navigation_error_for, "https://x", error) }.to raise_error(error)
+    end
+  end
 end
