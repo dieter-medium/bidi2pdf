@@ -21,7 +21,7 @@ end
 # and Recipe::Validator, not a spec of either one alone; no single described_class fits.
 RSpec.describe "Schema::RECIPE <-> Recipe::Validator contract" do
   def schema_accepts?(data)
-    JsonSchemaSubset.matches?(Bidi2pdf::Schema::RECIPE, data)
+    Bidi2pdf::Recipe::SchemaShape.matches?(Bidi2pdf::Schema::RECIPE, data)
   end
 
   def validator_accepts?(data)
@@ -51,7 +51,20 @@ RSpec.describe "Schema::RECIPE <-> Recipe::Validator contract" do
     { name: "no_network_failures: false", data: -> { fixtures.base("assert" => [{ "no_network_failures" => false }]) }, valid: false },
     { name: "fonts_loaded: false", data: -> { fixtures.base("assert" => [{ "fonts_loaded" => false }]) }, valid: false },
     { name: "pdf_not_blank: false", data: -> { fixtures.base("assert" => [{ "pdf_not_blank" => false }]) }, valid: false },
-    { name: "invalid print scale", data: -> { fixtures.base("print" => { "scale" => 10 }) }, valid: false }
+    { name: "invalid print scale", data: -> { fixtures.base("print" => { "scale" => 10 }) }, valid: false },
+    # Full-shape cases: each of these passes every *semantic* check (a truthy source key, a known
+    # action name, exactly-one wait_for condition) but carries an extra key none of those checks
+    # look for - the gap #check_shape (Validator) closes on top of the earlier semantic-only ones.
+    { name: "source: a truthy key plus a falsy extra key", data: -> { fixtures.base("source" => { "url" => "https://example.com", "stdin" => false }) },
+      valid: false },
+    { name: "an action step naming two actions at once",
+      data: -> { fixtures.base("actions" => [{ "wait_for" => { "selector" => "#x" }, "click" => { "selector" => "#y" } }]) }, valid: false },
+    { name: "wait_for with its one valid condition plus an unrelated extra key",
+      data: -> { fixtures.base("actions" => [{ "wait_for" => { "selector" => "#x", "bogus" => "y" } }]) }, valid: false },
+    { name: "click with an unrelated extra key", data: -> { fixtures.base("actions" => [{ "click" => { "selector" => "#x", "bogus" => "y" } }]) },
+      valid: false },
+    { name: "an assertion step naming two assertions at once",
+      data: -> { fixtures.base("assert" => [{ "no_console_errors" => true, "fonts_loaded" => true }]) }, valid: false }
   ].freeze
 
   cases.each do |c|
@@ -59,6 +72,17 @@ RSpec.describe "Schema::RECIPE <-> Recipe::Validator contract" do
       data = c[:data].call
 
       expect([schema_accepts?(data), validator_accepts?(data)]).to eq([c[:valid], c[:valid]])
+    end
+  end
+
+  describe "Validator's own error, for a shape violation only #check_shape catches" do
+    # rubocop:disable-next RSpec/MultipleExpectations
+    it "names the specific extra key, not just 'invalid'" do
+      data = SchemaValidatorContractFixtures.base("actions" => [{ "wait_for" => { "selector" => "#x", "bogus" => "y" } }])
+
+      expect { Bidi2pdf::Recipe.new(data).validate! }.to raise_error(Bidi2pdf::InvalidRecipeError) do |error|
+        expect([error.details[:path], error.message]).to eq(["actions[0].wait_for", "unknown key(s): bogus"])
+      end
     end
   end
 end
