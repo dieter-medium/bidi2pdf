@@ -1,21 +1,131 @@
 module Bidi2pdf
   # rubocop:disable Metrics/AbcSize
   class CLI < Thor
+    @run_launcher: untyped
+
+    @render_input_path: untyped
+
+    @stdin_content: untyped
+
+    @stdin_tempfile: untyped
+
     @launcher: untyped
+
+    include JsonOutput
 
     def self.exit_on_failure?: () -> true
 
-    def render: () -> untyped
+    def render: () -> (nil | untyped)
 
     def version: () -> untyped
+
+    def schema: (untyped kind) -> untyped
+
+    def diagnose: () -> untyped
+
+    # Named run_recipe, not run: Thor::Base reserves "run" as a method name (Thor::Base::
+    # ClassMethods#is_thor_reserved_word?) and refuses to define a command with that name. `map`
+    # below is what makes `bidi2pdf run recipe.yml` dispatch here.
+    def run_recipe: (untyped recipe_path) -> untyped
 
     def template: () -> untyped
 
     private
 
+    # rubocop:disable-next Metrics/CyclomaticComplexity
+    def perform_human_render: () -> untyped
+
+    def perform_structured_render: () -> untyped
+
+    def emit_structured_render_output: (untyped result, untyped collector) -> untyped
+
+    def perform_human_diagnose: () -> untyped
+
+    def perform_structured_diagnose: () -> untyped
+
+    def diagnose_payload: (untyped result, untyped diagnostics) -> { schema_version: 1, ok: untyped, command: "diagnose", page: untyped, console: untyped, network_failures: untyped, fonts: untyped, print_media: untyped, paged_js: untyped, screenshot: untyped, pdf: untyped, warnings: untyped, error: untyped }
+
+    def capture_diagnose_screenshot: (untyped tab) -> (nil | untyped)
+
+    def capture_diagnose_pdf: (untyped tab) -> (nil | { path: untyped, pages: untyped, not_blank: untyped })
+
+    # rubocop:disable-next Metrics/CyclomaticComplexity
+    def perform_human_run: (untyped recipe_path) -> untyped
+
+    # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    def perform_structured_run: (untyped recipe_path) -> untyped
+
+    def load_and_validate_recipe: (untyped recipe_path) -> untyped
+
+    def recipe_requested_url: (untyped recipe) -> untyped
+
+    def with_recipe_tab: (untyped recipe) { (untyped) -> untyped } -> untyped
+
+    # A failing action/assertion raises Recipe::Runner::StepFailure (its own entries plus the real
+    # Bidi2pdf::Error as #cause). The block always receives the entries run so far - whether every
+    # step succeeded or the run stopped partway - before the cause is re-raised so
+    # ResultCollector's ordinary error handling takes over; without the block, a failure's partial
+    # entries would otherwise be lost along with the exception that discarded them.
+    def run_recipe_steps: (untyped runner, untyped method_name) { (untyped) -> untyped } -> untyped
+
+    def launcher_for_recipe: (untyped recipe) -> untyped
+
+    def recipe_input_path: (untyped recipe) -> (nil | untyped)
+
+    def print_for_recipe: (untyped tab, untyped recipe) -> untyped
+
+    def symbolize_print_options: (untyped opts) -> untyped
+
+    def write_recipe_screenshot: (untyped tab, untyped recipe) -> (nil | untyped)
+
+    def write_recipe_manifest: (untyped recipe, untyped result) -> untyped
+
+    def recipe_input_type: (untyped recipe) -> ("url" | "html_file" | "stdin")
+
+    def run_payload: (untyped recipe_path, untyped recipe, untyped result, untyped action_entries, untyped assertion_entries, untyped state) -> { schema_version: 1, ok: untyped, command: "run", recipe: untyped, actions: untyped, assertions: untyped, assigned: untyped, output: untyped, duration_ms: untyped, warnings: untyped, error: untyped }
+
+    def recipe_output_summary: (untyped recipe, untyped result) -> untyped
+
+    # --json and --output - both need exclusive use of stdout - rejected before anything else
+    # runs, so neither stream is touched. The rejection
+    # itself is reported on stderr, since stdout's meaning is exactly what is in dispute.
+    def reject_conflicting_output_streams!: () -> untyped
+
+    def json_mode?: () -> untyped
+
+    def json_stream?: () -> untyped
+
+    def stdin_mode?: () -> untyped
+
+    def stdout_output?: () -> untyped
+
+    def render_output_label: () -> ("-" | untyped)
+
+    def render_output_path: () -> (nil | untyped)
+
+    def requested_source_description: () -> untyped
+
+    def write_manifest: (untyped result) -> untyped
+
+    def input_type: () -> ("url" | "html_file" | "stdin")
+
     def load_config: () -> (nil | untyped)
 
-    def validate_required_options!: () -> (untyped | untyped | nil)
+    def input_sources_provided: () -> untyped
+
+    def validate_required_options!: () -> untyped
+
+    def render_input_path: () -> untyped
+
+    def stdin_content: () -> untyped
+
+    def write_stdin_tempfile: () -> untyped
+
+    def cleanup_stdin_tempfile: () -> (nil | untyped)
+
+    def version_info: () -> { schema_version: 1, ok: true, command: "version", bidi2pdf: untyped, ruby: untyped, pdf_reader: untyped }
+
+    def pdf_reader_version: () -> (nil | untyped)
 
     def validate_print_options: (untyped opts) -> untyped
 

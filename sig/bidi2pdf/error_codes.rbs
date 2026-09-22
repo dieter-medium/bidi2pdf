@@ -1,0 +1,21 @@
+module Bidi2pdf
+  # Maps an exception to the stable, machine-readable code used by --json/--json-stream/manifests
+  # and recipe results. Derived from the existing Bidi2pdf::Error hierarchy rather than duplicated
+  # beside it: a new failure mode gets a new subclass in lib/bidi2pdf.rb and a row here, never a
+  # bare string minted ad hoc.
+  #
+  # MAPPING is ordered most-specific-subclass first - #for walks it in order and returns the first
+  # match, so a subclass must appear before any of its ancestors.
+  module ErrorCodes
+    MAPPING: ::Hash[untyped, "MISSING_INPUT" | "MULTIPLE_INPUT_SOURCES" | "EMPTY_INPUT" | "INVALID_CONFIG" | "INVALID_PRINT_OPTION" | "INVALID_RECIPE" | "PDF_INSPECTION_UNAVAILABLE" | "BROWSER_LAUNCH_FAILED" | "COMMAND_TIMEOUT" | "BROWSER_DISCONNECTED" | "NAVIGATION_TIMEOUT" | "NAVIGATION_AUTH" | "NAVIGATION_NOT_FOUND" | "DNS_ERROR" | "NAVIGATION_FAILED" | "SELECTOR_NOT_FOUND" | "PAGE_NOT_AS_EXPECTED" | "SCRIPT_ERROR" | "STYLE_ERROR" | "PDF_GENERATION_FAILED" | "SCREENSHOT_FAILED" | "OUTPUT_WRITE_FAILED" | "INTERNAL_ERROR"]
+
+    DEFAULT_CODE: "INTERNAL_ERROR"
+
+    def self.for: (untyped exception) -> untyped
+
+    # Builds the {code:, message:, retryable:, hint:, details:} hash used as Result#error and in
+    # recipe action/assertion failures. Works for any StandardError, not only a Bidi2pdf::Error -
+    # an unexpected exception still gets INTERNAL_ERROR with retryable/hint defaulted safely.
+    def self.describe: (untyped exception, ?details: ::Hash[untyped, untyped]) -> { code: untyped, message: untyped, retryable: untyped, hint: untyped, details: untyped }
+  end
+end

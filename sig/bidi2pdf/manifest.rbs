@@ -1,0 +1,38 @@
+module Bidi2pdf
+  # Builds the render manifest (--manifest FILE) from a completed Bidi2pdf::Result plus the
+  # input/browser/header context around it. Redacts secret-
+  # bearing headers and never records cookie values at all.
+  class Manifest
+    @result: untyped
+
+    @input: untyped
+
+    @headers: untyped
+
+    @navigation_duration_ms: untyped
+
+    @browser: untyped
+
+    SCHEMA_VERSION: 1
+
+    REDACT_HEADER_NAMES: ::Array["authorization" | "proxy-authorization" | "cookie" | "set-cookie" | "x-api-key" | "api-key"]
+
+    SENSITIVE_SUBSTRINGS: ::Array["token" | "secret" | "password" | "authorization" | "api-key" | "apikey"]
+
+    def initialize: (result: untyped, input: untyped, ?headers: ::Hash[untyped, untyped], ?navigation_duration_ms: untyped?, ?browser: ::Hash[untyped, untyped]) -> void
+
+    def self.redact: (untyped headers) -> untyped
+
+    def self.sensitive?: (untyped key) -> untyped
+
+    def to_h: () -> untyped
+
+    def to_json: (*untyped) -> untyped
+
+    private
+
+    def output_section: () -> { path: untyped, pages: untyped, bytes: untyped, sha256: untyped }
+
+    def navigation_section: () -> untyped
+  end
+end

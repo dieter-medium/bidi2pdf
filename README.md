@@ -20,16 +20,17 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 3. [Why BiDi?](#why-bidi-instead-of-cdp)
 4. [Installation](#installation)
 5. [CLI Usage](#cli-usage)
-6. [Library API](#library-api)
-7. [Architecture](#architecture)
-8. [Docker](#docker)
-9. [Configuration Options](#configuration-options)
-10. [Programmatic Configuration](#programmatic-configuration)
-11. [Rails Integration](#rails-integration)
-12. [Test Helpers](#test-helpers)
-13. [Development](#development)
-14. [Contributing](#contributing)
-15. [License](#license)
+6. [Agent and Automation Usage](#agent-and-automation-usage)
+7. [Library API](#library-api)
+8. [Architecture](#architecture)
+9. [Docker](#docker)
+10. [Configuration Options](#configuration-options)
+11. [Programmatic Configuration](#programmatic-configuration)
+12. [Rails Integration](#rails-integration)
+13. [Test Helpers](#test-helpers)
+14. [Development](#development)
+15. [Contributing](#contributing)
+16. [License](#license)
 
 ## ✨ Key Features
 
@@ -40,7 +41,9 @@ Bidi2pdf gives you **precision, flexibility, and full control**.
 ✅ **Docker-ready** – Plug and play with containers  
 ✅ **Modern architecture** – Built on Chrome's next-gen BiDi protocol  
 ✅ **Network logging** – Know which requests fail during rendering  
-✅ **Console log capture** – See what goes wrong inside the browser
+✅ **Console log capture** – See what goes wrong inside the browser  
+✅ **Agent-ready** – Structured JSON output, NDJSON progress streaming, a page diagnostic, and
+declarative recipes, so LLM agents and CI can drive it without parsing logs
 
 ---
 
@@ -106,6 +109,152 @@ bidi2pdf render \
   --wait_window_loaded \
   --log-level debug
 ```
+
+---
+
+## 🤖 Agent and Automation Usage
+
+Every command below also works without `--json` (human-readable output on stdout); with it, stdout
+carries exactly one JSON document and nothing else - safe to pipe into `jq` or parse directly.
+Human-readable logs move to stderr for the duration of any `--json`/`--output -` call, never
+mixing into stdout. `--json-stream` works independently of the two: it always writes progress
+events to stderr, whether or not `--json` is also given - in human mode, that just means
+human-readable output keeps going to stdout as usual, alongside the stream. Full JSON Schema for
+every shape is built into the gem, so an agent can discover it without reading this file:
+
+```bash
+# 1. Check compatibility first - no browser launched
+bidi2pdf version --json
+
+# 2. Discover the shape of each command's own result, a manifest, an NDJSON event, or a recipe file
+bidi2pdf schema render
+bidi2pdf schema diagnose
+bidi2pdf schema run
+bidi2pdf schema manifest
+bidi2pdf schema event
+bidi2pdf schema recipe
+
+# 3. Validate a recipe - no browser launched, the cheapest way to iterate on one
+bidi2pdf run recipe.yml --validate
+
+# 4. Run it for real
+bidi2pdf run recipe.yml --json
+```
+
+### Structured render output
+
+```bash
+bidi2pdf render --url https://example.com/invoice/14432423 --output example.pdf --json
+```
+
+```json
+{
+  "schema_version": 1,
+  "ok": true,
+  "command": "render",
+  "output": "example.pdf",
+  "bytes": 182734,
+  "sha256": "abcd...",
+  "pages": 2,
+  "duration_ms": 842,
+  "navigation": { "requested_url": "https://example.com/invoice/14432423", "final_url": "https://example.com/invoice/14432423", "status": 200 },
+  "console": [],
+  "network_failures": [],
+  "warnings": [],
+  "error": null
+}
+```
+
+`pages` is `null`, with a warning explaining why, when the optional `pdf-reader` gem isn't
+installed - see [Docker](#docker) for why the published images always have it. A failed render
+still emits exactly this shape, with `ok: false` and a structured `error` (`code`, `message`,
+`retryable`, `hint`, `details`) instead of a stack trace:
+
+| Exit code | Meaning |
+|---|---|
+| `0` | success |
+| `2` | CLI, configuration, or recipe-validation error |
+| `3` | browser or navigation error |
+| `4` | page not as expected (a recipe action/assertion, or a diagnose selector, failed) |
+| `6` | output or PDF generation failure |
+| `70` | unexpected internal error |
+
+### stdin/stdout, manifests, and progress streaming
+
+```bash
+# Render HTML piped on stdin, PDF bytes piped out on stdout - no files touched
+cat page.html | bidi2pdf render --stdin --output - > page.pdf
+
+# A render manifest: enough to reproduce and diagnose the render later
+bidi2pdf render --url https://example.com --output example.pdf --manifest render.json
+
+# One JSON progress event per stderr line as the render happens - works with human-readable
+# output too, not just --json
+bidi2pdf render --url https://example.com --output example.pdf --json-stream
+```
+
+### Diagnosing a page before trusting its PDF
+
+`bidi2pdf diagnose` loads a page like `render` does but produces no PDF - it answers *why does the
+PDF not look like the page* (console errors, failed requests, font-loading status, `@media
+print`/`@page` rules, fixed/sticky elements, Paged.js detection), not what the page's content is:
+
+```bash
+bidi2pdf diagnose --url https://example.com/invoice/14432423 --json
+```
+
+### Declarative recipes
+
+A recipe is a rendering contract - the waits a page needs before it's printed, and the properties
+the resulting PDF must have - not a general browser-automation script:
+
+```yaml
+# invoice.yml
+version: 1
+
+source:
+  url: https://example.com/invoice/123
+
+actions:
+  - wait_for:
+      selector: "#invoice"
+      timeout: 10
+  - click:
+      selector: "#show-details"
+  - wait_network_idle:
+      timeout: 10
+
+assert:
+  - selector_exists:
+      selector: "#total"
+  - no_console_errors: true
+  - page_count: 2
+  - pdf_text_present:
+      text: "Invoice #123"
+
+output:
+  pdf: invoice.pdf
+  manifest: invoice.json
+```
+
+```bash
+bidi2pdf run invoice.yml --validate   # schema + known actions/assertions, no browser
+bidi2pdf run invoice.yml --json       # actions, then the PDF, then assertions against it
+```
+
+Actions (`wait_for`, `click`, `evaluate`, `inject_script`, `inject_style`, `set_viewport`,
+`wait_network_idle`) and page assertions (`selector_exists`, `text_present`, `no_console_errors`,
+`no_network_failures`, `fonts_loaded`) are a thin layer over the same `BrowserTab` methods the
+[Programmatic API](#-programmatic-api) below uses directly. PDF assertions (`page_count`,
+`pdf_text_present`, `pdf_not_blank`) need the `pdf-reader` gem - a recipe using one fails
+`--validate` immediately, before any browser launches, when it isn't installed.
+
+`no_console_errors`, `no_network_failures`, `fonts_loaded`, and `pdf_not_blank` are presence-only
+assertions - the step is either there or it isn't, nothing reads the value beside it - so they must
+be written as `true` exactly, e.g. `- no_console_errors: true`; `false` (or any other value) is
+rejected by both `bidi2pdf schema recipe` and `--validate` rather than being silently ignored.
+`wait_for` needs exactly one of `selector`, `paged_js`, `script` - zero or more than one is
+rejected the same way, before any browser launches.
 
 ---
 
@@ -286,6 +435,11 @@ docker run -it --rm \
 
 ✅ Tip: Mount your local directory (e.g. ./output) to /reports in the container to easily access the generated PDFs.
 
+✅ Both published images also install [`pdf-reader`](https://github.com/yob/pdf-reader) - not a
+runtime dependency of the gem itself (see [Agent and Automation Usage](#agent-and-automation-usage)) -
+so `pages` and the `page_count`/`pdf_text_present`/`pdf_not_blank` recipe assertions work out of
+the box in either image, no extra install step needed.
+
 ### Docker Compose
 
 ```bash
@@ -332,6 +486,15 @@ docker compose -f docker/docker-compose.yml down
 | `--log_level`          | Log level: debug, info, warn, error, fatal |
 | `--remote_browser_url` | Connect to remote Chrome session           |
 | `--default_timeout`    | Operation timeout (default: 60s)           |
+| `--json`                | Emit a single structured JSON result document (see `bidi2pdf schema render`) |
+| `--json_stream`         | Emit one JSON progress event per line to stderr (see `bidi2pdf schema event`) - works with or without `--json` |
+| `--stdin`               | Read the HTML document from stdin, instead of `--url`/`--html-file`         |
+| `--output -`            | Write raw PDF bytes to stdout instead of a file                             |
+| `--manifest FILE`       | Write a render manifest (see `bidi2pdf schema manifest`) to `FILE`          |
+
+See [Agent and Automation Usage](#agent-and-automation-usage) above for `bidi2pdf diagnose`,
+`bidi2pdf run recipe.yml`, `bidi2pdf schema <kind>`, and `bidi2pdf version --json` - a separate
+set of commands with their own options, not additional flags on `render`.
 
 ---
 

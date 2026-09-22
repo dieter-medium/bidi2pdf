@@ -1,0 +1,45 @@
+module Bidi2pdf
+  module Notifications
+    # Emits one JSON object per line to an IO (stderr for --json-stream, docs/specs/llm-friendly-
+    # spec.md section 7) as a render progresses, by subscribing to the same Bidi2pdf::Notifications
+    # events Bidi2pdf::ResultCollector and LoggingSubscriber already use - no new instrumentation
+    # points needed. #emit_result writes the final "result" event once the caller has a Result.
+    class JsonSubscriber
+      @io: untyped
+
+      @start: untyped
+
+      @registered: untyped
+
+      SCHEMA_VERSION: 1
+
+      def initialize: (?io: untyped) -> void
+
+      def emit_result: (untyped result) -> untyped
+
+      def unsubscribe: () -> untyped
+
+      private
+
+      def now_ms: () -> untyped
+
+      def elapsed_ms: () -> untyped
+
+      def subscribe: () -> untyped
+
+      def on_navigate: (untyped event) -> untyped
+
+      def on_page_loaded: (untyped _event) -> untyped
+
+      def on_network_idle: (untyped _event) -> untyped
+
+      def on_console: (untyped event) -> untyped
+
+      def on_print: (untyped _event) -> untyped
+
+      def on_screenshot: (untyped _event) -> untyped
+
+      def write: (untyped fields) -> untyped
+    end
+  end
+end

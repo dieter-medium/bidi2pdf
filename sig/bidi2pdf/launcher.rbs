@@ -62,10 +62,19 @@ module Bidi2pdf
 
     @chrome_args: untyped
 
+    @diagnose_runner: untyped
+
     # rubocop:disable Metrics/ParameterLists
     def initialize: (url: untyped, inputfile: untyped, output: untyped, cookies: untyped, headers: untyped, auth: untyped, ?headless: bool, ?port: ::Integer, ?wait_window_loaded: bool, ?wait_network_idle: bool, ?print_options: ::Hash[untyped, untyped], ?remote_browser_url: untyped?, ?network_log_format: ::Symbol, ?chrome_args: untyped) -> void
 
     def launch: () -> untyped
+
+    # Like #launch, but navigates only (see SessionRunner#run_diagnose) and leaves the tab open -
+    # used by `bidi2pdf diagnose`, which has no PDF to produce. #stop closes it, same as it stops
+    # everything else #launch/#diagnose started.
+    #
+    # @return [Bidi2pdf::Bidi::BrowserTab] the navigated tab.
+    def diagnose: () -> untyped
 
     def stop: () -> untyped
 

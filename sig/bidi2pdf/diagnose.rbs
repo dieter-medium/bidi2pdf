@@ -1,0 +1,30 @@
+module Bidi2pdf
+  # Collects the render-focused diagnostics behind `bidi2pdf diagnose`: why does the PDF not look
+  # like the page, not what the page's content is. Everything here reuses
+  # BrowserTab#execute_script - no DOM dump, no headings/links/forms extraction; console and
+  # network data come from the caller's own
+  # ResultCollector, the same source `render` uses, not from here.
+  #
+  # Each script returns (or resolves to) a JSON string, extracted via #dig("result", "value") -
+  # BiDi's script.evaluate already awaits a returned Promise (awaitPromise: true, see
+  # Commands::ScriptEvaluate), so document.fonts.ready needs no wrap_in_promise: wrapper.
+  class Diagnose
+    @tab: untyped
+
+    PAGE_SCRIPT: "JSON.stringify({\n  title: document.title,\n  url: window.location.href,\n  lang: document.documentElement.lang || null\n})\n"
+
+    FONTS_SCRIPT: "document.fonts.ready.then(function () {\n  var loaded = [];\n  var failed = [];\n  document.fonts.forEach(function (face) {\n    var label = face.family + \" \" + face.weight + \" \" + face.style;\n    if (face.status === \"error\") { failed.push(label); } else { loaded.push(label); }\n  });\n  return JSON.stringify({ status: failed.length > 0 ? \"partial\" : \"loaded\", loaded: loaded, failed: failed });\n})\n"
+
+    PRINT_MEDIA_SCRIPT: "(function () {\n  var printSheets = [];\n  var pageRules = [];\n  var unreadable = [];\n\n  for (var i = 0; i < document.styleSheets.length; i++) {\n    var sheet = document.styleSheets[i];\n    try {\n      var rules = sheet.cssRules || sheet.rules;\n      for (var j = 0; j < rules.length; j++) {\n        var rule = rules[j];\n        if (rule.media && Array.prototype.includes.call(rule.media, \"print\")) {\n          printSheets.push(sheet.href || \"(inline)\");\n        }\n        if (typeof CSSRule !== \"undefined\" && rule.type === CSSRule.PAGE_RULE) {\n          pageRules.push(rule.cssText);\n        }\n      }\n    } catch (e) {\n      unreadable.push(sheet.href || \"(inline)\");\n    }\n  }\n\n  var fixedOrSticky = [];\n  var breakInsideAvoidCount = 0;\n  var elements = document.querySelectorAll(\"body *\");\n  for (var k = 0; k < elements.length; k++) {\n    var el = elements[k];\n    var computed = window.getComputedStyle(el);\n    if (computed.position === \"fixed\" || computed.position === \"sticky\") {\n      var classPart = typeof el.className === \"string\" && el.className.trim() ? \".\" + el.className.trim().split(/\\s+/).join(\".\") : \"\";\n      var selector = el.id ? \"#\" + el.id : el.tagName.toLowerCase() + classPart;\n      fixedOrSticky.push({ selector: selector, position: computed.position });\n    }\n    if (computed.breakInside === \"avoid\" || computed.pageBreakInside === \"avoid\") {\n      breakInsideAvoidCount++;\n    }\n  }\n\n  return JSON.stringify({\n    stylesheets_with_print_rules: Array.from(new Set(printSheets)),\n    page_rules: pageRules,\n    break_inside_avoid_count: breakInsideAvoidCount,\n    fixed_or_sticky_elements: fixedOrSticky,\n    unreadable_stylesheets: Array.from(new Set(unreadable))\n  });\n})()\n"
+
+    PAGED_JS_SCRIPT: "(function () {\n  var detected = !!(window.Paged || window.PagedPolyfill);\n  var pages = document.querySelectorAll(\".pagedjs_page\").length;\n  return JSON.stringify({ detected: detected, ready: pages > 0, pages: pages });\n})()\n"
+
+    def initialize: (tab: untyped) -> void
+
+    def call: () -> { page: untyped, fonts: untyped, print_media: untyped, paged_js: untyped }
+
+    private
+
+    def collect: (untyped script) -> untyped
+  end
+end
