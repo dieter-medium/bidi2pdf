@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixed
+- Do not raise when our own close ends a write
+
+### 📝 Docs
+- Add the orphan sweep to the changelog
+
+### 🔄 Changed
+- Merge pull request #138 from dieter-medium/feat/session-warmer-orphan-sweep
+- Merge pull request #132 from dieter-medium/dependabot/bundler/main/rubyzip-3.6.0
+
+### 🔧 Build
+- Update rubyzip requirement from ~> 2.4 to >= 2.4, < 4.0
+
 ### 🚀 Added
 - Close leftover warm sessions on start
 
