@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 - Do not raise when our own close ends a write
+- Let Chromium start on a read-only root
 
 ### 📝 Docs
 - Add the orphan sweep to the changelog

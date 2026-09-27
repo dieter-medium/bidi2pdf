@@ -435,6 +435,11 @@ docker run -it --rm \
 
 ✅ Tip: Mount your local directory (e.g. ./output) to /reports in the container to easily access the generated PDFs.
 
+✅ All images run with a read-only root filesystem (`--read-only`) as long as `/tmp` is writable,
+e.g. `--tmpfs /tmp`: they point Chromium's `XDG_CONFIG_HOME`/`XDG_CACHE_HOME` there, without
+which Chromium's crash handler fails to start and every launch aborts with
+`chrome_crashpad_handler: --database is required`.
+
 ✅ Both published images also install [`pdf-reader`](https://github.com/yob/pdf-reader) - not a
 runtime dependency of the gem itself (see [Agent and Automation Usage](#agent-and-automation-usage)) -
 so `pages` and the `page_count`/`pdf_text_present`/`pdf_not_blank` recipe assertions work out of
