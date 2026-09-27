@@ -42,6 +42,13 @@ RUN gem install ./bidi2pdf-*.gem && \
     chown -R appuser:appuser /app
 
 # Switch to non-root user
+# Chromium's crash handler gets its database path from the XDG config dir. On a read-only root
+# (docker run --read-only) that dir cannot be created, the handler refuses to start
+# ("--database is required") and Chrome aborts on every launch. /tmp is the one place such a
+# container is expected to mount writable (--tmpfs /tmp).
+ENV XDG_CONFIG_HOME=/tmp/xdg-config \
+    XDG_CACHE_HOME=/tmp/xdg-cache
+
 USER appuser
 
 CMD ["/usr/bin/bash"]
