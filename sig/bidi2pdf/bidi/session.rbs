@@ -33,6 +33,8 @@ module Bidi2pdf
 
       @websocket_url: untyped
 
+      @session_id: untyped
+
       # Events to subscribe to during the session.
       SUBSCRIBE_EVENTS: ::Array["script"]
 
@@ -47,6 +49,10 @@ module Bidi2pdf
 
       # @return [Array<String>] The Chrome arguments for the session.
       attr_reader chrome_args: untyped
+
+      # @return [String, nil] chromedriver's id for this session, once it was created - what
+      #   SessionWarmer records so a later process can close it if this one dies uncleanly.
+      attr_reader session_id: untyped
 
       # Initializes a new session.
       #

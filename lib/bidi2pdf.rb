@@ -10,6 +10,8 @@ require_relative "bidi2pdf/dsl"
 require_relative "bidi2pdf/notifications"
 require_relative "bidi2pdf/notifications/logging_subscriber"
 require_relative "bidi2pdf/notifications/json_subscriber"
+require_relative "bidi2pdf/session_registry"
+require_relative "bidi2pdf/session_sweeper"
 require_relative "bidi2pdf/session_warmer"
 require_relative "bidi2pdf/verbose_logger"
 
