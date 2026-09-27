@@ -551,6 +551,24 @@ Bidi2pdf::SessionWarmer.shutdown
 | `headless`           | `true`                | Run Chrome headless.                                                                                      |
 | `chrome_args`        | `DEFAULT_CHROME_ARGS` | Chrome launch arguments.                                                                                  |
 | `remote_browser_url` | `nil`                 | Connect each slot to a remote chromedriver instead of starting a local one.                               |
+| `orphan_age`         | `:auto`               | Remote only: on start, close sessions other warmers left behind older than this (`:auto` = 2 × `max_idle_age`, `nil` = off). |
+| `registry_dir`       | `Dir.tmpdir`          | Where the session registry file lives - every process that should clean up after the others must share it. |
+
+#### Leftover sessions on a shared chromedriver
+
+A remote chromedriver keeps a session - a whole Chrome - until someone deletes it. A warmer closes
+its own sessions when they idle past `max_idle_age` and when the process shuts down cleanly, but a
+process that is killed or crashes leaves its sessions open, and enough of them stop the container
+from starting any new Chrome. So in remote mode each warmer records the sessions it opens in a small
+registry file (`<registry_dir>/bidi2pdf-sessions-<hash of the URL>.json`, mode 0600), and on start
+closes recorded sessions older than `orphan_age`. The default, twice `max_idle_age`, is beyond the
+point where any live warmer would already have recycled its own spare, so a running process never
+loses one. Sessions nobody recorded (other tools on the same chromedriver) are never touched.
+chromedriver drops custom capabilities, so a session cannot carry a tag of its own - hence the file.
+
+Everything here is fail-open: if the registry directory is not writable, the warmer logs one
+warning, instruments `session_warmer.registry_unavailable.bidi2pdf`, and keeps rendering - only the
+cleanup is off. Closed leftovers are reported as `session_warmer.orphans_closed.bidi2pdf`.
 
 > **Security note:** an idle warm session is an open, unauthenticated automation endpoint
 > (chromedriver's port, Chrome's debugging port - loopback only for a local chromedriver) for as

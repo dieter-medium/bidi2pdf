@@ -50,6 +50,17 @@ module Bidi2pdf
       #   1.25x this value even when no render ever comes. +nil+ disables the limit.
       attr_accessor :max_idle_age
 
+      # @return [Numeric, Symbol, nil] Seconds after which a session recorded by any warmer on the
+      #   same remote chromedriver counts as left behind - its process died without closing it - and
+      #   is closed when a warmer starts (SessionSweeper). +:auto+ (the default) is twice
+      #   max_idle_age: a live warmer recycles its own spares within ~1.25x of that, so no live
+      #   process's slot is ever taken. +nil+ disables the sweep. Remote mode only.
+      attr_accessor :orphan_age
+
+      # @return [String, nil] Directory for the session registry file (SessionRegistry); +nil+ means
+      #   Dir.tmpdir. Every process that should clean up after the others must share it.
+      attr_accessor :registry_dir
+
       DEFAULT_MAX_IDLE_AGE = 300
 
       def initialize
@@ -59,12 +70,21 @@ module Bidi2pdf
         @remote_browser_url = nil
         @slot_factory = nil
         @max_idle_age = DEFAULT_MAX_IDLE_AGE
+        @orphan_age = :auto
+        @registry_dir = nil
+      end
+
+      # The orphan age in seconds, or nil when the sweep is off (also when +:auto+ has no
+      # max_idle_age to derive it from).
+      def effective_orphan_age
+        orphan_age == :auto ? max_idle_age && (max_idle_age * 2) : orphan_age
       end
 
       # @raise [ArgumentError] if a setting can't be honored - checked once, at construction.
       def validate!
         validate_size!
         validate_max_idle_age!
+        validate_orphan_age!
       end
 
       private
@@ -79,6 +99,12 @@ module Bidi2pdf
         return if max_idle_age.nil? || (max_idle_age.is_a?(Numeric) && max_idle_age.positive?)
 
         raise ArgumentError, "max_idle_age must be nil or a positive number of seconds, got #{max_idle_age.inspect}"
+      end
+
+      def validate_orphan_age!
+        return if orphan_age.nil? || orphan_age == :auto || (orphan_age.is_a?(Numeric) && orphan_age.positive?)
+
+        raise ArgumentError, "orphan_age must be :auto, nil or a positive number of seconds, got #{orphan_age.inspect}"
       end
     end
 
@@ -181,6 +207,8 @@ module Bidi2pdf
       @warming = 0
       @shutdown = false
       @reaper_wakeup = Thread::Queue.new
+      @registry = build_registry
+      sweep_leftovers
       prewarm
       @reaper = Thread.new { reap_loop } if @config.max_idle_age
     end
@@ -235,7 +263,26 @@ module Bidi2pdf
     end
 
     def create_slot
-      @slot_factory.call
+      @slot_factory.call.tap { |slot| @registry&.record(session_id_of(slot)) }
+    end
+
+    # Remote mode with an orphan age: sessions are recorded, so a later start can close the ones
+    # this process leaves behind if it dies uncleanly - and this start closes others' leftovers.
+    def build_registry
+      return unless @config.remote_browser_url && @config.effective_orphan_age
+
+      Bidi2pdf::SessionRegistry.new(@config.remote_browser_url, dir: @config.registry_dir)
+    end
+
+    def sweep_leftovers
+      return unless @registry
+
+      Bidi2pdf::SessionSweeper.new(@config.remote_browser_url, @registry).sweep(older_than: @config.effective_orphan_age)
+    end
+
+    def session_id_of(slot)
+      session = slot[:session]
+      session.session_id if session.respond_to?(:session_id)
     end
 
     # Session#started? is just an internal flag set once at startup - it never flips back if Chrome,
@@ -366,8 +413,11 @@ module Bidi2pdf
       retire(slot) if discard
     end
 
+    # Forgotten only after closing: a process that dies in between leaves a record whose session is
+    # already gone - the next sweep just drops it - never an open session nobody knows about.
     def retire(slot)
       self.class.retire_slot(session: slot[:session], manager: slot[:manager])
+      @registry&.forget(session_id_of(slot))
     end
 
     def safe_close(label, &)

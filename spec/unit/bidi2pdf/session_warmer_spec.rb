@@ -82,6 +82,32 @@ RSpec.describe Bidi2pdf::SessionWarmer do
           expect { cfg.validate! }.to raise_error(ArgumentError, /size/)
         end
       end
+
+      [0, -1, "600", :never].each do |bad|
+        it "rejects orphan_age #{bad.inspect}" do
+          cfg.orphan_age = bad
+
+          expect { cfg.validate! }.to raise_error(ArgumentError, /orphan_age/)
+        end
+      end
+    end
+
+    describe "#effective_orphan_age" do
+      it "is twice max_idle_age by default, beyond any live warmer's own recycling" do
+        expect(cfg.effective_orphan_age).to eq(600)
+      end
+
+      it "is off when there is no max_idle_age to derive it from" do
+        cfg.max_idle_age = nil
+
+        expect(cfg.effective_orphan_age).to be_nil
+      end
+
+      it "follows an explicit value" do
+        cfg.orphan_age = 42
+
+        expect(cfg.effective_orphan_age).to eq(42)
+      end
     end
   end
 
@@ -603,6 +629,69 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       stopping.shutdown
 
       expect(stopping.instance_variable_get(:@reaper)).not_to be_alive
+    end
+  end
+
+  describe "leftover sessions of processes that died uncleanly" do
+    let(:dir) { Dir.mktmpdir }
+    let(:session) { instance_double(Bidi2pdf::Bidi::Session, started?: true, close: nil, client: client, session_id: "mine") }
+    let(:config) do
+      described_class::Configuration.new.tap do |c|
+        c.size = 1
+        c.remote_browser_url = session_url
+        c.registry_dir = dir
+      end
+    end
+
+    def session_url = "http://remote-chrome:3000/session"
+    def registry = Bidi2pdf::SessionRegistry.new(session_url, dir: dir)
+
+    after do
+      warmer.shutdown
+      FileUtils.rm_rf(dir)
+    end
+
+    it "records every session it opens" do
+      warmer
+
+      expect(registry.recorded_before(Time.now.to_i + 1)).to eq(["mine"])
+    end
+
+    it "forgets a session once it closed it" do
+      warmer.shutdown
+
+      expect(registry.recorded_before(Time.now.to_i + 1)).to be_empty
+    end
+
+    it "closes another process's leftover on start" do
+      registry.record("dead-process", created_at: Time.now.to_i - 3_600)
+      deleted = []
+      allow(Bidi2pdf::SessionSweeper).to receive(:new).and_wrap_original do |original, url, reg|
+        original.call(url, reg, http: lambda { |_method, url_to_delete|
+          deleted << url_to_delete
+          200
+        })
+      end
+
+      warmer
+
+      expect(deleted).to eq(["#{session_url}/dead-process"])
+    end
+
+    it "does not sweep when orphan_age is nil" do
+      config.orphan_age = nil
+      allow(Bidi2pdf::SessionSweeper).to receive(:new)
+
+      warmer
+
+      expect(Bidi2pdf::SessionSweeper).not_to have_received(:new)
+    end
+
+    it "does not sweep or record in local mode - there is no shared chromedriver" do
+      config.remote_browser_url = nil
+      warmer
+
+      expect(registry.recorded_before(Time.now.to_i + 1)).to be_empty
     end
   end
 

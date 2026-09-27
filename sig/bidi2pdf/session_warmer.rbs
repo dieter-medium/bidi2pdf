@@ -42,6 +42,8 @@ module Bidi2pdf
 
     @reaper_wakeup: untyped
 
+    @registry: untyped
+
     @reaper: untyped
 
     # Configuration for the session warmer.
@@ -57,6 +59,10 @@ module Bidi2pdf
       @slot_factory: untyped
 
       @max_idle_age: untyped
+
+      @orphan_age: untyped
+
+      @registry_dir: untyped
 
       # @return [Integer] Number of Chrome slots to keep pre-warmed.
       attr_accessor size: untyped
@@ -84,9 +90,24 @@ module Bidi2pdf
       #   1.25x this value even when no render ever comes. +nil+ disables the limit.
       attr_accessor max_idle_age: untyped
 
+      # @return [Numeric, Symbol, nil] Seconds after which a session recorded by any warmer on the
+      #   same remote chromedriver counts as left behind - its process died without closing it - and
+      #   is closed when a warmer starts (SessionSweeper). +:auto+ (the default) is twice
+      #   max_idle_age: a live warmer recycles its own spares within ~1.25x of that, so no live
+      #   process's slot is ever taken. +nil+ disables the sweep. Remote mode only.
+      attr_accessor orphan_age: untyped
+
+      # @return [String, nil] Directory for the session registry file (SessionRegistry); +nil+ means
+      #   Dir.tmpdir. Every process that should clean up after the others must share it.
+      attr_accessor registry_dir: untyped
+
       DEFAULT_MAX_IDLE_AGE: 300
 
       def initialize: () -> void
+
+      # The orphan age in seconds, or nil when the sweep is off (also when +:auto+ has no
+      # max_idle_age to derive it from).
+      def effective_orphan_age: () -> untyped
 
       # @raise [ArgumentError] if a setting can't be honored - checked once, at construction.
       def validate!: () -> untyped
@@ -96,6 +117,8 @@ module Bidi2pdf
       def validate_size!: () -> (nil | untyped)
 
       def validate_max_idle_age!: () -> (nil | untyped)
+
+      def validate_orphan_age!: () -> (nil | untyped)
     end
 
     # Configures the warmer and eagerly (re)creates the singleton, warming config.size slots right
@@ -161,6 +184,14 @@ module Bidi2pdf
 
     def create_slot: () -> untyped
 
+    # Remote mode with an orphan age: sessions are recorded, so a later start can close the ones
+    # this process leaves behind if it dies uncleanly - and this start closes others' leftovers.
+    def build_registry: () -> (nil | untyped)
+
+    def sweep_leftovers: () -> (nil | untyped)
+
+    def session_id_of: (untyped slot) -> untyped
+
     # Session#started? is just an internal flag set once at startup - it never flips back if Chrome,
     # ChromeDriver, or the WebSocket dies externally while a slot sits idle in the cache. The
     # client's own #open? is kept live by the reader thread noticing a real socket error, so
@@ -214,6 +245,8 @@ module Bidi2pdf
     # reservation is released here, in the same critical section as the stash.
     def stash_or_retire: (untyped slot) -> untyped
 
+    # Forgotten only after closing: a process that dies in between leaves a record whose session is
+    # already gone - the next sweep just drops it - never an open session nobody knows about.
     def retire: (untyped slot) -> untyped
 
     def safe_close: (untyped label) { (?) -> untyped } -> untyped

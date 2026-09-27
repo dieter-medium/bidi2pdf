@@ -74,6 +74,10 @@ module Bidi2pdf
       # @return [Array<String>] The Chrome arguments for the session.
       attr_reader :chrome_args
 
+      # @return [String, nil] chromedriver's id for this session, once it was created - what
+      #   SessionWarmer records so a later process can close it if this one dies uncleanly.
+      attr_reader :session_id
+
       # Initializes a new session.
       #
       # @param [String] session_url The URL for the session.
@@ -227,7 +231,7 @@ module Bidi2pdf
         value = session_data["value"]
         handle_error(value) if value.nil? || value["error"]
 
-        session_id = value["sessionId"]
+        @session_id = value["sessionId"]
         ws_url = value["capabilities"]["webSocketUrl"]
 
         Bidi2pdf.logger.info "Created session with ID: #{session_id}"

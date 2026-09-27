@@ -1,0 +1,44 @@
+module Bidi2pdf
+  # Remembers which sessions a SessionWarmer opened on a shared (remote) chromedriver, and when, in a
+  # small JSON file per chromedriver URL - so a process started later can find and close the ones a
+  # process that died without a clean shutdown left behind (see SessionSweeper). chromedriver itself
+  # keeps a session until someone deletes it, and it drops any tag we could attach to one (a custom
+  # capability is accepted but echoed nowhere - checked against chromedriver 153), hence a file.
+  #
+  # Everything here is best effort and fail-open: a directory that is not writable, a locked-out or
+  # corrupt file only switches orphan tracking off for this process (one warning, one
+  # +session_warmer.registry_unavailable.bidi2pdf+ notification) - rendering never depends on it.
+  # The file is created 0600 and every change happens under an exclusive lock, so processes sharing
+  # the directory (a dev server, a job worker, a spec run) can record at the same time.
+  class SessionRegistry
+    @path: untyped
+
+    @warned: untyped
+
+    FILE_PREFIX: "bidi2pdf-sessions-"
+
+    attr_reader path: untyped
+
+    def initialize: (untyped session_url, ?dir: untyped?) -> void
+
+    # Records a session the caller just opened.
+    def record: (untyped session_id, ?created_at: untyped) -> (false | untyped)
+
+    # Forgets a session the caller closed itself (or found gone).
+    def forget: (untyped session_id) -> (false | untyped)
+
+    # The recorded session ids opened at or before +cutoff+ (epoch seconds).
+    def recorded_before: (untyped cutoff) -> untyped
+
+    private
+
+    def read: () -> untyped
+
+    def update: () { (untyped) -> untyped } -> untyped
+
+    # A corrupt or foreign file counts as empty rather than as an error.
+    def parse: (untyped text) -> untyped
+
+    def unavailable!: (untyped error) -> (nil | untyped)
+  end
+end
