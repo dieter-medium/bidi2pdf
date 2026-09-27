@@ -141,6 +141,43 @@ RSpec.describe Bidi2pdf::Bidi::BufferedWebSocketClient do
     end
   end
 
+  # The peer hangs up while #connect is still writing its handshake: the reader closes the socket
+  # from its own thread, and the write fails because we closed it - not because the connection
+  # failed. Reproduced deterministically with a socket double (the OS boundary), since on a real
+  # socket it takes a timing window hit about once in 25 runs.
+  it "does not raise from connect when the reader closed the socket during the handshake write" do
+    closed = Thread::Queue.new
+    client = nil
+    socket = Object.new
+    reader_blocks = Thread::Queue.new
+    socket.define_singleton_method(:readpartial) { |_| reader_blocks.pop || raise(EOFError) }
+    socket.define_singleton_method(:close) { reader_blocks << nil }
+    socket.define_singleton_method(:write) do |_bytes|
+      Thread.new { client.close(EOFError.new) }.join # the reader noticing the hang-up
+      raise IOError, "stream closed in another thread"
+    end
+    client_class = Class.new(described_class) { define_method(:open_socket) { |*| socket } }
+
+    expect do
+      client = client_class.new
+      client.on(:close) { closed << true }
+      client.connect("ws://127.0.0.1:1/")
+    end.not_to raise_error
+  end
+
+  it "still raises a write failure that is not its own close" do
+    socket = Object.new
+    socket.define_singleton_method(:readpartial) { |_| sleep }
+    socket.define_singleton_method(:close) { nil }
+    socket.define_singleton_method(:write) { |_bytes| raise Errno::EPIPE }
+    client_class = Class.new(described_class) { define_method(:open_socket) { |*| socket } }
+    client = client_class.new
+
+    expect { client.connect("ws://127.0.0.1:1/") }.to raise_error(Errno::EPIPE)
+  ensure
+    client&.close(Errno::EPIPE.new)
+  end
+
   it "emits close when the server hangs up" do
     with_server(frames: ["bye"]) do |url|
       _, closed = receive(url, expected: 1)

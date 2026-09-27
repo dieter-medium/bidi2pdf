@@ -59,6 +59,13 @@ module Bidi2pdf
 
       def emit: (untyped event, *untyped) -> untyped
 
+      # The reader closes the socket from its own thread when the peer hangs up, and #close does not
+      # wait for a write in flight - so a write can fail with "stream closed in another thread" (or
+      # EPIPE) because *we* closed it. By then the connection is over and :close has been emitted;
+      # there is nothing left to report. Seen in the handshake write of #connect, which had no
+      # rescue: a server that answered and hung up at once made #connect raise although the
+      # handshake went through. Any other write failure still raises (#send and #say_goodbye
+      # handle it).
       def write: (untyped bytes) -> untyped
 
       def say_goodbye: () -> untyped

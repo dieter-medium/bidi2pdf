@@ -92,8 +92,17 @@ module Bidi2pdf
         @listeners_mutex.synchronize { @listeners[event].dup }.each { |listener| listener.call(*) }
       end
 
+      # The reader closes the socket from its own thread when the peer hangs up, and #close does not
+      # wait for a write in flight - so a write can fail with "stream closed in another thread" (or
+      # EPIPE) because *we* closed it. By then the connection is over and :close has been emitted;
+      # there is nothing left to report. Seen in the handshake write of #connect, which had no
+      # rescue: a server that answered and hung up at once made #connect raise although the
+      # handshake went through. Any other write failure still raises (#send and #say_goodbye
+      # handle it).
       def write(bytes)
         @write_mutex.synchronize { @socket&.write bytes }
+      rescue IOError, SystemCallError, OpenSSL::SSL::SSLError
+        raise unless @closed
       end
 
       def say_goodbye
