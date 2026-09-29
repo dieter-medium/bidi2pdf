@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### 🐛 Fixed
-- Do not raise when our own close ends a write
 - Let Chromium start on a read-only root
+- Do not raise when our own close ends a write
 
 ### 📝 Docs
+- Add the read-only root fix to the changelog
+- Add the websocket write fix to the changelog
 - Add the orphan sweep to the changelog
 
 ### 🔄 Changed
+- Merge pull request #140 from dieter-medium/fix/chromium-read-only-root
+- Merge pull request #139 from dieter-medium/fix/websocket-close-during-write
 - Merge pull request #138 from dieter-medium/feat/session-warmer-orphan-sweep
 - Merge pull request #132 from dieter-medium/dependabot/bundler/main/rubyzip-3.6.0
 
@@ -23,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update rubyzip requirement from ~> 2.4 to >= 2.4, < 4.0
 
 ### 🚀 Added
+- Tag every chromedriver image build by commit
 - Close leftover warm sessions on start
 
 [unreleased]: https://github.com/dieter-medium/bidi2pdf/compare/v0.1.16..HEAD

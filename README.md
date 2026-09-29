@@ -445,6 +445,20 @@ runtime dependency of the gem itself (see [Agent and Automation Usage](#agent-an
 so `pages` and the `page_count`/`pdf_text_present`/`pdf_not_blank` recipe assertions work out of
 the box in either image, no extra install step needed.
 
+### ChromeDriver image tags
+
+[`dieters877565/chromedriver`](https://hub.docker.com/r/dieters877565/chromedriver) is built for
+`linux/amd64` and `linux/arm64` with these tags:
+
+| Tag | Moves? | Use |
+|---|---|---|
+| `0.1.17` (a release) | no | production - pin it together with the gem version |
+| `sha-<short commit>` | only if that commit is built again by hand | a fix on `main` not released yet |
+| `latest`, `main` | yes, every push to `main` | development only |
+
+Chromium comes from Debian's packages at build time, so every build can carry a different
+Chromium - for a byte-exact pin use the digest (`docker buildx imagetools inspect <image:tag>`).
+
 ### Docker Compose
 
 ```bash
