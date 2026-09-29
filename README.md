@@ -452,9 +452,9 @@ the box in either image, no extra install step needed.
 
 | Tag | Moves? | Use |
 |---|---|---|
-| `0.1.17` (a release) | no | production - pin it together with the gem version |
+| `0.1.17` (a release) | no | a fixed Chromium, pinned together with the gem version |
 | `sha-<short commit>` | only if that commit is built again by hand | a fix on `main` not released yet |
-| `latest`, `main` | yes, every push to `main` | development only |
+| `latest`, `main` | yes, every push to `main` | the newest build and its Chromium security fixes |
 
 Chromium comes from Debian's packages at build time, so every build can carry a different
 Chromium - for a byte-exact pin use the digest (`docker buildx imagetools inspect <image:tag>`).
