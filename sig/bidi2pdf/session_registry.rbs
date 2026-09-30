@@ -27,6 +27,9 @@ module Bidi2pdf
     # Forgets a session the caller closed itself (or found gone).
     def forget: (untyped session_id) -> (false | untyped)
 
+    # Every recorded session: { id => opened at (epoch seconds) }.
+    def recorded: () -> untyped
+
     # The recorded session ids opened at or before +cutoff+ (epoch seconds).
     def recorded_before: (untyped cutoff) -> untyped
 

@@ -42,7 +42,11 @@ module Bidi2pdf
 
     @reaper_wakeup: untyped
 
+    @own_sessions: untyped
+
     @registry: untyped
+
+    @sweeper: untyped
 
     @reaper: untyped
 
@@ -63,6 +67,8 @@ module Bidi2pdf
       @orphan_age: untyped
 
       @registry_dir: untyped
+
+      @sweeper: untyped
 
       # @return [Integer] Number of Chrome slots to keep pre-warmed.
       attr_accessor size: untyped
@@ -101,6 +107,13 @@ module Bidi2pdf
       #   Dir.tmpdir. Every process that should clean up after the others must share it.
       attr_accessor registry_dir: untyped
 
+      # @return [Hash, nil] Options for a ChromeSweeper on the remote chromedriver (+scope+,
+      #   +orphan_age+, +min_age+, +unresponsive_checks+, +max_sessions+, +pids_limit+, +interval+,
+      #   ...), or +nil+ (default) for none. This warmer's own sessions are never touched by it; with
+      #   an +interval+ it sweeps in the background, and a session that fails to start triggers one
+      #   sweep and one retry. Remote mode only.
+      attr_accessor sweeper: untyped
+
       DEFAULT_MAX_IDLE_AGE: 300
 
       def initialize: () -> void
@@ -119,6 +132,8 @@ module Bidi2pdf
       def validate_max_idle_age!: () -> (nil | untyped)
 
       def validate_orphan_age!: () -> (nil | untyped)
+
+      def validate_sweeper!: () -> (nil | untyped)
     end
 
     # Configures the warmer and eagerly (re)creates the singleton, warming config.size slots right
@@ -149,6 +164,10 @@ module Bidi2pdf
     # Checks out a slot, yields a fresh tab for one render, then retires the slot.
     def self.with_tab: () { (?) -> untyped } -> untyped
 
+    # Sweeps the remote chromedriver with the configured sweeper; nil when there is none (or no
+    # warmer yet - this never creates one).
+    def self.sweep!: (?reason: ::Symbol) -> untyped
+
     # Retires every currently-warm spare and resets the singleton.
     def self.shutdown: () -> untyped
 
@@ -165,6 +184,11 @@ module Bidi2pdf
     public
 
     def initialize: (untyped config, ?slot_factory: untyped?) -> void
+
+    # Sweeps the remote chromedriver now - for an application that suspects leaked sessions.
+    #
+    # @return [ChromeSweeper::Result, nil] nil when no sweeper is configured.
+    def sweep!: (?reason: ::Symbol) -> untyped
 
     # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
     # then unconditionally closes those resources and retires the underlying slot.
@@ -183,6 +207,14 @@ module Bidi2pdf
     def prewarm: () -> untyped
 
     def create_slot: () -> untyped
+
+    # A chromedriver out of room for another Chrome refuses the session; with a sweeper, close what
+    # can go and try once more.
+    def new_slot: () -> untyped
+
+    def start_background_work: () -> untyped
+
+    def build_sweeper: () -> (nil | untyped)
 
     # Remote mode with an orphan age: sessions are recorded, so a later start can close the ones
     # this process leaves behind if it dies uncleanly - and this start closes others' leftovers.

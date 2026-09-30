@@ -1,0 +1,168 @@
+module Bidi2pdf
+  # Closes Chrome sessions a shared chromedriver holds that nobody will close any more - left behind
+  # by a process that died, or stuck in a tab that never returns - and keeps the number of sessions
+  # below a limit. chromedriver keeps every session (a whole Chrome) until someone deletes it.
+  #
+  # Which sessions it looks at (+scope+):
+  # - +:recorded+ (default) - only sessions a SessionRegistry proves were opened through bidi2pdf.
+  # - +:all+ - every session on that chromedriver (+GET /sessions+), aged by its first tab. Only for
+  #   a chromedriver the application owns: on a shared one it closes other clients' old sessions.
+  #
+  # What it closes, in this order - never a session of +own_sessions+ and never one younger than
+  # +min_age+, not even over the limit, so a render in flight is never killed:
+  # 1. sessions older than +orphan_age+;
+  # 2. sessions that failed +unresponsive_checks+ checks in a row (no answer, or a renderer burning
+  #    CPU at full speed between two sweeps - an endless loop);
+  # 3. while more sessions exist than +max_sessions+, the oldest remaining ones. When that is not
+  #    enough, the sweep reports +limit_exceeded+ and closes nothing more.
+  #
+  # Run it once (#sweep!, ChromeSweeper.sweep!) - e.g. when the application suspects a leak - or
+  # periodically (+interval+, #start/#stop). One sweep at a time, across processes too (a lock file
+  # next to the registry). Fail-open: a sweep never raises; errors land in the Result. See Settings
+  # for every setting and its default.
+  #
+  # @example A periodic sweeper for an application's own chromedriver
+  #   sweeper = Bidi2pdf::ChromeSweeper.new("http://remote-chrome:3000/session", scope: :all,
+  #                                         max_sessions: :auto, pids_limit: 1024, interval: 60)
+  #   sweeper.start
+  class ChromeSweeper
+    @session_url: untyped
+
+    @settings: untyped
+
+    @own_sessions: untyped
+
+    @clock: untyped
+
+    @registry: untyped
+
+    @api: untyped
+
+    @inspector: untyped
+
+    @mutex: untyped
+
+    @wakeup: untyped
+
+    @failures: untyped
+
+    @first_seen: untyped
+
+    @cpu_samples: untyped
+
+    @thread: untyped
+
+    extend Forwardable
+
+    # One closed (or, in a dry run, would-be closed) session. +why+: :orphan, :unresponsive or
+    # :over_limit.
+    Closed: untyped
+
+    # What one sweep saw and did.
+    Result: untyped
+
+    # A renderer that used at least this share of the wall-clock time between two sweeps counts as
+    # stuck in a loop.
+    BUSY_CPU_SHARE: ::Float
+
+    # The bookkeeping of one sweep.
+    Sweep: untyped
+
+    attr_reader session_url: untyped
+
+    attr_reader settings: untyped
+
+    attr_reader registry: untyped
+
+    # One-shot sweep with a throw-away sweeper.
+    #
+    # @return [Result]
+    def self.sweep!: (untyped session_url, ?reason: ::Symbol, **untyped) -> untyped
+
+    # @param session_url [String] chromedriver's new-session URL (".../session").
+    # @param registry [SessionRegistry, nil] defaults to the one for +session_url+ in +registry_dir+.
+    # @param own_sessions [#call] returns the ids of the caller's live sessions - never touched.
+    # @param api [ChromedriverApi, nil], inspector [Inspector, nil], clock [#call] - for tests.
+    # @param settings see Settings.
+    # @raise [InvalidConfigError] for a setting out of range.
+    def initialize: (untyped session_url, ?registry: untyped?, ?registry_dir: untyped?, ?own_sessions: untyped, ?api: untyped?, ?inspector: untyped?, ?clock: untyped, **untyped settings) -> void
+
+    # Every session in scope, inspected (age, tabs, responsive) - for diagnostics; closes nothing.
+    #
+    # @return [Array<Inspector::SessionInfo>]
+    def sessions: () -> untyped
+
+    # Sweeps once. Skipped (Result#skipped) when another sweep - in this or another process - is
+    # still running.
+    #
+    # @param reason [Symbol] why - reported in the notification (:manual, :periodic, :create_failed…).
+    # @return [Result]
+    def sweep!: (?reason: ::Symbol) -> untyped
+
+    # Starts the periodic sweep thread (needs an +interval+). Idempotent.
+    def start: () -> self
+
+    # Stops the periodic sweep thread and waits for a sweep in progress to finish.
+    def stop: () -> (nil | untyped)
+
+    private
+
+    def run: (untyped reason, untyped started) -> untyped
+
+    def sweep_sessions: () -> ::Array[untyped]
+
+    # In-scope sessions not owned by the caller and not known to be younger than min_age, with the
+    # registry time when there is one. A young recorded session is not even attached to.
+    def candidates: (untyped entries) -> untyped
+
+    def in_scope: (untyped entries, untyped recorded) -> untyped
+
+    # Recorded sessions chromedriver no longer has are only dropped from the registry.
+    def forget_gone: (untyped entries) -> untyped
+
+    # Counts failed checks per session across sweeps, and ages a session by when this sweeper first
+    # saw it when nothing better is known.
+    def track: (untyped info) -> untyped
+
+    def count_check: (untyped info) -> untyped
+
+    def busy?: (untyped info) -> (false | untyped)
+
+    def decide: (untyped eligible, untyped sweep) -> untyped
+
+    def close_reason: (untyped info, untyped sweep) -> (:orphan | untyped)
+
+    def note_unresponsive: (untyped info, untyped failed, untyped sweep) -> untyped
+
+    def enforce_limit: (untyped eligible, untyped sweep) -> (nil | untyped)
+
+    def over_limit?: (untyped sweep) -> untyped
+
+    def oldest_open: (untyped eligible, untyped sweep) -> untyped
+
+    def limit_exceeded: (untyped sweep) -> untyped
+
+    # Adds the session to the sweep's closed list unless chromedriver refused to close it.
+    def close_session: (untyped info, untyped why, untyped sweep) -> untyped
+
+    def announce: (untyped closed) -> untyped
+
+    def gone_after_delete?: (untyped id) -> (false | true)
+
+    def report: (untyped result) -> untyped
+
+    def sweep_payload: (untyped result) -> untyped
+
+    def result: (untyped reason, untyped started, ?sweep: untyped, ?inspected: untyped, ?skipped: bool) -> untyped
+
+    # A lock file next to the registry, so processes sharing it never sweep at the same time. When
+    # the file cannot be created at all the sweep still runs (fail-open, like the registry itself).
+    def with_lock_file: () { (untyped) -> untyped } -> untyped
+
+    def open_lock_file: () -> untyped
+
+    def now: () -> untyped
+
+    def monotonic: () -> untyped
+  end
+end

@@ -13,6 +13,8 @@ module Bidi2pdf
 
     include JsonOutput
 
+    include SessionCommands
+
     def self.exit_on_failure?: () -> true
 
     def render: () -> (nil | untyped)
@@ -27,6 +29,10 @@ module Bidi2pdf
     # ClassMethods#is_thor_reserved_word?) and refuses to define a command with that name. `map`
     # below is what makes `bidi2pdf run recipe.yml` dispatch here.
     def run_recipe: (untyped recipe_path) -> untyped
+
+    def sessions: () -> untyped
+
+    def sweep: () -> untyped
 
     def template: () -> untyped
 
