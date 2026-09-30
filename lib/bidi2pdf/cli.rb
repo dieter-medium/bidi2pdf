@@ -201,7 +201,7 @@ module Bidi2pdf
       Closes sessions older than --older-than seconds, sessions that failed --unresponsive-checks
       checks in a row (taken --check-interval seconds apart, so a sweep takes that long), and while
       more than --max-sessions exist, the oldest ones. A session younger than --min-age seconds is
-      never closed. --scope all looks at
+      never closed, and neither is one a running bidi2pdf process holds (its lease is renewed). --scope all looks at
       every session on that chromedriver - use it only for a chromedriver your application owns;
       --scope recorded (default) only at sessions bidi2pdf recorded on this machine.
       Exits 1 when a close failed or the limit is still exceeded.
@@ -213,6 +213,7 @@ module Bidi2pdf
     option :min_age, type: :numeric, desc: "Never close a session younger than this many seconds (default 60)"
     option :unresponsive_checks, type: :numeric, desc: "Close a session after this many failed checks in a row (default 2)"
     option :check_interval, type: :numeric, default: 10, desc: "Seconds between those checks; 0 sweeps at once, without the unresponsive rule"
+    option :pressure, type: :boolean, default: false, desc: "Last resort: close every session no live process holds that is past --min-age"
     option :dry_run, type: :boolean, default: false, desc: "Report what would be closed, close nothing"
     option :json, type: :boolean, default: false, desc: "Emit the sweep result as JSON"
 

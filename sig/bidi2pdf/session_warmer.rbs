@@ -208,8 +208,8 @@ module Bidi2pdf
 
     def create_slot: () -> untyped
 
-    # A chromedriver out of room for another Chrome refuses the session; with a sweeper, close what
-    # can go and try once more.
+    # A chromedriver out of room for another Chrome refuses the session; with a sweeper, close
+    # everything nobody holds (a pressure sweep) and try once more.
     def new_slot: () -> untyped
 
     def start_background_work: () -> untyped

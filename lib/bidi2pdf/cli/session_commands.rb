@@ -32,13 +32,13 @@ module Bidi2pdf
       # --check-interval 0 means no checks before the sweep.
       def run_sweep
         interval = options[:check_interval].to_f
-        chrome_sweeper.sweep!(reason: :cli, check_interval: interval.zero? ? nil : interval)
+        chrome_sweeper.sweep!(reason: :cli, check_interval: interval.zero? ? nil : interval, pressure: options[:pressure])
       rescue Bidi2pdf::InvalidConfigError => e
         raise Thor::Error, e.message
       end
 
       def session_hash(info)
-        { id: info.id, age: info.age&.round, source: info.source, tabs: info.tabs, responsive: info.responsive }
+        { id: info.id, age: info.age&.round, source: info.source, tabs: info.tabs, responsive: info.responsive, live: info.live }
       end
 
       def print_sessions(infos)
@@ -46,10 +46,16 @@ module Bidi2pdf
 
         infos.each do |info|
           age = info.age ? "#{info.age.round}s" : "?"
-          puts format("%-34<id>s %8<age>s  %-8<source>s %2<tabs>d tab(s)  %<state>s",
-                      id: info.id, age: age, source: info.source, tabs: info.tabs,
-                      state: info.responsive ? "responsive" : "unresponsive")
+          puts format("%-34<id>s %8<age>s  %-8<source>s %9<tabs>s  %<state>s",
+                      id: info.id, age: age, source: info.source, tabs: info.tabs ? "#{info.tabs} tab(s)" : "", state: session_state(info))
         end
+      end
+
+      # A live session is not attached to, so there is nothing to say about its tabs.
+      def session_state(info)
+        return "live (a running process holds it)" if info.live
+
+        info.responsive ? "responsive" : "unresponsive"
       end
 
       def sweep_hash(result)

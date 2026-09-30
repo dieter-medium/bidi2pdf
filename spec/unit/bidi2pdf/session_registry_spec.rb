@@ -71,4 +71,63 @@ RSpec.describe Bidi2pdf::SessionRegistry do
       expect(events.count("session_warmer.registry_unavailable.bidi2pdf")).to eq(1)
     end
   end
+
+  describe "leases" do
+    let(:heartbeat) { Bidi2pdf::SessionRegistry::Heartbeat }
+
+    after { heartbeat.held_ids(registry).each { |id| registry.release(id) } }
+
+    it "counts a session this process holds as live" do
+      registry.hold("abc")
+
+      expect(registry.leased).to eq(["abc"])
+    end
+
+    it "counts a session whose lease ran out as not live" do
+      registry.record("abc", created_at: 100)
+
+      expect(registry.leased(now: 1_000, ttl: 60)).to be_empty
+    end
+
+    it "keeps the lease of a held session fresh with every heartbeat" do
+      registry.hold("abc")
+      later = Time.now.to_i + 600
+
+      heartbeat.beat!(now: later)
+
+      expect(registry.leased(now: later, ttl: 60)).to eq(["abc"])
+    end
+
+    it "stops renewing a released session but keeps its entry for a sweeper" do
+      registry.hold("abc")
+      registry.release("abc")
+      later = Time.now.to_i + 600
+
+      heartbeat.beat!(now: later)
+
+      expect([registry.leased(now: later, ttl: 60), registry.recorded.keys]).to eq([[], ["abc"]])
+    end
+
+    it "stops holding a forgotten session" do
+      registry.hold("abc")
+      registry.forget("abc")
+
+      expect(heartbeat.held_ids(registry)).to be_empty
+    end
+
+    it "reads a file of the first format, without leases" do
+      File.write(registry.path, JSON.generate("abc" => 100))
+
+      expect([registry.recorded, registry.leased(now: 100)]).to eq([{ "abc" => 100 }, []])
+    end
+
+    it "holds nothing in a forked child - the parent's sessions are the parent's to renew" do
+      registry.hold("abc")
+
+      pid = fork { exit!(heartbeat.held_ids(registry).empty? ? 0 : 1) }
+      Process.wait(pid)
+
+      expect(Process.last_status.exitstatus).to eq(0)
+    end
+  end
 end

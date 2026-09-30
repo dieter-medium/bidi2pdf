@@ -16,8 +16,9 @@ module Bidi2pdf
   # - +:all+ - every session on that chromedriver (+GET /sessions+), aged by its first tab. Only for
   #   a chromedriver the application owns: on a shared one it closes other clients' old sessions.
   #
-  # What it closes, in this order - never a session of +own_sessions+ and never one younger than
-  # +min_age+, not even over the limit, so a render in flight is never killed:
+  # What it closes, in this order - never a session of +own_sessions+, never one whose lease a live
+  # process keeps renewing (SessionRegistry#hold - a render in flight or a warm spare of another
+  # worker), and never one younger than +min_age+, not even over the limit:
   # 1. sessions older than +orphan_age+;
   # 2. sessions that failed +unresponsive_checks+ checks in a row (no answer, or a renderer burning
   #    CPU at full speed between two sweeps - an endless loop);
@@ -25,7 +26,9 @@ module Bidi2pdf
   #    enough, the sweep reports +limit_exceeded+ and closes nothing more.
   #
   # Run it once (#sweep!, ChromeSweeper.sweep!) - e.g. when the application suspects a leak - or
-  # periodically (+interval+, #start/#stop). One sweep at a time, across processes too (a lock file
+  # periodically (+interval+, #start/#stop). As a last resort when a render fails for lack of
+  # resources, #with_retry sweeps under +pressure+ - every session nobody holds and older than
+  # +min_age+ goes - and tries once more. One sweep at a time, across processes too (a lock file
   # next to the registry). Fail-open: a sweep never raises; errors land in the Result. See Settings
   # for every setting and its default.
   #
@@ -36,8 +39,8 @@ module Bidi2pdf
   class ChromeSweeper
     extend Forwardable
 
-    # One closed (or, in a dry run, would-be closed) session. +why+: :orphan, :unresponsive or
-    # :over_limit.
+    # One closed (or, in a dry run, would-be closed) session. +why+: :orphan, :unresponsive,
+    # :over_limit or :pressure.
     Closed = Data.define(:id, :age, :why)
 
     # What one sweep saw and did.
@@ -50,23 +53,33 @@ module Bidi2pdf
     # stuck in a loop.
     BUSY_CPU_SHARE = 0.9
 
+    # Errors #with_retry sweeps and retries on by default: a session chromedriver refused, and a
+    # connection or command that died or timed out - what a Chrome out of memory or pids looks like.
+    # A command Chrome answered with an error (CmdError) is the page's problem, not a resource one.
+    RETRYABLE = ->(error) { error.is_a?(Bidi2pdf::SessionNotStartedError) || (error.is_a?(Bidi2pdf::WebsocketError) && !error.is_a?(Bidi2pdf::CmdError)) }
+
     # The bookkeeping of one sweep.
-    Sweep = Struct.new(:total, :closed, :unresponsive, :errors, :limit_exceeded) do
-      def initialize(total = 0) = super(total, [], [], [], false)
+    Sweep = Struct.new(:total, :closed, :unresponsive, :errors, :limit_exceeded, :pressure) do
+      def initialize(total = 0, pressure: false) = super(total, [], [], [], false, pressure)
 
       def remaining = total - closed.size
     end
 
     attr_reader :session_url, :settings, :registry
 
-    def_delegators :@settings, :scope, :orphan_age, :min_age, :unresponsive_checks, :interval, :dry_run, :limit
+    def_delegators :@settings, :scope, :orphan_age, :min_age, :unresponsive_checks, :interval, :dry_run, :limit, :lease_ttl
 
     # One-shot sweep with a throw-away sweeper. Give it a +check_interval+ for the unresponsive rule
     # to apply - see #sweep!.
     #
     # @return [Result]
-    def self.sweep!(session_url, reason: :manual, check_interval: nil, **)
-      new(session_url, **).sweep!(reason: reason, check_interval: check_interval)
+    def self.sweep!(session_url, reason: :manual, check_interval: nil, pressure: false, **)
+      new(session_url, **).sweep!(reason: reason, check_interval: check_interval, pressure: pressure)
+    end
+
+    # #with_retry with a throw-away sweeper.
+    def self.with_retry(session_url, retry_on: RETRYABLE, **, &)
+      new(session_url, **).with_retry(retry_on: retry_on, &)
     end
 
     # @param session_url [String] chromedriver's new-session URL (".../session").
@@ -96,7 +109,27 @@ module Bidi2pdf
     # @return [Array<Inspector::SessionInfo>]
     def sessions
       recorded = @registry.recorded
-      in_scope(@api.sessions, recorded).map { |entry| @inspector.examine(entry, recorded_at: recorded[entry.id]) }
+      live = live_sessions
+      in_scope(@api.sessions, recorded).map do |entry|
+        next live_info(entry.id, recorded[entry.id]) if live.include?(entry.id)
+
+        @inspector.examine(entry, recorded_at: recorded[entry.id])
+      end
+    end
+
+    # Runs the block; when it fails with a resource error (+retry_on+: a callable or a list of error
+    # classes, RETRYABLE by default), sweeps under pressure and runs it once more. The block must
+    # be safe to run twice - it gets a new session the second time. Other errors, and a second
+    # failure, propagate unchanged.
+    def with_retry(retry_on: RETRYABLE)
+      yield
+    rescue StandardError => e
+      raise unless retryable?(retry_on, e)
+
+      Bidi2pdf.logger.warn "chrome_sweeper: #{e.class}: #{e.message} - sweeping #{@session_url} and trying once more"
+      Bidi2pdf.notification_service.instrument("chrome_sweeper.retry.bidi2pdf", { error: e.class.name })
+      sweep!(reason: :render_failed, pressure: true)
+      yield
     end
 
     # Inspects every session in scope and counts its checks, like a sweep, but closes nothing.
@@ -115,15 +148,20 @@ module Bidi2pdf
     # applies every rule. The periodic thread doesn't need that: its sweeps are the checks.
     #
     # @param reason [Symbol] why - reported in the notification (:manual, :periodic, :create_failed…).
+    # Under +pressure+ - the last resort when a render failed - every eligible session is closed:
+    # nobody holds it, and it is older than +min_age+; +orphan_age+, the unresponsive checks and the
+    # limit no longer matter.
+    #
     # @param check_interval [Numeric, nil] seconds between those checks; nil sweeps right away.
+    # @param pressure [Boolean] close everything nobody holds that is past +min_age+.
     # @return [Result]
-    def sweep!(reason: :manual, check_interval: nil)
+    def sweep!(reason: :manual, check_interval: nil, pressure: false)
       check_first(check_interval) if check_interval
       started = monotonic
       return result(reason, started, skipped: true) unless @mutex.try_lock
 
       begin
-        with_lock_file { |locked| locked ? run(reason, started) : result(reason, started, skipped: true) }
+        with_lock_file { |locked| locked ? run(reason, started, pressure) : result(reason, started, skipped: true) }
       ensure
         @mutex.unlock
       end
@@ -148,8 +186,8 @@ module Bidi2pdf
 
     private
 
-    def run(reason, started)
-      sweep, infos = sweep_sessions
+    def run(reason, started, pressure)
+      sweep, infos = sweep_sessions(pressure)
       report(result(reason, started, sweep: sweep, inspected: infos))
     rescue StandardError => e
       Bidi2pdf.logger.warn "chrome_sweeper: sweep of #{@session_url} failed: #{e.message}"
@@ -172,25 +210,39 @@ module Bidi2pdf
       sleep check_interval
     end
 
-    def sweep_sessions
+    def sweep_sessions(pressure)
       entries = @api.sessions
       infos = observe_entries(entries)
-      sweep = Sweep.new(entries.size)
+      sweep = Sweep.new(entries.size, pressure: pressure)
       decide(infos.select { |info| info.age >= min_age }, sweep)
       [sweep, infos]
     end
 
-    # In-scope sessions not owned by the caller and not known to be younger than min_age, with the
-    # registry time when there is one. A young recorded session is not even attached to.
+    # In-scope sessions not owned by the caller, not held by a live process and not known to be
+    # younger than min_age, with the registry time when there is one. None of the others is even
+    # attached to - a render in flight is left alone entirely.
     def candidates(entries)
       recorded = @registry.recorded
-      own = Array(@own_sessions.call).map(&:to_s)
+      untouchable = Array(@own_sessions.call).map(&:to_s) + live_sessions
       in_scope(entries, recorded).filter_map do |entry|
         recorded_at = recorded[entry.id]
-        next if own.include?(entry.id) || (recorded_at && now - recorded_at < min_age)
+        next if untouchable.include?(entry.id) || (recorded_at && now - recorded_at < min_age)
 
         [entry, recorded_at]
       end
+    end
+
+    def live_sessions
+      @registry.leased(now: now.to_i, ttl: lease_ttl)
+    end
+
+    def live_info(id, recorded_at)
+      Inspector::SessionInfo.new(id: id, age: recorded_at && (now - recorded_at), source: :registry, tabs: nil,
+                                 responsive: nil, cpu_times: {}, live: true)
+    end
+
+    def retryable?(retry_on, error)
+      retry_on.respond_to?(:call) ? retry_on.call(error) : Array(retry_on).any? { |klass| error.is_a?(klass) }
     end
 
     def in_scope(entries, recorded)
@@ -238,7 +290,7 @@ module Bidi2pdf
 
     def decide(eligible, sweep)
       eligible.each do |info|
-        why = close_reason(info, sweep)
+        why = close_reason(info, sweep) || (:pressure if sweep.pressure)
         close_session(info, why, sweep) if why
       end
 

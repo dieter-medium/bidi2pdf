@@ -18,9 +18,12 @@ module Bidi2pdf
       # --check-interval 0 means no checks before the sweep.
       def run_sweep: () -> untyped
 
-      def session_hash: (untyped info) -> { id: untyped, age: untyped, source: untyped, tabs: untyped, responsive: untyped }
+      def session_hash: (untyped info) -> { id: untyped, age: untyped, source: untyped, tabs: untyped, responsive: untyped, live: untyped }
 
       def print_sessions: (untyped infos) -> untyped
+
+      # A live session is not attached to, so there is nothing to say about its tabs.
+      def session_state: (untyped info) -> ("live (a running process holds it)" | untyped)
 
       def sweep_hash: (untyped result) -> { reason: untyped, sessions: untyped, dry_run: untyped, skipped: untyped, closed: untyped, unresponsive: untyped, limit: untyped, limit_exceeded: untyped, errors: untyped }
 

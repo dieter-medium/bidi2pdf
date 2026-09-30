@@ -8,6 +8,7 @@ module Bidi2pdf
     DEFAULT_UNRESPONSIVE_CHECKS = 2
     DEFAULT_PIDS_BUDGET = 0.8
     DEFAULT_THREADS_PER_SESSION = 110
+    DEFAULT_LEASE_TTL = SessionRegistry::DEFAULT_LEASE_TTL
 
     # What a ChromeSweeper closes and when - validated on construction; an unknown setting raises
     # ArgumentError.
@@ -22,12 +23,15 @@ module Bidi2pdf
     # @!attribute threads_per_session [Integer] threads (Docker counts them as pids) of one session.
     # @!attribute interval [Numeric, nil] seconds between sweeps of ChromeSweeper#start's thread.
     # @!attribute dry_run [Boolean] report what would be closed, close nothing.
+    # @!attribute lease_ttl [Numeric] a recorded session renewed within this many seconds belongs to
+    #   a live process and is never closed (SessionRegistry#hold).
     Settings = Data.define(:scope, :orphan_age, :min_age, :unresponsive_checks, :max_sessions, :pids_limit,
-                           :pids_budget, :threads_per_session, :interval, :dry_run) do
+                           :pids_budget, :threads_per_session, :interval, :dry_run, :lease_ttl) do
+      # rubocop:disable-next Metrics/ParameterLists
       def initialize(scope: :recorded, orphan_age: DEFAULT_ORPHAN_AGE, min_age: DEFAULT_MIN_AGE,
                      unresponsive_checks: DEFAULT_UNRESPONSIVE_CHECKS, max_sessions: nil, pids_limit: nil,
                      pids_budget: DEFAULT_PIDS_BUDGET, threads_per_session: DEFAULT_THREADS_PER_SESSION,
-                     interval: nil, dry_run: false)
+                     interval: nil, dry_run: false, lease_ttl: DEFAULT_LEASE_TTL)
         super
         validate_scope!
         validate_numbers!
@@ -51,10 +55,9 @@ module Bidi2pdf
       end
 
       def validate_numbers!
-        { orphan_age: orphan_age, interval: interval, pids_limit: pids_limit }.each { |name, value| positive!(name, value, allow_nil: true) }
+        to_h.slice(:orphan_age, :interval, :pids_limit).each { |name, value| positive!(name, value, allow_nil: true) }
+        to_h.slice(:pids_budget, :threads_per_session, :lease_ttl).each { |name, value| positive!(name, value) }
         positive!(:min_age, min_age, allow_zero: true)
-        positive!(:pids_budget, pids_budget)
-        positive!(:threads_per_session, threads_per_session)
         count!(:unresponsive_checks, unresponsive_checks)
         count!(:max_sessions, max_sessions) unless max_sessions == :auto
       end

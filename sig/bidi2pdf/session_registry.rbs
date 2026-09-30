@@ -1,15 +1,21 @@
 module Bidi2pdf
-  # Remembers which sessions a SessionWarmer opened on a shared (remote) chromedriver, and when, in a
-  # small JSON file per chromedriver URL - so a process started later can find and close the ones a
-  # process that died without a clean shutdown left behind (see SessionSweeper). chromedriver itself
-  # keeps a session until someone deletes it, and it drops any tag we could attach to one (a custom
-  # capability is accepted but echoed nowhere - checked against chromedriver 153), hence a file.
+  # Remembers which sessions bidi2pdf opened on a shared (remote) chromedriver, when, by which
+  # process, and whether that process is still alive - in a small JSON file per chromedriver URL - so
+  # a process started later, or a ChromeSweeper, can find and close the ones a process that died
+  # without a clean shutdown left behind (see SessionSweeper). chromedriver itself keeps a session
+  # until someone deletes it, and it drops any tag we could attach to one (a custom capability is
+  # accepted but echoed nowhere - checked against chromedriver 153), hence a file.
+  #
+  # Liveness is a lease: a session the process #hold s is renewed by its Heartbeat every
+  # Heartbeat.interval seconds. A session whose lease is fresh belongs to a live process - a render
+  # in flight or a warm spare - and no sweeper closes it; one whose lease ran out belongs to a dead
+  # process. #record alone writes an entry nobody renews.
   #
   # Everything here is best effort and fail-open: a directory that is not writable, a locked-out or
   # corrupt file only switches orphan tracking off for this process (one warning, one
   # +session_warmer.registry_unavailable.bidi2pdf+ notification) - rendering never depends on it.
   # The file is created 0600 and every change happens under an exclusive lock, so processes sharing
-  # the directory (a dev server, a job worker, a spec run) can record at the same time.
+  # the directory (Puma workers, a job worker, a spec run) can record at the same time.
   class SessionRegistry
     @path: untyped
 
@@ -17,18 +23,37 @@ module Bidi2pdf
 
     FILE_PREFIX: "bidi2pdf-sessions-"
 
+    # Seconds a lease stays fresh without a renewal.
+    DEFAULT_LEASE_TTL: 60
+
     attr_reader path: untyped
+
+    def self.owner: () -> ::String
 
     def initialize: (untyped session_url, ?dir: untyped?) -> void
 
-    # Records a session the caller just opened.
+    # Records a session the caller opened and keeps its lease fresh while this process lives.
+    def hold: (untyped session_id) -> (false | untyped)
+
+    # Stops renewing the lease but keeps the entry - for a session this process could not close, so
+    # a sweeper takes it once the lease ran out.
+    def release: (untyped session_id) -> (untyped | nil)
+
+    # Writes an entry, leased from +created_at+ on but not renewed (see #hold).
     def record: (untyped session_id, ?created_at: untyped) -> (false | untyped)
 
     # Forgets a session the caller closed itself (or found gone).
     def forget: (untyped session_id) -> (false | untyped)
 
+    # Renews the leases of +session_ids+ that are still recorded.
+    def renew: (untyped session_ids, ?at: untyped) -> untyped
+
     # Every recorded session: { id => opened at (epoch seconds) }.
     def recorded: () -> untyped
+
+    # The recorded session ids whose lease was renewed within +ttl+ seconds before +now+ - sessions
+    # of a live process.
+    def leased: (?now: untyped, ?ttl: untyped) -> untyped
 
     # The recorded session ids opened at or before +cutoff+ (epoch seconds).
     def recorded_before: (untyped cutoff) -> untyped
@@ -39,8 +64,11 @@ module Bidi2pdf
 
     def update: () { (untyped) -> untyped } -> untyped
 
-    # A corrupt or foreign file counts as empty rather than as an error.
+    # A corrupt or foreign file counts as empty rather than as an error; an entry of the first
+    # format (just the creation time) has no lease.
     def parse: (untyped text) -> untyped
+
+    def normalize: (untyped entry) -> ({ "created_at" => untyped } | untyped)
 
     def unavailable!: (untyped error) -> (nil | untyped)
   end

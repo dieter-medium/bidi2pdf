@@ -127,7 +127,9 @@ module Bidi2pdf
       def close
         return unless started?
 
-        @registry&.forget(session_id) if end_via_bidi || delete_via_chromedriver
+        closed = end_via_bidi || delete_via_chromedriver
+        # Not closed: the entry stays, its lease runs out, and a sweeper takes the session.
+        closed ? @registry&.forget(session_id) : @registry&.release(session_id)
       ensure
         @started = false
       end
@@ -359,7 +361,7 @@ module Bidi2pdf
 
       def record_session(id)
         @session_id = id
-        @registry&.record(id)
+        @registry&.hold(id)
         Bidi2pdf.logger.info "Created session with ID: #{id}"
       end
 

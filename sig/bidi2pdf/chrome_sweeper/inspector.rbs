@@ -19,6 +19,7 @@ module Bidi2pdf
       # @!attribute source [Symbol] :registry, :tab or :unknown - where +age+ comes from.
       # @!attribute responsive [Boolean] whether the session answered the checks.
       # @!attribute cpu_times [Hash{Integer => Float}] renderer pid => CPU seconds.
+      # @!attribute live [Boolean] a live process holds its lease (never inspected, never closed).
       SessionInfo: untyped
 
       DEFAULT_TIMEOUT: 5

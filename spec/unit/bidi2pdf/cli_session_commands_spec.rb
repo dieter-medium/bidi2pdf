@@ -39,8 +39,8 @@ RSpec.describe Bidi2pdf::CLI do
       _, out = run_cli("sessions", "--remote-browser-url", session_url, "--json")
 
       expect(JSON.parse(out)).to eq([
-                                      { "id" => "old", "age" => 900, "source" => "tab", "tabs" => 1, "responsive" => true },
-                                      { "id" => "young", "age" => 10, "source" => "tab", "tabs" => 1, "responsive" => true }
+                                      { "id" => "old", "age" => 900, "source" => "tab", "tabs" => 1, "responsive" => true, "live" => false },
+                                      { "id" => "young", "age" => 10, "source" => "tab", "tabs" => 1, "responsive" => true, "live" => false }
                                     ])
     end
 

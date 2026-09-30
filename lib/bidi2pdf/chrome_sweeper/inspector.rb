@@ -15,7 +15,10 @@ module Bidi2pdf
       # @!attribute source [Symbol] :registry, :tab or :unknown - where +age+ comes from.
       # @!attribute responsive [Boolean] whether the session answered the checks.
       # @!attribute cpu_times [Hash{Integer => Float}] renderer pid => CPU seconds.
-      SessionInfo = Data.define(:id, :age, :source, :tabs, :responsive, :cpu_times)
+      # @!attribute live [Boolean] a live process holds its lease (never inspected, never closed).
+      SessionInfo = Data.define(:id, :age, :source, :tabs, :responsive, :cpu_times, :live) do
+        def initialize(live: false, **) = super
+      end
 
       DEFAULT_TIMEOUT = 5
 

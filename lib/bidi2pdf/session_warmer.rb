@@ -296,19 +296,19 @@ module Bidi2pdf
     def create_slot
       slot = new_slot
       id = session_id_of(slot)
-      @registry&.record(id)
+      @registry&.hold(id)
       @mutex.synchronize { @own_sessions << id } if id
       slot
     end
 
-    # A chromedriver out of room for another Chrome refuses the session; with a sweeper, close what
-    # can go and try once more.
+    # A chromedriver out of room for another Chrome refuses the session; with a sweeper, close
+    # everything nobody holds (a pressure sweep) and try once more.
     def new_slot
       @slot_factory.call
     rescue Bidi2pdf::SessionNotStartedError
       raise unless @sweeper
 
-      @sweeper.sweep!(reason: :create_failed)
+      @sweeper.sweep!(reason: :create_failed, pressure: true)
       @slot_factory.call
     end
 

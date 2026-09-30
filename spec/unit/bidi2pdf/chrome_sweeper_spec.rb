@@ -220,6 +220,110 @@ RSpec.describe Bidi2pdf::ChromeSweeper do
     end
   end
 
+  describe "sessions of a live process" do
+    # Recorded long ago, but its process renewed the lease 10 s before "now".
+    def held_by_a_live_process(id)
+      registry.record(id, created_at: 100)
+      registry.renew([id], at: time.first.to_i - 10)
+    end
+
+    it "never closes a session whose lease is fresh" do
+      running("held" => nil)
+      held_by_a_live_process("held")
+
+      sweeper(max_sessions: 1, lease_ttl: 60).sweep!(pressure: true)
+
+      expect(chromedriver.sessions).to eq(["held"])
+    end
+
+    it "closes it once the lease ran out" do
+      running("held" => nil)
+      held_by_a_live_process("held")
+      time[0] += 120
+
+      sweeper(lease_ttl: 60).sweep!
+
+      expect(chromedriver.sessions).to be_empty
+    end
+
+    it "reports the limit as exceeded when only live sessions are over it" do
+      running("a" => nil, "b" => nil)
+      held_by_a_live_process("a")
+      held_by_a_live_process("b")
+
+      expect(sweeper(max_sessions: 1).sweep!.limit_exceeded).to be(true)
+    end
+
+    it "lists it as live" do
+      running("held" => nil)
+      held_by_a_live_process("held")
+
+      expect(sweeper.sessions.map(&:live)).to eq([true])
+    end
+  end
+
+  describe "pressure" do
+    it "closes every session nobody holds that is past min_age" do
+      running("idle" => 100)
+
+      result = sweeper(scope: :all).sweep!(pressure: true)
+
+      expect(result.closed.map(&:to_h)).to eq([{ id: "idle", age: 100, why: :pressure }])
+    end
+
+    it "still leaves a session younger than min_age alone" do
+      running("young" => 10)
+
+      sweeper(scope: :all).sweep!(pressure: true)
+
+      expect(chromedriver.sessions).to eq(["young"])
+    end
+  end
+
+  describe "retrying a failed render" do
+    def failing_once(error)
+      attempts = 0
+      lambda do
+        attempts += 1
+        raise error if attempts == 1
+
+        :rendered
+      end
+    end
+
+    it "returns the second attempt's result after a resource error" do
+      render = failing_once(Bidi2pdf::SessionNotStartedError.new("session not created"))
+
+      expect(sweeper(scope: :all).with_retry { render.call }).to eq(:rendered)
+    end
+
+    it "sweeps under pressure before the second attempt" do
+      running("idle" => 100)
+      render = failing_once(Bidi2pdf::CmdTimeoutError.new("timeout"))
+
+      sweeper(scope: :all).with_retry { render.call }
+
+      expect(chromedriver.sessions).to be_empty
+    end
+
+    it "does not retry an error the page caused" do
+      error = Bidi2pdf::CmdError.new(Bidi2pdf::Bidi::Commands::BrowsingContextGetTree.new, { "error" => "invalid argument" })
+
+      expect { sweeper.with_retry { raise error } }.to raise_error(Bidi2pdf::CmdError)
+    end
+
+    it "lets a second failure through" do
+      expect { sweeper.with_retry { raise Bidi2pdf::SessionNotStartedError, "still full" } }
+        .to raise_error(Bidi2pdf::SessionNotStartedError, "still full")
+    end
+
+    it "retries on the error classes it is given" do
+      render = failing_once(IOError.new("disk full"))
+
+      expect(sweeper.with_retry(retry_on: [IOError]) { render.call }).to eq(:rendered)
+    end
+  end
+
   describe "observing" do
     it "closes nothing" do
       running("old" => 900)

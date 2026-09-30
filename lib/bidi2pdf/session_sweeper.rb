@@ -9,7 +9,8 @@ module Bidi2pdf
   # whole Chrome each until someone deletes them. Run once when a warmer starts.
   #
   # Only recorded sessions are ever touched - another tool's sessions on the same chromedriver never
-  # are. A recorded session that is already gone ("invalid session id" / 404) is just forgotten.
+  # are, and neither is one whose lease a live process keeps renewing (SessionRegistry#hold). A
+  # recorded session that is already gone ("invalid session id" / 404) is just forgotten.
   # Fail-open: any error is logged and ends the sweep; it never raises.
   class SessionSweeper
     # @param session_url [String] the chromedriver's new-session URL (".../session").
@@ -25,7 +26,8 @@ module Bidi2pdf
     #
     # @return [Integer] how many sessions were actually closed.
     def sweep(older_than:, now: Time.now.to_i)
-      closed = @registry.recorded_before(now - older_than).count { |id| closed_now?(id) }
+      leftovers = @registry.recorded_before(now - older_than) - @registry.leased(now: now)
+      closed = leftovers.count { |id| closed_now?(id) }
       report(closed)
       closed
     rescue StandardError => e

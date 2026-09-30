@@ -9,11 +9,13 @@ require "tmpdir"
 # chromedriver container, or - CHROME_SWEEPER_SESSION_URL set - against an existing one (a devbox
 # sidecar). On a shared chromedriver every session this spec did not open counts as "own" for every
 # sweeper here, so nothing but the spec's own sessions can ever be closed.
-RSpec.feature "As an operator, I want leaked Chrome sessions closed before they exhaust the chromedriver" do
+# Tagged :sweeper - CI runs it in a job of its own (ruby.yml, sweeper-acceptance-test).
+RSpec.feature "As an operator, I want leaked Chrome sessions closed before they exhaust the chromedriver", :sweeper do
   def orphan_script = <<~RUBY
     require "bidi2pdf"
     Bidi2pdf.logger.level = Logger::FATAL
-    url, registry_dir, hang = ARGV
+    url, registry_dir, mode = ARGV
+    Bidi2pdf::SessionRegistry::Heartbeat.interval = 0.5
     args = Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS.dup
     args << "--no-sandbox" if ENV["DISABLE_CHROME_SANDBOX"]
     registry = registry_dir.empty? ? nil : Bidi2pdf::SessionRegistry.new(url, dir: registry_dir)
@@ -21,7 +23,7 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
     session.start
     started_at = Time.now.to_f
     session.browser
-    if hang == "hang"
+    if mode == "hang"
       tree = session.client.send_cmd_and_wait(Bidi2pdf::Bidi::Commands::BrowsingContextGetTree.new)
       context = tree.dig("result", "contexts", 0, "context")
       session.client.send_cmd(Bidi2pdf::Bidi::Commands::ScriptEvaluate.new(expression: "while (true) {}", context: context))
@@ -29,8 +31,13 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
     end
     puts "\#{session.session_id} \#{started_at}"
     $stdout.flush
+    sleep if mode == "live"
     exit!(0)
   RUBY
+
+  # Leases in this spec: a dead child's lease runs out after lease_ttl (+ the second the registry
+  # rounds to), a live child renews it every 0.5 s.
+  def lease_ttl = 1
 
   before(:all) do
     @container = start_own_chromedriver unless ENV["CHROME_SWEEPER_SESSION_URL"]
@@ -38,11 +45,17 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
     @registry_dir = Dir.mktmpdir("chrome-sweeper-spec")
     @created = []
     @started_at = {}
+    @workers = []
     @live = open_session
   end
 
   after(:all) do
     @live&.close
+    @workers&.each do |io|
+      Process.kill("KILL", io.pid)
+    rescue Errno::ESRCH
+      nil
+    end
     @created&.each { |id| api.delete_session(id) }
     FileUtils.rm_rf(@registry_dir) if @registry_dir
     stop_container(@container) if @container
@@ -79,9 +92,33 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
     id, started_at = out.lines.last.to_s.split
     raise "orphan process failed (#{status.inspect}): #{err}" if id.nil?
 
+    note_start(id, started_at.to_f)
+  end
+
+  def note_start(id, started_at)
     @created << id
-    @started_at[id] = started_at.to_f
+    @started_at[id] = started_at
+    @leases_expire_at = started_at.ceil + lease_ttl + 1
     id
+  end
+
+  # A process that keeps rendering: holds its session, keeps renewing the lease, never exits.
+  # Returns [session id, pid].
+  def live_worker
+    io = IO.popen(["ruby", "-Ilib", "-e", orphan_script, @session_url, @registry_dir, "live"],
+                  chdir: File.expand_path("../..", __dir__))
+    id = io.gets.to_s.split.first
+    raise "worker process failed" if id.nil?
+
+    @created << id
+    @workers << io
+    [id, io.pid]
+  end
+
+  # A crashed process looks alive until its lease ran out - sweeps here wait for that.
+  def wait_for_dead_leases
+    wait = @leases_expire_at.to_f - Time.now.to_f
+    sleep wait if wait.positive?
   end
 
   # Seconds since the orphan's process saw its session start.
@@ -94,8 +131,10 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
   end
 
   def sweeper(**)
+    wait_for_dead_leases
     Bidi2pdf::ChromeSweeper.new(@session_url, registry: registry, own_sessions: protected_sessions,
-                                              orphan_age: nil, unresponsive_checks: nil, min_age: 0, **)
+                                              orphan_age: nil, unresponsive_checks: nil, min_age: 0, lease_ttl: lease_ttl,
+                                              inspector: Bidi2pdf::ChromeSweeper::Inspector.new(timeout: 2), **)
   end
 
   def open_ids = api.sessions.map(&:id)
@@ -185,8 +224,9 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
   scenario "Keeping the number of sessions under a limit" do
     before do
       @older = orphan(recorded: true)
-      sleep 5
+      sleep 3
       @younger = orphan(recorded: true)
+      wait_for_dead_leases
     end
 
     after { drop(@older, @younger) }
@@ -248,6 +288,30 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
       expect(open_ids).to include(hung)
     ensure
       drop(hung)
+    end
+  end
+
+  scenario "Another worker is still rendering" do
+    then_ "even a last-resort sweep leaves its session alone" do
+      id, = live_worker
+
+      sweeper(scope: :all).sweep!(pressure: true)
+
+      expect(open_ids).to include(id)
+    ensure
+      drop(id)
+    end
+
+    then_ "once that worker is killed, its session goes when the lease ran out" do
+      id, pid = live_worker
+      Process.kill("KILL", pid)
+      sleep lease_ttl + 2
+
+      sweeper(scope: :all).sweep!(pressure: true)
+
+      expect(open_ids).not_to include(id)
+    ensure
+      drop(id)
     end
   end
 end

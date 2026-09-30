@@ -8,8 +8,9 @@ module Bidi2pdf
   # - +:all+ - every session on that chromedriver (+GET /sessions+), aged by its first tab. Only for
   #   a chromedriver the application owns: on a shared one it closes other clients' old sessions.
   #
-  # What it closes, in this order - never a session of +own_sessions+ and never one younger than
-  # +min_age+, not even over the limit, so a render in flight is never killed:
+  # What it closes, in this order - never a session of +own_sessions+, never one whose lease a live
+  # process keeps renewing (SessionRegistry#hold - a render in flight or a warm spare of another
+  # worker), and never one younger than +min_age+, not even over the limit:
   # 1. sessions older than +orphan_age+;
   # 2. sessions that failed +unresponsive_checks+ checks in a row (no answer, or a renderer burning
   #    CPU at full speed between two sweeps - an endless loop);
@@ -17,7 +18,9 @@ module Bidi2pdf
   #    enough, the sweep reports +limit_exceeded+ and closes nothing more.
   #
   # Run it once (#sweep!, ChromeSweeper.sweep!) - e.g. when the application suspects a leak - or
-  # periodically (+interval+, #start/#stop). One sweep at a time, across processes too (a lock file
+  # periodically (+interval+, #start/#stop). As a last resort when a render fails for lack of
+  # resources, #with_retry sweeps under +pressure+ - every session nobody holds and older than
+  # +min_age+ goes - and tries once more. One sweep at a time, across processes too (a lock file
   # next to the registry). Fail-open: a sweep never raises; errors land in the Result. See Settings
   # for every setting and its default.
   #
@@ -54,8 +57,8 @@ module Bidi2pdf
 
     extend Forwardable
 
-    # One closed (or, in a dry run, would-be closed) session. +why+: :orphan, :unresponsive or
-    # :over_limit.
+    # One closed (or, in a dry run, would-be closed) session. +why+: :orphan, :unresponsive,
+    # :over_limit or :pressure.
     Closed: untyped
 
     # What one sweep saw and did.
@@ -64,6 +67,11 @@ module Bidi2pdf
     # A renderer that used at least this share of the wall-clock time between two sweeps counts as
     # stuck in a loop.
     BUSY_CPU_SHARE: ::Float
+
+    # Errors #with_retry sweeps and retries on by default: a session chromedriver refused, and a
+    # connection or command that died or timed out - what a Chrome out of memory or pids looks like.
+    # A command Chrome answered with an error (CmdError) is the page's problem, not a resource one.
+    RETRYABLE: untyped
 
     # The bookkeeping of one sweep.
     Sweep: untyped
@@ -78,7 +86,10 @@ module Bidi2pdf
     # to apply - see #sweep!.
     #
     # @return [Result]
-    def self.sweep!: (untyped session_url, ?reason: ::Symbol, ?check_interval: untyped?, **untyped) -> untyped
+    def self.sweep!: (untyped session_url, ?reason: ::Symbol, ?check_interval: untyped?, ?pressure: bool, **untyped) -> untyped
+
+    # #with_retry with a throw-away sweeper.
+    def self.with_retry: (untyped session_url, ?retry_on: untyped, **untyped) { (?) -> untyped } -> untyped
 
     # @param session_url [String] chromedriver's new-session URL (".../session").
     # @param registry [SessionRegistry, nil] defaults to the one for +session_url+ in +registry_dir+.
@@ -92,6 +103,12 @@ module Bidi2pdf
     #
     # @return [Array<Inspector::SessionInfo>]
     def sessions: () -> untyped
+
+    # Runs the block; when it fails with a resource error (+retry_on+: a callable or a list of error
+    # classes, RETRYABLE by default), sweeps under pressure and runs it once more. The block must
+    # be safe to run twice - it gets a new session the second time. Other errors, and a second
+    # failure, propagate unchanged.
+    def with_retry: (?retry_on: untyped) { () -> untyped } -> untyped
 
     # Inspects every session in scope and counts its checks, like a sweep, but closes nothing.
     #
@@ -107,9 +124,14 @@ module Bidi2pdf
     # applies every rule. The periodic thread doesn't need that: its sweeps are the checks.
     #
     # @param reason [Symbol] why - reported in the notification (:manual, :periodic, :create_failed…).
+    # Under +pressure+ - the last resort when a render failed - every eligible session is closed:
+    # nobody holds it, and it is older than +min_age+; +orphan_age+, the unresponsive checks and the
+    # limit no longer matter.
+    #
     # @param check_interval [Numeric, nil] seconds between those checks; nil sweeps right away.
+    # @param pressure [Boolean] close everything nobody holds that is past +min_age+.
     # @return [Result]
-    def sweep!: (?reason: ::Symbol, ?check_interval: untyped?) -> untyped
+    def sweep!: (?reason: ::Symbol, ?check_interval: untyped?, ?pressure: bool) -> untyped
 
     # Starts the periodic sweep thread (needs an +interval+). Idempotent.
     def start: () -> self
@@ -119,18 +141,25 @@ module Bidi2pdf
 
     private
 
-    def run: (untyped reason, untyped started) -> untyped
+    def run: (untyped reason, untyped started, untyped pressure) -> untyped
 
     # A config error raises; a failed check only means the sweep has fewer checks to go on.
     def check_first: (untyped check_interval) -> untyped
 
     def observe_then_wait: (untyped check_interval) -> untyped
 
-    def sweep_sessions: () -> ::Array[untyped]
+    def sweep_sessions: (untyped pressure) -> ::Array[untyped]
 
-    # In-scope sessions not owned by the caller and not known to be younger than min_age, with the
-    # registry time when there is one. A young recorded session is not even attached to.
+    # In-scope sessions not owned by the caller, not held by a live process and not known to be
+    # younger than min_age, with the registry time when there is one. None of the others is even
+    # attached to - a render in flight is left alone entirely.
     def candidates: (untyped entries) -> untyped
+
+    def live_sessions: () -> untyped
+
+    def live_info: (untyped id, untyped recorded_at) -> untyped
+
+    def retryable?: (untyped retry_on, untyped error) -> untyped
 
     def in_scope: (untyped entries, untyped recorded) -> untyped
 

@@ -12,6 +12,8 @@ module Bidi2pdf
 
     DEFAULT_THREADS_PER_SESSION: 110
 
+    DEFAULT_LEASE_TTL: untyped
+
     # What a ChromeSweeper closes and when - validated on construction; an unknown setting raises
     # ArgumentError.
     #
@@ -25,6 +27,8 @@ module Bidi2pdf
     # @!attribute threads_per_session [Integer] threads (Docker counts them as pids) of one session.
     # @!attribute interval [Numeric, nil] seconds between sweeps of ChromeSweeper#start's thread.
     # @!attribute dry_run [Boolean] report what would be closed, close nothing.
+    # @!attribute lease_ttl [Numeric] a recorded session renewed within this many seconds belongs to
+    #   a live process and is never closed (SessionRegistry#hold).
     Settings: untyped
   end
 end

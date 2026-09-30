@@ -616,15 +616,39 @@ result.closed                        # => [#<data Closed id="…", age=734, why=
 
 # one-shot: checks twice, 10 s apart, so the unresponsive rule applies too
 Bidi2pdf::ChromeSweeper.sweep!("http://remote-chrome:3000/session", check_interval: 10, dry_run: true)
+
+# last resort: a render failed for lack of resources - sweep under pressure, try once more
+Bidi2pdf::ChromeSweeper.with_retry("http://remote-chrome:3000/session", scope: :all) do
+  render_the_pdf # must be safe to run twice
+end
 ```
 
 It closes, in this order: sessions older than `orphan_age`; sessions that failed
 `unresponsive_checks` checks in a row (no answer, or a renderer burning a whole CPU between two
 sweeps - an endless loop in a page); and while more than `max_sessions` exist, the oldest ones.
-It never closes a session younger than `min_age`, not even over the limit, so a render in progress is
-never killed. When the limit can only be kept by closing young sessions, it closes nothing more and
-reports `limit_exceeded`. A session is closed with chromedriver's `DELETE /session/{id}`, which also
-ends a Chrome that no longer answers BiDi.
+It never closes a session a live bidi2pdf process holds (below), a session in `own_sessions`, or
+one younger than `min_age` - not even over the limit. When the limit can only be kept by closing
+those, it closes nothing more and reports `limit_exceeded`. A session is closed with chromedriver's
+`DELETE /session/{id}`, which also ends a Chrome that no longer answers BiDi.
+
+**Live sessions of other processes (leases).** Several processes often share one chromedriver - Puma
+workers, a job worker - and each has renders in flight and warm spares the others know nothing
+about. So every session bidi2pdf opens is recorded in the registry with a lease, and a heartbeat
+thread in the owning process renews it every 20 s while the session is open. A session whose lease
+is younger than `lease_ttl` belongs to a live process: no sweeper in any process closes it, and it
+is not even inspected. When the process dies - killed, crashed, OOM - the lease runs out and the
+session becomes a leftover like any other. Only processes that share the registry directory see
+each other's leases: give job workers in another container the same `registry_dir` on a shared
+volume. Sessions other tools opened have no lease; under `scope: :all` only `min_age` protects them.
+
+**Last resort: pressure.** `sweep!(pressure: true)` closes every session nobody holds that is past
+`min_age`, without waiting for `orphan_age`, the unresponsive checks or the limit. `with_retry` does
+that when its block fails with a resource error - chromedriver refusing a session
+(`SessionNotStartedError`), or a connection or command dying or timing out (`WebsocketError`, but
+not `CmdError`, which is the page's problem) - and runs the block once more; `retry_on:` takes other
+error classes. It frees exactly what belongs to no live process: if the chromedriver is full of live
+renders, the second attempt fails too, and that error is raised. The warmer does the same when a new
+session is refused.
 
 | Setting               | Default     | Description                                                                                                  |
 |-----------------------|-------------|--------------------------------------------------------------------------------------------------------------|
@@ -640,6 +664,7 @@ ends a Chrome that no longer answers BiDi.
 | `dry_run`             | `false`     | Report what would be closed, close nothing.                                                                  |
 | `registry_dir`        | `Dir.tmpdir`| The registry to read and update - same meaning as the warmer's setting.                                      |
 | `own_sessions`        | `-> { [] }` | A callable returning the caller's live session ids; they are never touched.                                  |
+| `lease_ttl`           | `60`        | A recorded session renewed within this many seconds belongs to a live process and is never touched.         |
 
 How it tells a session's age: chromedriver's `GET /sessions` lists every session but no start time,
 and Chrome keeps none either. So the sweeper uses the registry time when there is one and otherwise
@@ -655,25 +680,27 @@ over the limit.
 
 Only one sweep runs at a time, across processes too (a lock file next to the registry). A sweep never
 raises: failures are logged and returned in `Result#errors`. Every remote `Bidi2pdf::Bidi::Session`
-is now recorded in the registry, not only warmer slots, and its `close` falls back to the HTTP
-`DELETE` when Chrome does not answer.
+is now recorded and leased in the registry, not only warmer slots, and its `close` falls back to the
+HTTP `DELETE` when Chrome does not answer; a session it still could not close keeps its entry but
+loses its lease, so a sweeper takes it.
 
 Notifications: `chrome_sweeper.sweep.bidi2pdf` (every sweep: counts, reason, duration),
 `chrome_sweeper.closed.bidi2pdf` (id, age, why), `chrome_sweeper.unresponsive.bidi2pdf`,
-`chrome_sweeper.limit_exceeded.bidi2pdf`, `chrome_sweeper.failed.bidi2pdf`, and
+`chrome_sweeper.limit_exceeded.bidi2pdf`, `chrome_sweeper.failed.bidi2pdf`,
+`chrome_sweeper.retry.bidi2pdf` (`with_retry` sweeps and tries again), and
 `session_close_fallback.bidi2pdf` when a close needed the HTTP `DELETE`.
 
 From the command line:
 
 ```bash
-# id, age, where the age comes from, tabs, responsive - no URLs
+# id, age, where the age comes from, tabs, responsive or live - no URLs
 bidi2pdf sessions --remote-browser-url http://remote-chrome:3000/session [--scope recorded] [--json]
 
 # exits 1 when a close failed or the limit is still exceeded; checks each session
 # --unresponsive-checks times, --check-interval seconds apart (default 10; 0 = sweep at once)
 bidi2pdf sweep --remote-browser-url http://remote-chrome:3000/session \
   [--scope all] [--older-than 600] [--max-sessions 3] [--min-age 60] \
-  [--unresponsive-checks 2] [--check-interval 10] [--dry-run] [--json]
+  [--unresponsive-checks 2] [--check-interval 10] [--pressure] [--dry-run] [--json]
 ```
 
 ### Customizing Chrome arguments (and blank PDFs from inline HTML)
