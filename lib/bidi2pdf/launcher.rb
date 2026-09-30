@@ -109,7 +109,8 @@ module Bidi2pdf
 
     def session
       if @remote_browser_url
-        @custom_session = Bidi::Session.new(session_url: @remote_browser_url, headless: @headless, chrome_args: @chrome_args)
+        @custom_session = Bidi::Session.new(session_url: @remote_browser_url, headless: @headless, chrome_args: @chrome_args,
+                                            registry: Bidi2pdf::SessionRegistry.new(@remote_browser_url))
       else
         @manager = ChromedriverManager.new(port: @port, headless: @headless, chrome_args: @chrome_args)
         @manager.start

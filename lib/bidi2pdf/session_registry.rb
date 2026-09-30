@@ -40,6 +40,11 @@ module Bidi2pdf
       update { |entries| entries.delete(session_id.to_s) }
     end
 
+    # Every recorded session: { id => opened at (epoch seconds) }.
+    def recorded
+      read
+    end
+
     # The recorded session ids opened at or before +cutoff+ (epoch seconds).
     def recorded_before(cutoff)
       entries = read

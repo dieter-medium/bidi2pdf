@@ -4,6 +4,8 @@ module Bidi2pdf
   module Bidi
     module Commands
       require_relative "commands/base"
+      require_relative "commands/browsing_context_get_tree"
+      require_relative "commands/cdp_send_command"
       require_relative "commands/create_window"
       require_relative "commands/create_tab"
       require_relative "commands/add_intercept"

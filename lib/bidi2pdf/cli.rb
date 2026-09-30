@@ -5,11 +5,13 @@ require "yaml"
 require "tempfile"
 
 require_relative "cli/json_output"
+require_relative "cli/session_commands"
 
 module Bidi2pdf
   # rubocop:disable Metrics/AbcSize
   class CLI < Thor
     include JsonOutput
+    include SessionCommands
 
     class_option :config, type: :string, desc: "Load configuration from YAML file"
 
@@ -182,6 +184,42 @@ module Bidi2pdf
       json_mode? ? perform_structured_run(recipe_path) : perform_human_run(recipe_path)
     end
     map "run" => :run_recipe
+
+    desc "sessions", "List the Chrome sessions a remote chromedriver holds: id, age, tabs, responsive (no URLs)"
+    option :remote_browser_url, type: :string, required: true, desc: "The chromedriver's new-session URL (http://host:3000/session)"
+    option :scope, type: :string, default: "all", enum: %w[all recorded], desc: "all sessions, or only those bidi2pdf recorded"
+    option :json, type: :boolean, default: false, desc: "Emit a JSON array instead of a table"
+
+    def sessions
+      return print_sessions(chrome_sweeper.sessions) unless options[:json]
+
+      reserve_stdout_for_machine_output { puts JSON.generate(chrome_sweeper.sessions.map { |info| session_hash(info) }) }
+    end
+
+    desc "sweep", "Close leaked Chrome sessions on a remote chromedriver (too old, unresponsive, or over a limit)"
+    long_desc <<~USAGE, wrap: false
+      Closes sessions older than --older-than seconds, and while more than --max-sessions exist, the
+      oldest ones. A session younger than --min-age seconds is never closed. --scope all looks at
+      every session on that chromedriver - use it only for a chromedriver your application owns;
+      --scope recorded (default) only at sessions bidi2pdf recorded on this machine.
+      Exits 1 when a close failed or the limit is still exceeded.
+    USAGE
+    option :remote_browser_url, type: :string, required: true, desc: "The chromedriver's new-session URL (http://host:3000/session)"
+    option :scope, type: :string, default: "recorded", enum: %w[recorded all], desc: "Which sessions may be closed"
+    option :older_than, type: :numeric, desc: "Close sessions older than this many seconds (default 600)"
+    option :max_sessions, type: :numeric, desc: "Close the oldest sessions while more than this many exist"
+    option :min_age, type: :numeric, desc: "Never close a session younger than this many seconds (default 60)"
+    option :dry_run, type: :boolean, default: false, desc: "Report what would be closed, close nothing"
+    option :json, type: :boolean, default: false, desc: "Emit the sweep result as JSON"
+
+    def sweep
+      result = if options[:json]
+                 reserve_stdout_for_machine_output { chrome_sweeper.sweep!(reason: :cli).tap { |swept| puts JSON.generate(sweep_hash(swept)) } }
+               else
+                 chrome_sweeper.sweep!(reason: :cli).tap { |swept| print_sweep(swept) }
+               end
+      exit(1) if result.errors.any? || result.limit_exceeded
+    end
 
     desc "template", "Generate a config file template"
     option :output, default: "bidi2pdf.yml", desc: "Output configuration filename"

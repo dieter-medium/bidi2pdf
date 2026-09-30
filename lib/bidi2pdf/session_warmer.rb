@@ -61,6 +61,13 @@ module Bidi2pdf
       #   Dir.tmpdir. Every process that should clean up after the others must share it.
       attr_accessor :registry_dir
 
+      # @return [Hash, nil] Options for a ChromeSweeper on the remote chromedriver (+scope+,
+      #   +orphan_age+, +min_age+, +unresponsive_checks+, +max_sessions+, +pids_limit+, +interval+,
+      #   ...), or +nil+ (default) for none. This warmer's own sessions are never touched by it; with
+      #   an +interval+ it sweeps in the background, and a session that fails to start triggers one
+      #   sweep and one retry. Remote mode only.
+      attr_accessor :sweeper
+
       DEFAULT_MAX_IDLE_AGE = 300
 
       def initialize
@@ -72,6 +79,7 @@ module Bidi2pdf
         @max_idle_age = DEFAULT_MAX_IDLE_AGE
         @orphan_age = :auto
         @registry_dir = nil
+        @sweeper = nil
       end
 
       # The orphan age in seconds, or nil when the sweep is off (also when +:auto+ has no
@@ -85,6 +93,7 @@ module Bidi2pdf
         validate_size!
         validate_max_idle_age!
         validate_orphan_age!
+        validate_sweeper!
       end
 
       private
@@ -105,6 +114,12 @@ module Bidi2pdf
         return if orphan_age.nil? || orphan_age == :auto || (orphan_age.is_a?(Numeric) && orphan_age.positive?)
 
         raise ArgumentError, "orphan_age must be :auto, nil or a positive number of seconds, got #{orphan_age.inspect}"
+      end
+
+      def validate_sweeper!
+        return if sweeper.nil? || sweeper.is_a?(Hash)
+
+        raise ArgumentError, "sweeper must be nil or a Hash of ChromeSweeper options, got #{sweeper.inspect}"
       end
     end
 
@@ -166,6 +181,12 @@ module Bidi2pdf
         instance.with_tab(&)
       end
 
+      # Sweeps the remote chromedriver with the configured sweeper; nil when there is none (or no
+      # warmer yet - this never creates one).
+      def sweep!(reason: :manual)
+        @instance&.sweep!(reason: reason)
+      end
+
       # Retires every currently-warm spare and resets the singleton.
       def shutdown
         @instance&.shutdown
@@ -207,10 +228,19 @@ module Bidi2pdf
       @warming = 0
       @shutdown = false
       @reaper_wakeup = Thread::Queue.new
+      @own_sessions = []
       @registry = build_registry
       sweep_leftovers
+      @sweeper = build_sweeper
       prewarm
-      @reaper = Thread.new { reap_loop } if @config.max_idle_age
+      start_background_work
+    end
+
+    # Sweeps the remote chromedriver now - for an application that suspects leaked sessions.
+    #
+    # @return [ChromeSweeper::Result, nil] nil when no sweeper is configured.
+    def sweep!(reason: :manual)
+      @sweeper&.sweep!(reason: reason)
     end
 
     # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
@@ -246,6 +276,7 @@ module Bidi2pdf
 
       @reaper_wakeup << :stop
       @reaper&.join
+      @sweeper&.stop
       threads.each(&:join)
       spares.each { |slot| retire(slot) }
     end
@@ -263,7 +294,34 @@ module Bidi2pdf
     end
 
     def create_slot
-      @slot_factory.call.tap { |slot| @registry&.record(session_id_of(slot)) }
+      slot = new_slot
+      id = session_id_of(slot)
+      @registry&.record(id)
+      @mutex.synchronize { @own_sessions << id } if id
+      slot
+    end
+
+    # A chromedriver out of room for another Chrome refuses the session; with a sweeper, close what
+    # can go and try once more.
+    def new_slot
+      @slot_factory.call
+    rescue Bidi2pdf::SessionNotStartedError
+      raise unless @sweeper
+
+      @sweeper.sweep!(reason: :create_failed)
+      @slot_factory.call
+    end
+
+    def start_background_work
+      @reaper = Thread.new { reap_loop } if @config.max_idle_age
+      @sweeper.start if @sweeper&.interval
+    end
+
+    def build_sweeper
+      return unless @config.remote_browser_url && @config.sweeper
+
+      options = { registry_dir: @config.registry_dir }.merge(@config.sweeper)
+      Bidi2pdf::ChromeSweeper.new(@config.remote_browser_url, own_sessions: -> { @mutex.synchronize { @own_sessions.dup } }, **options)
     end
 
     # Remote mode with an orphan age: sessions are recorded, so a later start can close the ones
@@ -417,7 +475,9 @@ module Bidi2pdf
     # already gone - the next sweep just drops it - never an open session nobody knows about.
     def retire(slot)
       self.class.retire_slot(session: slot[:session], manager: slot[:manager])
-      @registry&.forget(session_id_of(slot))
+      id = session_id_of(slot)
+      @registry&.forget(id)
+      @mutex.synchronize { @own_sessions.delete(id) }
     end
 
     def safe_close(label, &)

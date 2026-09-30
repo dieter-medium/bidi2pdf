@@ -572,6 +572,7 @@ Bidi2pdf::SessionWarmer.shutdown
 | `remote_browser_url` | `nil`                 | Connect each slot to a remote chromedriver instead of starting a local one.                               |
 | `orphan_age`         | `:auto`               | Remote only: on start, close sessions other warmers left behind older than this (`:auto` = 2 × `max_idle_age`, `nil` = off). |
 | `registry_dir`       | `Dir.tmpdir`          | Where the session registry file lives - every process that should clean up after the others must share it. |
+| `sweeper`            | `nil`                 | Remote only: settings for a [`ChromeSweeper`](#leaked-chrome-sessions-bidi2pdfchromesweeper) on the same chromedriver, e.g. `{ scope: :all, max_sessions: :auto, pids_limit: 1024, interval: 60 }`. The warmer's own sessions are never touched; `Bidi2pdf::SessionWarmer.sweep!` sweeps on demand. |
 
 #### Leftover sessions on a shared chromedriver
 
@@ -589,11 +590,82 @@ Everything here is fail-open: if the registry directory is not writable, the war
 warning, instruments `session_warmer.registry_unavailable.bidi2pdf`, and keeps rendering - only the
 cleanup is off. Closed leftovers are reported as `session_warmer.orphans_closed.bidi2pdf`.
 
+With a `sweeper` configured, the warmer also sweeps in the background every `interval` seconds,
+and when chromedriver refuses a new session ("session not created" - typically a container out of
+room for another Chrome) it sweeps once and tries once more.
+
 > **Security note:** an idle warm session is an open, unauthenticated automation endpoint
 > (chromedriver's port, Chrome's debugging port - loopback only for a local chromedriver) for as
 > long as it waits. `max_idle_age` bounds that window; keep it set unless the process runs somewhere
 > nothing else can reach those ports. With `remote_browser_url`, who can reach that endpoint on the
 > network is what matters, exactly as it does without the warmer.
+
+### Leaked Chrome sessions (`Bidi2pdf::ChromeSweeper`)
+
+The registry above only catches what a warmer recorded and only when the next warmer starts. A
+`ChromeSweeper` covers the rest: sessions a crashed process never recorded, a Chrome stuck in a tab
+that never returns, and too many sessions for the container. Run it once, when the application
+suspects a leak, or periodically:
+
+```ruby
+sweeper = Bidi2pdf::ChromeSweeper.new("http://remote-chrome:3000/session",
+                                      scope: :all, max_sessions: :auto, pids_limit: 1024, interval: 60)
+sweeper.start                        # background sweeps until sweeper.stop
+result = sweeper.sweep!              # or one sweep right now
+result.closed                        # => [#<data Closed id="…", age=734, why=:orphan>]
+
+Bidi2pdf::ChromeSweeper.sweep!("http://remote-chrome:3000/session", dry_run: true) # one-shot
+```
+
+It closes, in this order: sessions older than `orphan_age`; sessions that failed
+`unresponsive_checks` checks in a row (no answer, or a renderer burning a whole CPU between two
+sweeps - an endless loop in a page); and while more than `max_sessions` exist, the oldest ones.
+It never closes a session younger than `min_age`, not even over the limit, so a render in progress is
+never killed. When the limit can only be kept by closing young sessions, it closes nothing more and
+reports `limit_exceeded`. A session is closed with chromedriver's `DELETE /session/{id}`, which also
+ends a Chrome that no longer answers BiDi.
+
+| Setting               | Default     | Description                                                                                                  |
+|-----------------------|-------------|--------------------------------------------------------------------------------------------------------------|
+| `scope`               | `:recorded` | `:recorded`: only sessions a bidi2pdf process recorded in the registry. `:all`: every session on that chromedriver - only for a chromedriver your application owns, since on a shared one it closes other clients' old sessions. |
+| `orphan_age`          | `600`       | Close sessions older than this many seconds. `nil` = off.                                                    |
+| `min_age`             | `60`        | Never close a session younger than this.                                                                     |
+| `unresponsive_checks` | `2`         | Close a session after this many failed checks in a row. `nil` = off.                                         |
+| `max_sessions`        | `nil`       | Session limit. `:auto` = floor(`pids_limit` × `pids_budget` / `threads_per_session`), e.g. 1024 → 7, 512 → 3. |
+| `pids_limit`          | `nil`       | The chromedriver container's pids limit (Docker counts threads). `:auto` without it means no limit.         |
+| `pids_budget`         | `0.8`       | Share of `pids_limit` the Chrome sessions may use.                                                           |
+| `threads_per_session` | `110`       | Threads one Chrome session uses.                                                                             |
+| `interval`            | `nil`       | Seconds between background sweeps (`start`/`stop`).                                                          |
+| `dry_run`             | `false`     | Report what would be closed, close nothing.                                                                  |
+| `registry_dir`        | `Dir.tmpdir`| The registry to read and update - same meaning as the warmer's setting.                                      |
+| `own_sessions`        | `-> { [] }` | A callable returning the caller's live session ids; they are never touched.                                  |
+
+How it tells a session's age: chromedriver's `GET /sessions` lists every session but no start time,
+and Chrome keeps none either. So the sweeper uses the registry time when there is one and otherwise
+attaches a second BiDi connection to the session and reads its first tab's
+`performance.timeOrigin` - that tab is created with the session. It only asks for the tab tree,
+that one value and the renderer CPU times; it never reads page content or logs a tab's URL.
+
+Only one sweep runs at a time, across processes too (a lock file next to the registry). A sweep never
+raises: failures are logged and returned in `Result#errors`. Every remote `Bidi2pdf::Bidi::Session`
+is now recorded in the registry, not only warmer slots, and its `close` falls back to the HTTP
+`DELETE` when Chrome does not answer.
+
+Notifications: `chrome_sweeper.sweep.bidi2pdf` (every sweep: counts, reason, duration),
+`chrome_sweeper.closed.bidi2pdf` (id, age, why), `chrome_sweeper.unresponsive.bidi2pdf`,
+`chrome_sweeper.limit_exceeded.bidi2pdf`, `chrome_sweeper.failed.bidi2pdf`, and
+`session_close_fallback.bidi2pdf` when a close needed the HTTP `DELETE`.
+
+From the command line:
+
+```bash
+# id, age, where the age comes from, tabs, responsive - no URLs
+bidi2pdf sessions --remote-browser-url http://remote-chrome:3000/session [--scope recorded] [--json]
+
+# exits 1 when a close failed or the limit is still exceeded
+bidi2pdf sweep --remote-browser-url http://remote-chrome:3000/session \
+  [--scope all] [--older-than 600] [--max-sessions 3] [--min-age 60] [--dry-run] [--json]
+```
 
 ### Customizing Chrome arguments (and blank PDFs from inline HTML)
 
