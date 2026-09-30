@@ -572,7 +572,7 @@ Bidi2pdf::SessionWarmer.shutdown
 | `remote_browser_url` | `nil`                 | Connect each slot to a remote chromedriver instead of starting a local one.                               |
 | `orphan_age`         | `:auto`               | Remote only: on start, close sessions other warmers left behind older than this (`:auto` = 2 × `max_idle_age`, `nil` = off). |
 | `registry_dir`       | `Dir.tmpdir`          | Where the session registry file lives - every process that should clean up after the others must share it. |
-| `sweeper`            | `nil`                 | Remote only: settings for a [`ChromeSweeper`](#leaked-chrome-sessions-bidi2pdfchromesweeper) on the same chromedriver, e.g. `{ scope: :all, max_sessions: :auto, pids_limit: 1024, interval: 60 }`. The warmer's own sessions are never touched; `Bidi2pdf::SessionWarmer.sweep!` sweeps on demand. |
+| `sweeper`            | `nil`                 | Remote only: settings for a [`ChromeSweeper`](#leaked-chrome-sessions-bidi2pdfchromesweeper) on the same chromedriver, e.g. `{ scope: :all, max_sessions: :auto, pids_limit: 1024, interval: 60 }`. The warmer's own sessions are never touched; `Bidi2pdf::SessionWarmer.sweep!` sweeps on demand. With a sweeper the warmer records its sessions even when `orphan_age` is `nil`. |
 
 #### Leftover sessions on a shared chromedriver
 

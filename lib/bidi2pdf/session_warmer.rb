@@ -320,20 +320,21 @@ module Bidi2pdf
     def build_sweeper
       return unless @config.remote_browser_url && @config.sweeper
 
-      options = { registry_dir: @config.registry_dir }.merge(@config.sweeper)
+      options = { registry: @registry }.merge(@config.sweeper)
       Bidi2pdf::ChromeSweeper.new(@config.remote_browser_url, own_sessions: -> { @mutex.synchronize { @own_sessions.dup } }, **options)
     end
 
-    # Remote mode with an orphan age: sessions are recorded, so a later start can close the ones
-    # this process leaves behind if it dies uncleanly - and this start closes others' leftovers.
+    # Remote mode with an orphan age or a sweeper: sessions are recorded, so a later start (or the
+    # sweeper, whose default scope is :recorded) can close the ones this process leaves behind if it
+    # dies uncleanly. The start-up sweep itself needs the orphan age - see #sweep_leftovers.
     def build_registry
-      return unless @config.remote_browser_url && @config.effective_orphan_age
+      return unless @config.remote_browser_url && (@config.effective_orphan_age || @config.sweeper)
 
       Bidi2pdf::SessionRegistry.new(@config.remote_browser_url, dir: @config.registry_dir)
     end
 
     def sweep_leftovers
-      return unless @registry
+      return unless @registry && @config.effective_orphan_age
 
       Bidi2pdf::SessionSweeper.new(@config.remote_browser_url, @registry).sweep(older_than: @config.effective_orphan_age)
     end

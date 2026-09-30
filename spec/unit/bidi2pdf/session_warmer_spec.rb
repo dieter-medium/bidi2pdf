@@ -769,6 +769,22 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       expect(chromedriver.sessions).not_to include("leaked")
     end
 
+    it "records its sessions for the sweeper even with the start-up sweep off" do
+      config.orphan_age = nil
+      warmer
+
+      expect(Bidi2pdf::SessionRegistry.new(config.remote_browser_url, dir: dir).recorded.keys).to eq(["mine"])
+    end
+
+    it "keeps the start-up sweep off when orphan_age is nil" do
+      config.orphan_age = nil
+      allow(Bidi2pdf::SessionSweeper).to receive(:new)
+
+      warmer
+
+      expect(Bidi2pdf::SessionSweeper).not_to have_received(:new)
+    end
+
     it "has nothing to sweep without a sweeper" do
       config.sweeper = nil
 
