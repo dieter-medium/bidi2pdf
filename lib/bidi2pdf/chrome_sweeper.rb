@@ -61,11 +61,12 @@ module Bidi2pdf
 
     def_delegators :@settings, :scope, :orphan_age, :min_age, :unresponsive_checks, :interval, :dry_run, :limit
 
-    # One-shot sweep with a throw-away sweeper.
+    # One-shot sweep with a throw-away sweeper. Give it a +check_interval+ for the unresponsive rule
+    # to apply - see #sweep!.
     #
     # @return [Result]
-    def self.sweep!(session_url, reason: :manual, **)
-      new(session_url, **).sweep!(reason: reason)
+    def self.sweep!(session_url, reason: :manual, check_interval: nil, **)
+      new(session_url, **).sweep!(reason: reason, check_interval: check_interval)
     end
 
     # @param session_url [String] chromedriver's new-session URL (".../session").
@@ -98,12 +99,26 @@ module Bidi2pdf
       in_scope(@api.sessions, recorded).map { |entry| @inspector.examine(entry, recorded_at: recorded[entry.id]) }
     end
 
+    # Inspects every session in scope and counts its checks, like a sweep, but closes nothing.
+    #
+    # @return [Array<Inspector::SessionInfo>]
+    def observe
+      @mutex.synchronize { observe_entries(@api.sessions) }
+    end
+
     # Sweeps once. Skipped (Result#skipped) when another sweep - in this or another process - is
     # still running.
     #
+    # A session counts as hung only after +unresponsive_checks+ failed checks, one per sweep - a
+    # one-shot sweep never gets there. With +check_interval+ it first checks
+    # +unresponsive_checks - 1+ times, +check_interval+ seconds apart (#observe), so a single call
+    # applies every rule. The periodic thread doesn't need that: its sweeps are the checks.
+    #
     # @param reason [Symbol] why - reported in the notification (:manual, :periodic, :create_failed…).
+    # @param check_interval [Numeric, nil] seconds between those checks; nil sweeps right away.
     # @return [Result]
-    def sweep!(reason: :manual)
+    def sweep!(reason: :manual, check_interval: nil)
+      check_first(check_interval) if check_interval
       started = monotonic
       return result(reason, started, skipped: true) unless @mutex.try_lock
 
@@ -142,10 +157,24 @@ module Bidi2pdf
       result(reason, started, sweep: Sweep.new.tap { |failed| failed.errors << e.message })
     end
 
+    # A config error raises; a failed check only means the sweep has fewer checks to go on.
+    def check_first(check_interval)
+      raise Bidi2pdf::InvalidConfigError, "chrome_sweeper: check_interval must be a positive number, got #{check_interval.inspect}" unless check_interval.is_a?(Numeric) && check_interval.positive?
+
+      (unresponsive_checks.to_i - 1).times { observe_then_wait(check_interval) }
+    end
+
+    def observe_then_wait(check_interval)
+      observe
+    rescue StandardError => e
+      Bidi2pdf.logger.warn "chrome_sweeper: checking #{@session_url} before the sweep failed: #{e.message}"
+    ensure
+      sleep check_interval
+    end
+
     def sweep_sessions
       entries = @api.sessions
-      forget_gone(entries)
-      infos = candidates(entries).map { |entry, recorded_at| track(@inspector.examine(entry, recorded_at: recorded_at)) }
+      infos = observe_entries(entries)
       sweep = Sweep.new(entries.size)
       decide(infos.select { |info| info.age >= min_age }, sweep)
       [sweep, infos]
@@ -168,9 +197,22 @@ module Bidi2pdf
       scope == :all ? entries : entries.select { |entry| recorded.key?(entry.id) }
     end
 
-    # Recorded sessions chromedriver no longer has are only dropped from the registry.
+    def observe_entries(entries)
+      forget_gone(entries)
+      candidates(entries).map { |entry, recorded_at| track(@inspector.examine(entry, recorded_at: recorded_at)) }
+    end
+
+    # Sessions chromedriver no longer has are dropped from the registry and from this sweeper's own
+    # tracking - most sessions end normally, so a long-running sweeper would otherwise keep every id
+    # it ever saw.
     def forget_gone(entries)
-      (@registry.recorded.keys - entries.map(&:id)).each { |id| @registry.forget(id) }
+      ids = entries.map(&:id)
+      (@registry.recorded.keys - ids).each { |id| @registry.forget(id) }
+      (@first_seen.keys - ids).each { |id| forget_tracking(id) }
+    end
+
+    def forget_tracking(id)
+      [@failures, @first_seen, @cpu_samples].each { |tracked| tracked.delete(id) }
     end
 
     # Counts failed checks per session across sweeps, and ages a session by when this sweeper first
@@ -256,7 +298,7 @@ module Bidi2pdf
       return false if @api.delete_session(id) == :failed
 
       @registry.forget(id)
-      [@failures, @first_seen, @cpu_samples].each { |tracked| tracked.delete(id) }
+      forget_tracking(id)
       true
     end
 

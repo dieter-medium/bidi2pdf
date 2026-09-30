@@ -198,8 +198,10 @@ module Bidi2pdf
 
     desc "sweep", "Close leaked Chrome sessions on a remote chromedriver (too old, unresponsive, or over a limit)"
     long_desc <<~USAGE, wrap: false
-      Closes sessions older than --older-than seconds, and while more than --max-sessions exist, the
-      oldest ones. A session younger than --min-age seconds is never closed. --scope all looks at
+      Closes sessions older than --older-than seconds, sessions that failed --unresponsive-checks
+      checks in a row (taken --check-interval seconds apart, so a sweep takes that long), and while
+      more than --max-sessions exist, the oldest ones. A session younger than --min-age seconds is
+      never closed. --scope all looks at
       every session on that chromedriver - use it only for a chromedriver your application owns;
       --scope recorded (default) only at sessions bidi2pdf recorded on this machine.
       Exits 1 when a close failed or the limit is still exceeded.
@@ -209,14 +211,16 @@ module Bidi2pdf
     option :older_than, type: :numeric, desc: "Close sessions older than this many seconds (default 600)"
     option :max_sessions, type: :numeric, desc: "Close the oldest sessions while more than this many exist"
     option :min_age, type: :numeric, desc: "Never close a session younger than this many seconds (default 60)"
+    option :unresponsive_checks, type: :numeric, desc: "Close a session after this many failed checks in a row (default 2)"
+    option :check_interval, type: :numeric, default: 10, desc: "Seconds between those checks; 0 sweeps at once, without the unresponsive rule"
     option :dry_run, type: :boolean, default: false, desc: "Report what would be closed, close nothing"
     option :json, type: :boolean, default: false, desc: "Emit the sweep result as JSON"
 
     def sweep
       result = if options[:json]
-                 reserve_stdout_for_machine_output { chrome_sweeper.sweep!(reason: :cli).tap { |swept| puts JSON.generate(sweep_hash(swept)) } }
+                 reserve_stdout_for_machine_output { run_sweep.tap { |swept| puts JSON.generate(sweep_hash(swept)) } }
                else
-                 chrome_sweeper.sweep!(reason: :cli).tap { |swept| print_sweep(swept) }
+                 run_sweep.tap { |swept| print_sweep(swept) }
                end
       exit(1) if result.errors.any? || result.limit_exceeded
     end

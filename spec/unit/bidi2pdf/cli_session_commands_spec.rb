@@ -7,12 +7,13 @@ RSpec.describe Bidi2pdf::CLI do
   let(:session_url) { "http://remote-chrome:3000/session" }
   let(:chromedriver) { FakeChromedriver.new(%w[old young]) }
   let(:dir) { Dir.mktmpdir }
+  let(:inspector) { FakeSessionInspector.build({ "old" => 900.4, "young" => 10 }) }
 
   # Only the network boundary is replaced: chromedriver's HTTP API and attaching to each session.
   before do
     api = chromedriver.api(session_url)
     allow(Bidi2pdf::ChromedriverApi).to receive(:new).and_return(api)
-    allow(Bidi2pdf::ChromeSweeper::Inspector).to receive(:new).and_return(FakeSessionInspector.build({ "old" => 900.4, "young" => 10 }))
+    allow(Bidi2pdf::ChromeSweeper::Inspector).to receive(:new).and_return(inspector)
     allow(Dir).to receive(:tmpdir).and_return(dir)
   end
 
@@ -52,31 +53,46 @@ RSpec.describe Bidi2pdf::CLI do
 
   describe "sweep" do
     it "closes sessions older than --older-than" do
-      run_cli("sweep", "--remote-browser-url", session_url, "--scope", "all", "--older-than", "600")
+      run_cli("sweep", "--remote-browser-url", session_url, "--check-interval", "0", "--scope", "all", "--older-than", "600")
 
       expect(chromedriver.sessions).to eq(["young"])
     end
 
     it "closes nothing in a dry run" do
-      run_cli("sweep", "--remote-browser-url", session_url, "--scope", "all", "--older-than", "600", "--dry-run")
+      run_cli("sweep", "--remote-browser-url", session_url, "--check-interval", "0", "--scope", "all", "--older-than", "600", "--dry-run")
 
       expect(chromedriver.sessions).to eq(%w[old young])
     end
 
     it "reports what it closed as JSON" do
-      _, out = run_cli("sweep", "--remote-browser-url", session_url, "--scope", "all", "--older-than", "600", "--json")
+      _, out = run_cli("sweep", "--remote-browser-url", session_url, "--check-interval", "0", "--scope", "all", "--older-than", "600", "--json")
 
       expect(JSON.parse(out)["closed"]).to eq([{ "id" => "old", "age" => 900, "why" => "orphan" }])
     end
 
     it "exits 1 when the session limit is still exceeded" do
-      status, = run_cli("sweep", "--remote-browser-url", session_url, "--scope", "all", "--max-sessions", "1", "--min-age", "3600")
+      status, = run_cli("sweep", "--remote-browser-url", session_url, "--check-interval", "0", "--scope", "all", "--max-sessions", "1", "--min-age", "3600")
+
+      expect(status).to eq(1)
+    end
+
+    it "closes a hung session after checking it --unresponsive-checks times" do
+      inspector.hung << "old"
+
+      run_cli("sweep", "--remote-browser-url", session_url, "--scope", "all", "--older-than", "5000",
+              "--unresponsive-checks", "2", "--check-interval", "0.01")
+
+      expect(chromedriver.sessions).to eq(["young"])
+    end
+
+    it "rejects a negative --check-interval" do
+      status, = run_cli("sweep", "--remote-browser-url", session_url, "--check-interval", "-1")
 
       expect(status).to eq(1)
     end
 
     it "reports an invalid setting as a CLI error" do
-      status, = run_cli("sweep", "--remote-browser-url", session_url, "--max-sessions", "0")
+      status, = run_cli("sweep", "--remote-browser-url", session_url, "--check-interval", "0", "--max-sessions", "0")
 
       expect(status).to eq(1)
     end

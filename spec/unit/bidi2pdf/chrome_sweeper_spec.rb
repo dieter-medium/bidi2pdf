@@ -141,6 +141,44 @@ RSpec.describe Bidi2pdf::ChromeSweeper do
       expect(chromedriver.sessions).to be_empty
     end
 
+    it "closes a hung session in one one-shot sweep given a check_interval" do
+      running("hung" => 100)
+      inspector.hung << "hung"
+
+      sweeper(scope: :all).sweep!(check_interval: 0.01)
+
+      expect(chromedriver.sessions).to be_empty
+    end
+
+    it "counts the checks of #observe" do
+      running("hung" => 100)
+      inspector.hung << "hung"
+      service = sweeper(scope: :all)
+
+      service.observe
+      service.sweep!
+
+      expect(chromedriver.sessions).to be_empty
+    end
+
+    it "starts counting afresh for a session that went away and came back" do
+      running("hung" => 100)
+      inspector.hung << "hung"
+      service = sweeper(scope: :all)
+      service.sweep!
+      chromedriver.sessions.clear
+      service.sweep!
+      chromedriver.sessions << "hung"
+
+      service.sweep!
+
+      expect(chromedriver.sessions).to eq(["hung"])
+    end
+
+    it "rejects a check_interval that is not a positive number" do
+      expect { sweeper.sweep!(check_interval: -1) }.to raise_error(Bidi2pdf::InvalidConfigError, /check_interval/)
+    end
+
     it "reports an unresponsive session before closing it" do
       running("hung" => 100)
       inspector.hung << "hung"
@@ -179,6 +217,16 @@ RSpec.describe Bidi2pdf::ChromeSweeper do
 
     it "has no limit with :auto but no pids limit" do
       expect(sweeper(max_sessions: :auto).limit).to be_nil
+    end
+  end
+
+  describe "observing" do
+    it "closes nothing" do
+      running("old" => 900)
+
+      sweeper(scope: :all).observe
+
+      expect(chromedriver.sessions).to eq(["old"])
     end
   end
 

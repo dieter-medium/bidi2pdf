@@ -74,10 +74,11 @@ module Bidi2pdf
 
     attr_reader registry: untyped
 
-    # One-shot sweep with a throw-away sweeper.
+    # One-shot sweep with a throw-away sweeper. Give it a +check_interval+ for the unresponsive rule
+    # to apply - see #sweep!.
     #
     # @return [Result]
-    def self.sweep!: (untyped session_url, ?reason: ::Symbol, **untyped) -> untyped
+    def self.sweep!: (untyped session_url, ?reason: ::Symbol, ?check_interval: untyped?, **untyped) -> untyped
 
     # @param session_url [String] chromedriver's new-session URL (".../session").
     # @param registry [SessionRegistry, nil] defaults to the one for +session_url+ in +registry_dir+.
@@ -92,12 +93,23 @@ module Bidi2pdf
     # @return [Array<Inspector::SessionInfo>]
     def sessions: () -> untyped
 
+    # Inspects every session in scope and counts its checks, like a sweep, but closes nothing.
+    #
+    # @return [Array<Inspector::SessionInfo>]
+    def observe: () -> untyped
+
     # Sweeps once. Skipped (Result#skipped) when another sweep - in this or another process - is
     # still running.
     #
+    # A session counts as hung only after +unresponsive_checks+ failed checks, one per sweep - a
+    # one-shot sweep never gets there. With +check_interval+ it first checks
+    # +unresponsive_checks - 1+ times, +check_interval+ seconds apart (#observe), so a single call
+    # applies every rule. The periodic thread doesn't need that: its sweeps are the checks.
+    #
     # @param reason [Symbol] why - reported in the notification (:manual, :periodic, :create_failed…).
+    # @param check_interval [Numeric, nil] seconds between those checks; nil sweeps right away.
     # @return [Result]
-    def sweep!: (?reason: ::Symbol) -> untyped
+    def sweep!: (?reason: ::Symbol, ?check_interval: untyped?) -> untyped
 
     # Starts the periodic sweep thread (needs an +interval+). Idempotent.
     def start: () -> self
@@ -109,6 +121,11 @@ module Bidi2pdf
 
     def run: (untyped reason, untyped started) -> untyped
 
+    # A config error raises; a failed check only means the sweep has fewer checks to go on.
+    def check_first: (untyped check_interval) -> untyped
+
+    def observe_then_wait: (untyped check_interval) -> untyped
+
     def sweep_sessions: () -> ::Array[untyped]
 
     # In-scope sessions not owned by the caller and not known to be younger than min_age, with the
@@ -117,8 +134,14 @@ module Bidi2pdf
 
     def in_scope: (untyped entries, untyped recorded) -> untyped
 
-    # Recorded sessions chromedriver no longer has are only dropped from the registry.
+    def observe_entries: (untyped entries) -> untyped
+
+    # Sessions chromedriver no longer has are dropped from the registry and from this sweeper's own
+    # tracking - most sessions end normally, so a long-running sweeper would otherwise keep every id
+    # it ever saw.
     def forget_gone: (untyped entries) -> untyped
+
+    def forget_tracking: (untyped id) -> untyped
 
     # Counts failed checks per session across sweeps, and ages a session by when this sweeper first
     # saw it when nothing better is known.

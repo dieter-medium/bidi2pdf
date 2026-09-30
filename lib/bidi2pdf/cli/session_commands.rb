@@ -6,7 +6,10 @@ module Bidi2pdf
     # any page content - only ids, ages, tab counts and what was done.
     module SessionCommands
       # CLI flag => ChromeSweeper setting, for the ones that are only passed when given.
-      SWEEP_FLAGS = { older_than: :orphan_age, max_sessions: :max_sessions, min_age: :min_age }.freeze
+      SWEEP_FLAGS = { older_than: :orphan_age, max_sessions: :max_sessions, min_age: :min_age,
+                      unresponsive_checks: :unresponsive_checks }.freeze
+      # Settings that are counts - Thor hands every numeric over as a Float.
+      COUNT_SETTINGS = %i[max_sessions unresponsive_checks].freeze
 
       private
 
@@ -19,12 +22,19 @@ module Bidi2pdf
         raise Thor::Error, e.message
       end
 
-      # Thor hands every numeric over as a Float; the session limit is a count.
       def sweep_flags
         SWEEP_FLAGS.filter_map do |flag, setting|
           value = options[flag]
-          [setting, setting == :max_sessions ? value.to_i : value] unless value.nil?
+          [setting, COUNT_SETTINGS.include?(setting) ? value.to_i : value] unless value.nil?
         end.to_h
+      end
+
+      # --check-interval 0 means no checks before the sweep.
+      def run_sweep
+        interval = options[:check_interval].to_f
+        chrome_sweeper.sweep!(reason: :cli, check_interval: interval.zero? ? nil : interval)
+      rescue Bidi2pdf::InvalidConfigError => e
+        raise Thor::Error, e.message
       end
 
       def session_hash(info)

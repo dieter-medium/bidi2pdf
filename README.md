@@ -614,7 +614,8 @@ sweeper.start                        # background sweeps until sweeper.stop
 result = sweeper.sweep!              # or one sweep right now
 result.closed                        # => [#<data Closed id="…", age=734, why=:orphan>]
 
-Bidi2pdf::ChromeSweeper.sweep!("http://remote-chrome:3000/session", dry_run: true) # one-shot
+# one-shot: checks twice, 10 s apart, so the unresponsive rule applies too
+Bidi2pdf::ChromeSweeper.sweep!("http://remote-chrome:3000/session", check_interval: 10, dry_run: true)
 ```
 
 It closes, in this order: sessions older than `orphan_age`; sessions that failed
@@ -646,6 +647,12 @@ attaches a second BiDi connection to the session and reads its first tab's
 `performance.timeOrigin` - that tab is created with the session. It only asks for the tab tree,
 that one value and the renderer CPU times; it never reads page content or logs a tab's URL.
 
+A session counts as unresponsive only after `unresponsive_checks` failed checks, and every sweep is
+one check. A periodic sweeper gets there by itself; a single `sweep!` does only with
+`check_interval:` - it then checks `unresponsive_checks - 1` times first (`observe`, which closes
+nothing), that many seconds apart. Without it a one-shot sweep closes only old sessions and those
+over the limit.
+
 Only one sweep runs at a time, across processes too (a lock file next to the registry). A sweep never
 raises: failures are logged and returned in `Result#errors`. Every remote `Bidi2pdf::Bidi::Session`
 is now recorded in the registry, not only warmer slots, and its `close` falls back to the HTTP
@@ -662,9 +669,11 @@ From the command line:
 # id, age, where the age comes from, tabs, responsive - no URLs
 bidi2pdf sessions --remote-browser-url http://remote-chrome:3000/session [--scope recorded] [--json]
 
-# exits 1 when a close failed or the limit is still exceeded
+# exits 1 when a close failed or the limit is still exceeded; checks each session
+# --unresponsive-checks times, --check-interval seconds apart (default 10; 0 = sweep at once)
 bidi2pdf sweep --remote-browser-url http://remote-chrome:3000/session \
-  [--scope all] [--older-than 600] [--max-sessions 3] [--min-age 60] [--dry-run] [--json]
+  [--scope all] [--older-than 600] [--max-sessions 3] [--min-age 60] \
+  [--unresponsive-checks 2] [--check-interval 10] [--dry-run] [--json]
 ```
 
 ### Customizing Chrome arguments (and blank PDFs from inline HTML)
