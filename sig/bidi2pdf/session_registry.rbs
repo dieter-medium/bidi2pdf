@@ -7,8 +7,10 @@ module Bidi2pdf
   # accepted but echoed nowhere - checked against chromedriver 153), hence a file.
   #
   # Liveness is a lease: a session the process #hold s is renewed by its Heartbeat every
-  # Heartbeat.interval seconds. A session whose lease is fresh belongs to a live process - a render
-  # in flight or a warm spare - and no sweeper closes it; one whose lease ran out belongs to a dead
+  # Heartbeat.interval seconds, and every entry carries its own TTL - the time the owner promises to
+  # renew it within (three heartbeats) - so a sweeper in another process never has to guess how
+  # often that owner renews. A session whose lease is fresh belongs to a live process - a render in
+  # flight or a warm spare - and no sweeper closes it; one whose lease ran out belongs to a dead
   # process. #record alone writes an entry nobody renews.
   #
   # Everything here is best effort and fail-open: a directory that is not writable, a locked-out or
@@ -23,7 +25,8 @@ module Bidi2pdf
 
     FILE_PREFIX: "bidi2pdf-sessions-"
 
-    # Seconds a lease stays fresh without a renewal.
+    # Seconds a lease stays fresh without a renewal when its entry carries no TTL of its own (written
+    # by bidi2pdf 0.1.18) - matches that version's fixed 20 s heartbeat.
     DEFAULT_LEASE_TTL: 60
 
     attr_reader path: untyped
@@ -39,20 +42,21 @@ module Bidi2pdf
     # a sweeper takes it once the lease ran out.
     def release: (untyped session_id) -> (untyped | nil)
 
-    # Writes an entry, leased from +created_at+ on but not renewed (see #hold).
-    def record: (untyped session_id, ?created_at: untyped) -> (false | untyped)
+    # Writes an entry, leased from +created_at+ on for +ttl+ seconds (nil: the reader's default) but
+    # not renewed (see #hold).
+    def record: (untyped session_id, ?created_at: untyped, ?ttl: untyped?) -> (false | untyped)
 
     # Forgets a session the caller closed itself (or found gone).
     def forget: (untyped session_id) -> (false | untyped)
 
-    # Renews the leases of +session_ids+ that are still recorded.
-    def renew: (untyped session_ids, ?at: untyped) -> untyped
+    # Renews the leases of +session_ids+ that are still recorded, for +ttl+ seconds when given.
+    def renew: (untyped session_ids, ?at: untyped, ?ttl: untyped?) -> untyped
 
     # Every recorded session: { id => opened at (epoch seconds) }.
     def recorded: () -> untyped
 
-    # The recorded session ids whose lease was renewed within +ttl+ seconds before +now+ - sessions
-    # of a live process.
+    # The recorded session ids whose lease is still fresh at +now+ - sessions of a live process. An
+    # entry's own TTL wins; +ttl+ is only for entries without one.
     def leased: (?now: untyped, ?ttl: untyped) -> untyped
 
     # The recorded session ids opened at or before +cutoff+ (epoch seconds).

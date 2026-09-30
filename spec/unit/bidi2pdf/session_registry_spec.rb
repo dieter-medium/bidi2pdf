@@ -75,7 +75,10 @@ RSpec.describe Bidi2pdf::SessionRegistry do
   describe "leases" do
     let(:heartbeat) { Bidi2pdf::SessionRegistry::Heartbeat }
 
-    after { heartbeat.held_ids(registry).each { |id| registry.release(id) } }
+    after do
+      heartbeat.held_ids(registry).each { |id| registry.release(id) }
+      heartbeat.interval = nil
+    end
 
     it "counts a session this process holds as live" do
       registry.hold("abc")
@@ -113,6 +116,26 @@ RSpec.describe Bidi2pdf::SessionRegistry do
       registry.forget("abc")
 
       expect(heartbeat.held_ids(registry)).to be_empty
+    end
+
+    it "carries the TTL its owner's heartbeat promises, whatever a reader would assume" do
+      heartbeat.interval = 2
+      registry.hold("abc")
+
+      expect(registry.leased(now: Time.now.to_i + 5, ttl: 1)).to eq(["abc"])
+    end
+
+    it "runs out after its own TTL even when a reader would assume a longer one" do
+      heartbeat.interval = 2
+      registry.hold("abc")
+
+      expect(registry.leased(now: Time.now.to_i + 8, ttl: 1_000)).to be_empty
+    end
+
+    it "falls back to the reader's TTL for an entry without its own (written by 0.1.18)" do
+      File.write(registry.path, JSON.generate("abc" => { "created_at" => 100, "renewed_at" => 100 }))
+
+      expect(registry.leased(now: 150, ttl: 60)).to eq(["abc"])
     end
 
     it "reads a file of the first format, without leases" do

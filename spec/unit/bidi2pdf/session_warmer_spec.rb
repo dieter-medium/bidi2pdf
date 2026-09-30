@@ -693,6 +693,13 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       expect(Bidi2pdf::SessionSweeper).not_to have_received(:new)
     end
 
+    it "leases its sessions even without an orphan age or a sweeper" do
+      config.orphan_age = nil
+      warmer
+
+      expect(registry.leased).to eq(["mine"])
+    end
+
     it "does not sweep or record in local mode - there is no shared chromedriver" do
       config.remote_browser_url = nil
       warmer
@@ -746,6 +753,13 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       refusing.shutdown
 
       expect([attempts, chromedriver.sessions]).to eq([2, []])
+    end
+
+    it "leaves a refused session to the caller with retry_refused_sessions off" do
+      config.retry_refused_sessions = false
+      refusing = -> { described_class.new(config, slot_factory: -> { raise Bidi2pdf::SessionNotStartedError, "session not created" }) }
+
+      expect { refusing.call }.to raise_error(Bidi2pdf::SessionNotStartedError)
     end
 
     it "sweeps in the background with an interval" do

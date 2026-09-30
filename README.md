@@ -572,7 +572,8 @@ Bidi2pdf::SessionWarmer.shutdown
 | `remote_browser_url` | `nil`                 | Connect each slot to a remote chromedriver instead of starting a local one.                               |
 | `orphan_age`         | `:auto`               | Remote only: on start, close sessions other warmers left behind older than this (`:auto` = 2 × `max_idle_age`, `nil` = off). |
 | `registry_dir`       | `Dir.tmpdir`          | Where the session registry file lives - every process that should clean up after the others must share it. |
-| `sweeper`            | `nil`                 | Remote only: settings for a [`ChromeSweeper`](#leaked-chrome-sessions-bidi2pdfchromesweeper) on the same chromedriver, e.g. `{ scope: :all, max_sessions: :auto, pids_limit: 1024, interval: 60 }`. The warmer's own sessions are never touched; `Bidi2pdf::SessionWarmer.sweep!` sweeps on demand. With a sweeper the warmer records its sessions even when `orphan_age` is `nil`. |
+| `sweeper`            | `nil`                 | Remote only: settings for a [`ChromeSweeper`](#leaked-chrome-sessions-bidi2pdfchromesweeper) on the same chromedriver, e.g. `{ scope: :all, max_sessions: :auto, pids_limit: 1024, interval: 60 }`. The warmer's own sessions are never touched; `Bidi2pdf::SessionWarmer.sweep!` sweeps on demand. |
+| `retry_refused_sessions` | `true`         | With a `sweeper`: when chromedriver refuses a new session, sweep under pressure and try once more. `false` leaves it to the caller. |
 
 #### Leftover sessions on a shared chromedriver
 
@@ -634,9 +635,11 @@ those, it closes nothing more and reports `limit_exceeded`. A session is closed 
 **Live sessions of other processes (leases).** Several processes often share one chromedriver - Puma
 workers, a job worker - and each has renders in flight and warm spares the others know nothing
 about. So every session bidi2pdf opens is recorded in the registry with a lease, and a heartbeat
-thread in the owning process renews it every 20 s while the session is open. A session whose lease
-is younger than `lease_ttl` belongs to a live process: no sweeper in any process closes it, and it
-is not even inspected. When the process dies - killed, crashed, OOM - the lease runs out and the
+thread in the owning process renews it every 20 s (`SessionRegistry::Heartbeat.interval`) while the
+session is open. Every lease carries its own TTL - three heartbeats of the process that wrote it -
+so a sweeper never has to guess how often another process renews. A session whose lease is still
+fresh belongs to a live process: no sweeper in any process closes it, and it is not even inspected.
+The warmer leases its sessions in remote mode too, with or without a sweeper. When the process dies - killed, crashed, OOM - the lease runs out and the
 session becomes a leftover like any other. Only processes that share the registry directory see
 each other's leases: give job workers in another container the same `registry_dir` on a shared
 volume. Sessions other tools opened have no lease; under `scope: :all` only `min_age` protects them.
@@ -664,7 +667,7 @@ session is refused.
 | `dry_run`             | `false`     | Report what would be closed, close nothing.                                                                  |
 | `registry_dir`        | `Dir.tmpdir`| The registry to read and update - same meaning as the warmer's setting.                                      |
 | `own_sessions`        | `-> { [] }` | A callable returning the caller's live session ids; they are never touched.                                  |
-| `lease_ttl`           | `60`        | A recorded session renewed within this many seconds belongs to a live process and is never touched.         |
+| `lease_ttl`           | `60`        | Only for registry entries written by bidi2pdf 0.1.18, which carry no TTL of their own: renewed within this many seconds counts as live. |
 
 How it tells a session's age: chromedriver's `GET /sessions` lists every session but no start time,
 and Chrome keeps none either. So the sweeper uses the registry time when there is one and otherwise
