@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Bidi2pdf
-  VERSION = "0.1.18"
+  VERSION = "0.1.19.pre"
 end
