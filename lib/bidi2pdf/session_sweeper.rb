@@ -25,7 +25,7 @@ module Bidi2pdf
     # Closes recorded sessions opened more than +older_than+ seconds before +now+.
     #
     # @return [Integer] how many sessions were actually closed.
-    def sweep(older_than:, now: Time.now.to_i)
+    def sweep(older_than:, now: Time.now.to_f)
       leftovers = @registry.recorded_before(now - older_than) - @registry.leased(now: now)
       closed = leftovers.count { |id| closed_now?(id) }
       report(closed)

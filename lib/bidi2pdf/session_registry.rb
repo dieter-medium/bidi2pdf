@@ -57,11 +57,13 @@ module Bidi2pdf
 
     # Writes an entry, leased from +created_at+ on for +ttl+ seconds (nil: the reader's default) but
     # not renewed (see #hold).
-    def record(session_id, created_at: Time.now.to_i, ttl: nil)
+    # Times are stored as fractions of a second: a whole-second timestamp could cost a short lease
+    # (0.5 s heartbeats: 1.5 s) up to a second of its life. Entries of whole seconds still read.
+    def record(session_id, created_at: Time.now.to_f, ttl: nil)
       return false if session_id.nil?
 
       update do |entries|
-        entries[session_id.to_s] = { "created_at" => created_at.to_i, "renewed_at" => created_at.to_i, "ttl" => ttl, "owner" => self.class.owner }.compact
+        entries[session_id.to_s] = { "created_at" => created_at.to_f, "renewed_at" => created_at.to_f, "ttl" => ttl, "owner" => self.class.owner }.compact
       end
     end
 
@@ -74,10 +76,10 @@ module Bidi2pdf
     end
 
     # Renews the leases of +session_ids+ that are still recorded, for +ttl+ seconds when given.
-    def renew(session_ids, at: Time.now.to_i, ttl: nil)
+    def renew(session_ids, at: Time.now.to_f, ttl: nil)
       update do |entries|
         session_ids.select { |id| entries.key?(id) }.each do |id|
-          entries[id]["renewed_at"] = at.to_i
+          entries[id]["renewed_at"] = at.to_f
           entries[id]["ttl"] = ttl if ttl
         end
       end
@@ -90,8 +92,8 @@ module Bidi2pdf
 
     # The recorded session ids whose lease is still fresh at +now+ - sessions of a live process. An
     # entry's own TTL wins; +ttl+ is only for entries without one.
-    def leased(now: Time.now.to_i, ttl: DEFAULT_LEASE_TTL)
-      read.select { |_, entry| entry["renewed_at"].to_i + (entry["ttl"] || ttl) >= now }.keys
+    def leased(now: Time.now.to_f, ttl: DEFAULT_LEASE_TTL)
+      read.select { |_, entry| entry["renewed_at"].to_f + (entry["ttl"] || ttl) >= now }.keys
     end
 
     # The recorded session ids opened at or before +cutoff+ (epoch seconds).
@@ -141,9 +143,9 @@ module Bidi2pdf
     end
 
     def normalize(entry)
-      return { "created_at" => entry } if entry.is_a?(Integer)
+      return { "created_at" => entry } if entry.is_a?(Numeric)
 
-      entry if entry.is_a?(Hash) && entry["created_at"].is_a?(Integer)
+      entry if entry.is_a?(Hash) && entry["created_at"].is_a?(Numeric)
     end
 
     def unavailable!(error)

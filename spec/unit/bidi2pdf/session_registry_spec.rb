@@ -132,6 +132,12 @@ RSpec.describe Bidi2pdf::SessionRegistry do
       expect(registry.leased(now: Time.now.to_i + 8, ttl: 1_000)).to be_empty
     end
 
+    it "keeps the fraction of a second a short lease depends on" do
+      registry.record("abc", created_at: 100.75, ttl: 0.5)
+
+      expect(registry.leased(now: 101.2)).to eq(["abc"])
+    end
+
     it "falls back to the reader's TTL for an entry without its own (written by 0.1.18)" do
       File.write(registry.path, JSON.generate("abc" => { "created_at" => 100, "renewed_at" => 100 }))
 

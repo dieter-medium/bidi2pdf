@@ -36,7 +36,8 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
   RUBY
 
   # A child renews every 0.5 s, so its lease entries carry a TTL of 1.5 s (three heartbeats) - a
-  # dead child's lease runs out after that, plus the second the registry rounds to.
+  # dead child's lease runs out that long after it last wrote it, which is before it reported its
+  # session's start.
   def child_lease_ttl = 1.5
 
   before(:all) do
@@ -98,7 +99,7 @@ RSpec.feature "As an operator, I want leaked Chrome sessions closed before they 
   def note_start(id, started_at)
     @created << id
     @started_at[id] = started_at
-    @leases_expire_at = started_at.ceil + child_lease_ttl + 1
+    @leases_expire_at = started_at + child_lease_ttl + 0.2
     id
   end
 

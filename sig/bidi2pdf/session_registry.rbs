@@ -44,6 +44,8 @@ module Bidi2pdf
 
     # Writes an entry, leased from +created_at+ on for +ttl+ seconds (nil: the reader's default) but
     # not renewed (see #hold).
+    # Times are stored as fractions of a second: a whole-second timestamp could cost a short lease
+    # (0.5 s heartbeats: 1.5 s) up to a second of its life. Entries of whole seconds still read.
     def record: (untyped session_id, ?created_at: untyped, ?ttl: untyped?) -> (false | untyped)
 
     # Forgets a session the caller closed itself (or found gone).

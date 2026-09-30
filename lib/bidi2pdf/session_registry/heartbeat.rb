@@ -46,7 +46,7 @@ module Bidi2pdf
         end
 
         # Renews every held lease now.
-        def beat!(now: Time.now.to_i)
+        def beat!(now: Time.now.to_f)
           synchronize { held.values.map { |registry, ids| [registry, ids.to_a] } }
             .each { |registry, ids| registry.renew(ids, at: now, ttl: lease_ttl) }
         end
