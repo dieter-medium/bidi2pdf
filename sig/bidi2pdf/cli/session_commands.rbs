@@ -1,0 +1,35 @@
+module Bidi2pdf
+  class CLI < Thor
+    # Output of `bidi2pdf sessions` and `bidi2pdf sweep` (ChromeSweeper). Never prints a tab URL or
+    # any page content - only ids, ages, tab counts and what was done.
+    module SessionCommands
+      # CLI flag => ChromeSweeper setting, for the ones that are only passed when given.
+      SWEEP_FLAGS: { older_than: :orphan_age, max_sessions: :max_sessions, min_age: :min_age, unresponsive_checks: :unresponsive_checks }
+
+      # Settings that are counts - Thor hands every numeric over as a Float.
+      COUNT_SETTINGS: ::Array[:max_sessions | :unresponsive_checks]
+
+      private
+
+      def chrome_sweeper: () -> untyped
+
+      def sweep_flags: () -> untyped
+
+      # --check-interval 0 means no checks before the sweep.
+      def run_sweep: () -> untyped
+
+      def session_hash: (untyped info) -> { id: untyped, age: untyped, source: untyped, tabs: untyped, responsive: untyped, live: untyped }
+
+      def print_sessions: (untyped infos) -> untyped
+
+      # A live session is not attached to, so there is nothing to say about its tabs.
+      def session_state: (untyped info) -> ("live (a running process holds it)" | untyped)
+
+      def sweep_hash: (untyped result) -> { reason: untyped, sessions: untyped, dry_run: untyped, skipped: untyped, closed: untyped, unresponsive: untyped, limit: untyped, limit_exceeded: untyped, errors: untyped }
+
+      def print_sweep: (untyped result) -> untyped
+
+      def print_sweep_problems: (untyped result) -> untyped
+    end
+  end
+end

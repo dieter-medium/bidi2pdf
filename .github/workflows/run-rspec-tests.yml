@@ -5,6 +5,10 @@ on:
       test_tag:
         required: true
         type: string
+      exclude_tag:
+        required: false
+        default: ""
+        type: string
       artifact_name:
         required: true
         type: string
@@ -28,7 +32,7 @@ jobs:
         uses: ./.github/actions/setup-ruby
       - name: Run Tests with tag ${{ inputs.test_tag }}
         timeout-minutes: 6
-        run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag ${{ inputs.test_tag }}"
+        run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag ${{ inputs.test_tag }}${{ inputs.exclude_tag != '' && format(' --tag ~{0}', inputs.exclude_tag) || '' }}"
       - name: Upload ${{ inputs.artifact_name }} coverage
         uses: actions/upload-artifact@v6
         with:

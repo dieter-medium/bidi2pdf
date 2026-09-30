@@ -1,0 +1,61 @@
+module Bidi2pdf
+  class ChromeSweeper
+    # Looks at one session on a chromedriver from the outside: attaches a second BiDi connection to
+    # its +webSocketUrl+ (chromedriver allows that for any session), asks for the tab tree, the first
+    # tab's +performance.timeOrigin+ (Chrome keeps no session start time anywhere - the first tab is
+    # created with the session, so its time origin is the session's age to within a few hundred ms)
+    # and the renderer CPU times (CDP +SystemInfo.getProcessInfo+ through +goog:cdp.sendCommand+).
+    #
+    # Read-only, and never reads page content: tab URLs are counted, not returned or logged (a
+    # +data:+ URL carries the whole rendered document). Closes its own connection every time.
+    class Inspector
+      @timeout: untyped
+
+      @clock: untyped
+
+      @client_factory: untyped
+
+      # @!attribute age [Float, nil] seconds since the session started, nil when nothing tells.
+      # @!attribute source [Symbol] :registry, :tab or :unknown - where +age+ comes from.
+      # @!attribute responsive [Boolean] whether the session answered the checks.
+      # @!attribute cpu_times [Hash{Integer => Float}] renderer pid => CPU seconds.
+      # @!attribute live [Boolean] a live process holds its lease (never inspected, never closed).
+      SessionInfo: untyped
+
+      DEFAULT_TIMEOUT: 5
+
+      # @param clock [#call] epoch seconds as a Float.
+      # @param client_factory [#call] ws_url -> a started, open Bidi::Client; injectable for tests.
+      def initialize: (?timeout: untyped, ?clock: untyped, ?client_factory: untyped?) -> void
+
+      # @param entry [ChromedriverApi::Entry]
+      # @param recorded_at [Numeric, nil] epoch seconds the registry has for it; wins over the tab.
+      # @return [SessionInfo]
+      def examine: (untyped entry, ?recorded_at: untyped?) -> untyped
+
+      private
+
+      def probe: (untyped client, untyped entry, untyped recorded_at) -> untyped
+
+      def tree: (untyped client) -> untyped
+
+      # A tab stuck in an endless loop never evaluates anything - nil then.
+      def time_origin: (untyped client, untyped context) -> untyped
+
+      # On a freshly attached connection the first command to a session - and, seen once in the
+      # acceptance run, to a tab - can time out although the session is healthy (chromedriver
+      # 153/154); the second one answers. Only a second timeout counts.
+      def once_more_on_timeout: () { () -> untyped } -> untyped
+
+      def cpu_times: (untyped client) -> untyped
+
+      def age_of: (untyped recorded_at, untyped origin) -> (::Array[untyped | :registry] | ::Array[untyped | :tab] | ::Array[nil | :unknown])
+
+      def unreachable: (untyped entry, untyped recorded_at) -> untyped
+
+      def command: (untyped client, untyped cmd) -> untyped
+
+      def connect: (untyped ws_url) -> untyped
+    end
+  end
+end

@@ -32,6 +32,12 @@ RSpec.describe Bidi2pdf::SessionWarmer do
   describe "Configuration" do
     subject(:cfg) { described_class::Configuration.new }
 
+    it "rejects sweeper settings that are not a Hash" do
+      cfg.sweeper = true
+
+      expect { cfg.validate! }.to raise_error(ArgumentError, /sweeper/)
+    end
+
     it "defaults size to 1" do
       expect(cfg.size).to eq(1)
     end
@@ -692,6 +698,97 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       warmer
 
       expect(registry.recorded_before(Time.now.to_i + 1)).to be_empty
+    end
+  end
+
+  describe "a ChromeSweeper on the remote chromedriver" do
+    let(:dir) { Dir.mktmpdir }
+    let(:session) { instance_double(Bidi2pdf::Bidi::Session, started?: true, close: nil, client: client, session_id: "mine") }
+    let(:config) do
+      described_class::Configuration.new.tap do |c|
+        c.size = 1
+        c.remote_browser_url = "http://remote-chrome:3000/session"
+        c.registry_dir = dir
+        c.sweeper = { scope: :all, api: chromedriver.api(c.remote_browser_url),
+                      inspector: FakeSessionInspector.build({ "mine" => 9_999, "leaked" => 900 }) }
+      end
+    end
+
+    # A method, not a let: the group already has as many memoized helpers as RuboCop allows.
+    def chromedriver = @chromedriver ||= FakeChromedriver.new(%w[mine leaked])
+
+    after do
+      warmer.shutdown
+      FileUtils.rm_rf(dir)
+    end
+
+    it "closes leaked sessions on demand" do
+      warmer.sweep!
+
+      expect(chromedriver.sessions).not_to include("leaked")
+    end
+
+    it "never closes its own sessions" do
+      warmer.sweep!
+
+      expect(chromedriver.sessions).to include("mine")
+    end
+
+    it "sweeps and tries once more when chromedriver refuses a new session" do
+      chromedriver.sessions.delete("mine")
+      attempts = 0
+      refusing = described_class.new(config, slot_factory: lambda {
+        attempts += 1
+        raise Bidi2pdf::SessionNotStartedError, "session not created" if attempts == 1
+
+        slot
+      })
+      refusing.shutdown
+
+      expect([attempts, chromedriver.sessions]).to eq([2, []])
+    end
+
+    it "sweeps in the background with an interval" do
+      config.sweeper[:interval] = 0.01
+      warmer
+
+      expect(eventually { !chromedriver.sessions.include?("leaked") }).to be(true)
+    end
+
+    it "sweeps through the configured singleton" do
+      described_class.configure do |c|
+        c.remote_browser_url = config.remote_browser_url
+        c.registry_dir = dir
+        c.sweeper = config.sweeper
+        c.slot_factory = -> { slot }
+      end
+
+      described_class.sweep!
+      described_class.shutdown
+
+      expect(chromedriver.sessions).not_to include("leaked")
+    end
+
+    it "records its sessions for the sweeper even with the start-up sweep off" do
+      config.orphan_age = nil
+      warmer
+
+      expect(Bidi2pdf::SessionRegistry.new(config.remote_browser_url, dir: dir).recorded.keys).to eq(["mine"])
+    end
+
+    it "keeps the start-up sweep off when orphan_age is nil" do
+      config.orphan_age = nil
+      allow(Bidi2pdf::SessionSweeper).to receive(:new)
+
+      warmer
+
+      expect(Bidi2pdf::SessionSweeper).not_to have_received(:new)
+    end
+
+    it "has nothing to sweep without a sweeper" do
+      config.sweeper = nil
+
+      expect(warmer.sweep!).to be_nil
     end
   end
 

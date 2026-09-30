@@ -1,0 +1,47 @@
+module Bidi2pdf
+  class SessionRegistry
+    # Keeps the leases of every session this process holds fresh: one thread per process renews
+    # them in their registry files every +interval+ seconds, so a sweeper in another process (a
+    # second Puma worker, a job worker sharing the registry directory) can tell a live session
+    # from one whose process died. The thread runs only while something is held.
+    #
+    # Fork-aware: a child process (Puma forks its workers) starts with nothing held and without the
+    # parent's thread - the parent's sessions are the parent's to renew.
+    module Heartbeat
+      self.@mutex: untyped
+
+      self.@held: untyped
+
+      self.@pid: untyped
+
+      self.@thread: untyped
+
+      DEFAULT_INTERVAL: untyped
+
+      # @return [Numeric] seconds between renewals - keep it well below the sweeper's lease_ttl.
+      attr_writer self.interval: untyped
+
+      def self.interval: () -> untyped
+
+      def self.hold: (untyped registry, untyped session_id) -> untyped
+
+      def self.release: (untyped registry, untyped session_id) -> untyped
+
+      # @return [Array<String>] the session ids this process holds in +registry+'s file.
+      def self.held_ids: (untyped registry) -> untyped
+
+      # Renews every held lease now.
+      def self.beat!: (?now: untyped) -> untyped
+
+      private
+
+      def self.beat_loop: () -> untyped
+
+      def self.held: () -> untyped
+
+      def self.reset_after_fork: () -> (nil | untyped)
+
+      def self.synchronize: () { (?) -> untyped } -> untyped
+    end
+  end
+end

@@ -27,6 +27,8 @@ module Bidi2pdf
 
       @chrome_args: untyped
 
+      @registry: untyped
+
       @client: untyped
 
       @browser: untyped
@@ -59,7 +61,10 @@ module Bidi2pdf
       # @param [String] session_url The URL for the session.
       # @param [Boolean] headless Whether to run the browser in headless mode. Defaults to true.
       # @param [Array<String>] chrome_args Additional Chrome arguments. Defaults to predefined arguments.
-      def initialize: (session_url: untyped, ?headless: bool, ?chrome_args: untyped) -> void
+      # @param [Bidi2pdf::SessionRegistry, nil] registry Records the session on a shared (remote)
+      #   chromedriver while it is open, so a sweep can close it if this process dies without
+      #   closing it (ChromeSweeper, SessionSweeper). nil records nothing.
+      def initialize: (session_url: untyped, ?headless: bool, ?chrome_args: untyped, ?registry: untyped?) -> void
 
       # Starts the session and initializes the client.
       #
@@ -76,8 +81,8 @@ module Bidi2pdf
       # @return [Bidi2pdf::Bidi::Browser] The browser instance.
       def browser: () -> untyped
 
-      # Closes the session and cleans up resources.
-      # rubocop:disable Metrics/AbcSize
+      # Closes the session and cleans up resources: BiDi +session.end+ first, and when Chrome does not
+      # answer that (a tab stuck in a loop), chromedriver's +DELETE /session/{id}+.
       def close: () -> untyped
 
       # Retrieves user contexts for the session.
@@ -163,6 +168,17 @@ module Bidi2pdf
       # @param [Hash] value The error response value.
       # @raise [SessionNotStartedError] If the session could not be started.
       def handle_error: (untyped value) -> (nil | untyped)
+
+      def end_via_bidi: () -> untyped
+
+      def record_session: (untyped id) -> untyped
+
+      # The BiDi session.end got no answer - typically a Chrome that hangs or crashed. chromedriver
+      # still ends the session (and kills its Chrome) on an HTTP DELETE, so a hung Chrome does not
+      # outlive this process. Only for a session this object created over HTTP (it knows the id).
+      #
+      # @return [Boolean] true when the session is gone.
+      def delete_via_chromedriver: () -> untyped
 
       # Cleans up resources associated with the session.
       def cleanup: () -> untyped

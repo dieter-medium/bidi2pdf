@@ -6,6 +6,7 @@ require "json"
 require_relative "client"
 require_relative "browser"
 require_relative "user_context"
+require_relative "../chromedriver_api"
 
 # Represents a session for managing browser interactions and communication
 # using the Bidi2pdf library. This class handles the setup, configuration,
@@ -83,11 +84,15 @@ module Bidi2pdf
       # @param [String] session_url The URL for the session.
       # @param [Boolean] headless Whether to run the browser in headless mode. Defaults to true.
       # @param [Array<String>] chrome_args Additional Chrome arguments. Defaults to predefined arguments.
-      def initialize(session_url:, headless: true, chrome_args: DEFAULT_CHROME_ARGS)
+      # @param [Bidi2pdf::SessionRegistry, nil] registry Records the session on a shared (remote)
+      #   chromedriver while it is open, so a sweep can close it if this process dies without
+      #   closing it (ChromeSweeper, SessionSweeper). nil records nothing.
+      def initialize(session_url:, headless: true, chrome_args: DEFAULT_CHROME_ARGS, registry: nil)
         @session_uri = URI(session_url)
         @headless = headless
         @started = false
         @chrome_args = chrome_args.dup
+        @registry = registry
       end
 
       # Starts the session and initializes the client.
@@ -117,33 +122,17 @@ module Bidi2pdf
         @browser ||= create_browser
       end
 
-      # Closes the session and cleans up resources.
-      # rubocop:disable Metrics/AbcSize
+      # Closes the session and cleans up resources: BiDi +session.end+ first, and when Chrome does not
+      # answer that (a tab stuck in a loop), chromedriver's +DELETE /session/{id}+.
       def close
         return unless started?
 
-        2.times do |attempt|
-          success = Bidi2pdf.notification_service.instrument("session_close.bidi2pdf", { session_uri: session_uri.to_s, attempt: attempt + 1 }) do |payload|
-            client&.send_cmd_and_wait(Bidi2pdf::Bidi::Commands::SessionEnd.new, timeout: 1) do |response|
-              payload[:response] = response
-              cleanup
-            end
-
-            true
-          rescue CmdTimeoutError => e
-            payload[:error] = e
-            payload[:retry] = attempt < 1 # whether we'll retry again
-
-            false
-          end
-
-          break if success
-        end
+        closed = end_via_bidi || delete_via_chromedriver
+        # Not closed: the entry stays, its lease runs out, and a sweeper takes the session.
+        closed ? @registry&.forget(session_id) : @registry&.release(session_id)
       ensure
         @started = false
       end
-
-      # rubocop: enable Metrics/AbcSize
 
       # Retrieves user contexts for the session.
       def user_contexts
@@ -231,10 +220,9 @@ module Bidi2pdf
         value = session_data["value"]
         handle_error(value) if value.nil? || value["error"]
 
-        @session_id = value["sessionId"]
+        record_session(value["sessionId"])
         ws_url = value["capabilities"]["webSocketUrl"]
 
-        Bidi2pdf.logger.info "Created session with ID: #{session_id}"
         Bidi2pdf.logger.info "WebSocket URL: #{ws_url}"
         ws_url
       end
@@ -351,6 +339,47 @@ module Bidi2pdf
 
         raise SessionNotStartedError,
               "Session not started. Check logs for more details. Error: #{error} message: #{msg}"
+      end
+
+      def end_via_bidi
+        2.times.any? do |attempt|
+          Bidi2pdf.notification_service.instrument("session_close.bidi2pdf", { session_uri: session_uri.to_s, attempt: attempt + 1 }) do |payload|
+            client&.send_cmd_and_wait(Bidi2pdf::Bidi::Commands::SessionEnd.new, timeout: 1) do |response|
+              payload[:response] = response
+              cleanup
+            end
+
+            true
+          rescue WebsocketError => e
+            payload[:error] = e
+            payload[:retry] = attempt < 1 # whether we'll retry again
+
+            false
+          end
+        end
+      end
+
+      def record_session(id)
+        @session_id = id
+        @registry&.hold(id)
+        Bidi2pdf.logger.info "Created session with ID: #{id}"
+      end
+
+      # The BiDi session.end got no answer - typically a Chrome that hangs or crashed. chromedriver
+      # still ends the session (and kills its Chrome) on an HTTP DELETE, so a hung Chrome does not
+      # outlive this process. Only for a session this object created over HTTP (it knows the id).
+      #
+      # @return [Boolean] true when the session is gone.
+      def delete_via_chromedriver
+        return false unless session_id
+
+        outcome = Bidi2pdf::ChromedriverApi.new(session_uri.to_s).delete_session(session_id)
+        Bidi2pdf.notification_service.instrument("session_close_fallback.bidi2pdf", { session_uri: session_uri.to_s, outcome: outcome })
+        cleanup
+        %i[closed gone].include?(outcome)
+      rescue StandardError => e
+        Bidi2pdf.logger.warn "Closing session #{session_id} over HTTP failed: #{e.message}"
+        false
       end
 
       # Cleans up resources associated with the session.

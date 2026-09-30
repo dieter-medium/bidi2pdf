@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+module Bidi2pdf
+  module Bidi
+    module Commands
+      # browsingContext.getTree - the session's top-level browsing contexts (tabs/windows).
+      class BrowsingContextGetTree
+        include Base
+
+        def method_name
+          "browsingContext.getTree"
+        end
+      end
+    end
+  end
+end

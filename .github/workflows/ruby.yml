@@ -84,8 +84,17 @@ jobs:
     uses: ./.github/workflows/run-rspec-tests.yml
     with:
       test_tag: acceptance
+      # Runs in its own job: it starts its own chromedriver and takes about a minute and a half.
+      exclude_tag: sweeper
       artifact_name: acceptance-coverage
       upload_pdf: true
+
+  sweeper-acceptance-test:
+    needs: lint
+    uses: ./.github/workflows/run-rspec-tests.yml
+    with:
+      test_tag: sweeper
+      artifact_name: sweeper-acceptance-coverage
 
   push_cli_to_registry:
     if: ${{ github.event_name != 'pull_request' }}
@@ -93,6 +102,7 @@ jobs:
       - unit-test
       - integration-test
       - acceptance-test
+      - sweeper-acceptance-test
       - gem-build
     name: Push bidi2pdf cli Docker image to Docker Hub
     runs-on: ubuntu-latest
