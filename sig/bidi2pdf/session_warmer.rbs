@@ -70,6 +70,8 @@ module Bidi2pdf
 
       @sweeper: untyped
 
+      @retry_refused_sessions: untyped
+
       # @return [Integer] Number of Chrome slots to keep pre-warmed.
       attr_accessor size: untyped
 
@@ -111,8 +113,12 @@ module Bidi2pdf
       #   +orphan_age+, +min_age+, +unresponsive_checks+, +max_sessions+, +pids_limit+, +interval+,
       #   ...), or +nil+ (default) for none. This warmer's own sessions are never touched by it; with
       #   an +interval+ it sweeps in the background, and a session that fails to start triggers one
-      #   sweep and one retry. Remote mode only.
+      #   pressure sweep and one retry (see +retry_refused_sessions+). Remote mode only.
       attr_accessor sweeper: untyped
+
+      # @return [Boolean] With a +sweeper+: when chromedriver refuses a new session, sweep under
+      #   pressure and try once more. Default true; false leaves a refused session to the caller.
+      attr_accessor retry_refused_sessions: untyped
 
       DEFAULT_MAX_IDLE_AGE: 300
 
@@ -216,9 +222,10 @@ module Bidi2pdf
 
     def build_sweeper: () -> (nil | untyped)
 
-    # Remote mode with an orphan age or a sweeper: sessions are recorded, so a later start (or the
-    # sweeper, whose default scope is :recorded) can close the ones this process leaves behind if it
-    # dies uncleanly. The start-up sweep itself needs the orphan age - see #sweep_leftovers.
+    # Remote mode: every session is leased, so no sweeper in any process takes a warm spare or a
+    # render in flight, and a later start (or a sweeper) can close the ones this process leaves
+    # behind if it dies uncleanly. The start-up sweep itself needs the orphan age - see
+    # #sweep_leftovers.
     def build_registry: () -> (nil | untyped)
 
     def sweep_leftovers: () -> (nil | untyped)

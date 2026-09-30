@@ -14,8 +14,10 @@ module Bidi2pdf
   # accepted but echoed nowhere - checked against chromedriver 153), hence a file.
   #
   # Liveness is a lease: a session the process #hold s is renewed by its Heartbeat every
-  # Heartbeat.interval seconds. A session whose lease is fresh belongs to a live process - a render
-  # in flight or a warm spare - and no sweeper closes it; one whose lease ran out belongs to a dead
+  # Heartbeat.interval seconds, and every entry carries its own TTL - the time the owner promises to
+  # renew it within (three heartbeats) - so a sweeper in another process never has to guess how
+  # often that owner renews. A session whose lease is fresh belongs to a live process - a render in
+  # flight or a warm spare - and no sweeper closes it; one whose lease ran out belongs to a dead
   # process. #record alone writes an entry nobody renews.
   #
   # Everything here is best effort and fail-open: a directory that is not writable, a locked-out or
@@ -25,7 +27,8 @@ module Bidi2pdf
   # the directory (Puma workers, a job worker, a spec run) can record at the same time.
   class SessionRegistry
     FILE_PREFIX = "bidi2pdf-sessions-"
-    # Seconds a lease stays fresh without a renewal.
+    # Seconds a lease stays fresh without a renewal when its entry carries no TTL of its own (written
+    # by bidi2pdf 0.1.18) - matches that version's fixed 20 s heartbeat.
     DEFAULT_LEASE_TTL = 60
 
     attr_reader :path
@@ -41,7 +44,7 @@ module Bidi2pdf
     def hold(session_id)
       return false if session_id.nil?
 
-      recorded = record(session_id)
+      recorded = record(session_id, ttl: Heartbeat.lease_ttl)
       Heartbeat.hold(self, session_id)
       recorded
     end
@@ -52,12 +55,15 @@ module Bidi2pdf
       Heartbeat.release(self, session_id) unless session_id.nil?
     end
 
-    # Writes an entry, leased from +created_at+ on but not renewed (see #hold).
-    def record(session_id, created_at: Time.now.to_i)
+    # Writes an entry, leased from +created_at+ on for +ttl+ seconds (nil: the reader's default) but
+    # not renewed (see #hold).
+    # Times are stored as fractions of a second: a whole-second timestamp could cost a short lease
+    # (0.5 s heartbeats: 1.5 s) up to a second of its life. Entries of whole seconds still read.
+    def record(session_id, created_at: Time.now.to_f, ttl: nil)
       return false if session_id.nil?
 
       update do |entries|
-        entries[session_id.to_s] = { "created_at" => created_at.to_i, "renewed_at" => created_at.to_i, "owner" => self.class.owner }
+        entries[session_id.to_s] = { "created_at" => created_at.to_f, "renewed_at" => created_at.to_f, "ttl" => ttl, "owner" => self.class.owner }.compact
       end
     end
 
@@ -69,10 +75,13 @@ module Bidi2pdf
       update { |entries| entries.delete(session_id.to_s) }
     end
 
-    # Renews the leases of +session_ids+ that are still recorded.
-    def renew(session_ids, at: Time.now.to_i)
+    # Renews the leases of +session_ids+ that are still recorded, for +ttl+ seconds when given.
+    def renew(session_ids, at: Time.now.to_f, ttl: nil)
       update do |entries|
-        session_ids.each { |id| entries[id]["renewed_at"] = at.to_i if entries.key?(id) }
+        session_ids.select { |id| entries.key?(id) }.each do |id|
+          entries[id]["renewed_at"] = at.to_f
+          entries[id]["ttl"] = ttl if ttl
+        end
       end
     end
 
@@ -81,10 +90,10 @@ module Bidi2pdf
       read.transform_values { |entry| entry["created_at"] }
     end
 
-    # The recorded session ids whose lease was renewed within +ttl+ seconds before +now+ - sessions
-    # of a live process.
-    def leased(now: Time.now.to_i, ttl: DEFAULT_LEASE_TTL)
-      read.select { |_, entry| entry["renewed_at"].to_i >= now - ttl }.keys
+    # The recorded session ids whose lease is still fresh at +now+ - sessions of a live process. An
+    # entry's own TTL wins; +ttl+ is only for entries without one.
+    def leased(now: Time.now.to_f, ttl: DEFAULT_LEASE_TTL)
+      read.select { |_, entry| entry["renewed_at"].to_f + (entry["ttl"] || ttl) >= now }.keys
     end
 
     # The recorded session ids opened at or before +cutoff+ (epoch seconds).
@@ -134,9 +143,9 @@ module Bidi2pdf
     end
 
     def normalize(entry)
-      return { "created_at" => entry } if entry.is_a?(Integer)
+      return { "created_at" => entry } if entry.is_a?(Numeric)
 
-      entry if entry.is_a?(Hash) && entry["created_at"].is_a?(Integer)
+      entry if entry.is_a?(Hash) && entry["created_at"].is_a?(Numeric)
     end
 
     def unavailable!(error)

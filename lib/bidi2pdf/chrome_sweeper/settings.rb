@@ -23,8 +23,9 @@ module Bidi2pdf
     # @!attribute threads_per_session [Integer] threads (Docker counts them as pids) of one session.
     # @!attribute interval [Numeric, nil] seconds between sweeps of ChromeSweeper#start's thread.
     # @!attribute dry_run [Boolean] report what would be closed, close nothing.
-    # @!attribute lease_ttl [Numeric] a recorded session renewed within this many seconds belongs to
-    #   a live process and is never closed (SessionRegistry#hold).
+    # @!attribute lease_ttl [Numeric] for registry entries without a TTL of their own (written by
+    #   bidi2pdf 0.1.18): renewed within this many seconds means a live process holds it. Entries
+    #   written since carry the TTL their owner's heartbeat promises (SessionRegistry#hold).
     Settings = Data.define(:scope, :orphan_age, :min_age, :unresponsive_checks, :max_sessions, :pids_limit,
                            :pids_budget, :threads_per_session, :interval, :dry_run, :lease_ttl) do
       # rubocop:disable-next Metrics/ParameterLists

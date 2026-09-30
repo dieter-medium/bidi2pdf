@@ -233,7 +233,7 @@ module Bidi2pdf
     end
 
     def live_sessions
-      @registry.leased(now: now.to_i, ttl: lease_ttl)
+      @registry.leased(now: now, ttl: lease_ttl)
     end
 
     def live_info(id, recorded_at)

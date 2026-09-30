@@ -23,6 +23,9 @@ module Bidi2pdf
 
       def self.interval: () -> untyped
 
+      # The TTL this process writes into its leases: three missed renewals and it is taken for dead.
+      def self.lease_ttl: () -> untyped
+
       def self.hold: (untyped registry, untyped session_id) -> untyped
 
       def self.release: (untyped registry, untyped session_id) -> untyped

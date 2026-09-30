@@ -65,8 +65,12 @@ module Bidi2pdf
       #   +orphan_age+, +min_age+, +unresponsive_checks+, +max_sessions+, +pids_limit+, +interval+,
       #   ...), or +nil+ (default) for none. This warmer's own sessions are never touched by it; with
       #   an +interval+ it sweeps in the background, and a session that fails to start triggers one
-      #   sweep and one retry. Remote mode only.
+      #   pressure sweep and one retry (see +retry_refused_sessions+). Remote mode only.
       attr_accessor :sweeper
+
+      # @return [Boolean] With a +sweeper+: when chromedriver refuses a new session, sweep under
+      #   pressure and try once more. Default true; false leaves a refused session to the caller.
+      attr_accessor :retry_refused_sessions
 
       DEFAULT_MAX_IDLE_AGE = 300
 
@@ -80,6 +84,7 @@ module Bidi2pdf
         @orphan_age = :auto
         @registry_dir = nil
         @sweeper = nil
+        @retry_refused_sessions = true
       end
 
       # The orphan age in seconds, or nil when the sweep is off (also when +:auto+ has no
@@ -306,7 +311,7 @@ module Bidi2pdf
     def new_slot
       @slot_factory.call
     rescue Bidi2pdf::SessionNotStartedError
-      raise unless @sweeper
+      raise unless @sweeper && @config.retry_refused_sessions
 
       @sweeper.sweep!(reason: :create_failed, pressure: true)
       @slot_factory.call
@@ -324,11 +329,12 @@ module Bidi2pdf
       Bidi2pdf::ChromeSweeper.new(@config.remote_browser_url, own_sessions: -> { @mutex.synchronize { @own_sessions.dup } }, **options)
     end
 
-    # Remote mode with an orphan age or a sweeper: sessions are recorded, so a later start (or the
-    # sweeper, whose default scope is :recorded) can close the ones this process leaves behind if it
-    # dies uncleanly. The start-up sweep itself needs the orphan age - see #sweep_leftovers.
+    # Remote mode: every session is leased, so no sweeper in any process takes a warm spare or a
+    # render in flight, and a later start (or a sweeper) can close the ones this process leaves
+    # behind if it dies uncleanly. The start-up sweep itself needs the orphan age - see
+    # #sweep_leftovers.
     def build_registry
-      return unless @config.remote_browser_url && (@config.effective_orphan_age || @config.sweeper)
+      return unless @config.remote_browser_url
 
       Bidi2pdf::SessionRegistry.new(@config.remote_browser_url, dir: @config.registry_dir)
     end
