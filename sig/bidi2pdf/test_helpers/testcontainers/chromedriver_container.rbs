@@ -18,7 +18,10 @@ module Bidi2pdf
 
         DEFAULT_CHROMEDRIVER_PORT: 3000
 
-        DEFAULT_IMAGE: "dieters877565/chromedriver"
+        # Always with a tag: Docker's API pulls every tag of an image named without one, and since
+        # every image build is tagged by its commit that is dozens of ~500 MB images - a test run
+        # then sits silently in the pull for many minutes.
+        DEFAULT_IMAGE: "dieters877565/chromedriver:latest"
 
         attr_reader docker_file: untyped
 
