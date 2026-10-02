@@ -17,7 +17,7 @@ if [ "$ENABLE_XVFB" = "true" ]; then
 
   xauth generate :99 . trusted
 
-  umask $old_umask
+  umask "$old_umask"
 
 
 
@@ -38,17 +38,36 @@ if [ "$ENABLE_VNC" = "true" ]; then
   old_umask=$(umask)
   umask 077
   mkdir -p /home/appuser/.vnc
-  x11vnc -storepasswd $VNC_PASS /home/appuser/.vnc/passwd
-  umask $old_umask
+  x11vnc -storepasswd "$VNC_PASS" /home/appuser/.vnc/passwd
+  umask "$old_umask"
   x11vnc -display WAIT:99 -xkb -noxrecord -noxfixes -noxdamage -forever -shared -noshm -usepw -rfbauth /home/appuser/.vnc/passwd &
 fi
 
 # DISPLAY=:99 /home/appuser/.webdrivers/chromedriver --port=33259 --whitelisted-ips=""  --allowed-origins="*" --disable-dev-shm-usage --disable-gpu  --verbose
-/home/appuser/.webdrivers/chromedriver --port=${CHROMEDRIVER_PORT} \
+/home/appuser/.webdrivers/chromedriver --port="${CHROMEDRIVER_PORT}" \
                                        --allowed-ips="" \
                                        --allowed-origins="*" \
                                        --disable-dev-shm-usage \
                                        --disable-gpu \
-                                       --user-data-dir=${USER_DATA_DIR} \
-                                       --log-level=${CHROMEDRIVER_LOG_LEVEL:-INFO} \
-                                       --readable-timestamp
+                                       --user-data-dir="${USER_DATA_DIR}" \
+                                       --log-level="${CHROMEDRIVER_LOG_LEVEL:-INFO}" \
+                                       --readable-timestamp &
+chromedriver_pid=$!
+
+# docker stop sends TERM to this script (PID 1): pass it on so chromedriver ends its sessions.
+trap 'kill -TERM "$chromedriver_pid" 2>/dev/null' TERM INT
+
+# Opt-in watchdog (see chromedriver-watchdog.sh): stops chromedriver when it no longer answers or
+# memory thrashes, so this script exits and the restart policy starts a fresh container.
+if [ "${WATCHDOG_ENABLED:-false}" = "true" ]; then
+  /usr/local/bin/chromedriver-watchdog.sh "$chromedriver_pid" &
+fi
+
+# A trapped signal interrupts wait before chromedriver has ended: wait again until it has.
+status=0
+wait "$chromedriver_pid" || status=$?
+while kill -0 "$chromedriver_pid" 2>/dev/null; do
+  status=0
+  wait "$chromedriver_pid" || status=$?
+done
+exit "$status"
