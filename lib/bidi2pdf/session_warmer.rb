@@ -102,6 +102,13 @@ module Bidi2pdf
         orphan_age == :auto ? max_idle_age && (max_idle_age * 2) : orphan_age
       end
 
+      # nil (no limit) or a positive number of seconds - for shutdown_timeout and #shutdown's argument.
+      def self.validate_timeout!(name, value)
+        return if value.nil? || (value.is_a?(Numeric) && value.positive?)
+
+        raise ArgumentError, "#{name} must be nil or a positive number of seconds, got #{value.inspect}"
+      end
+
       # @raise [ArgumentError] if a setting can't be honored - checked once, at construction.
       def validate!
         validate_size!
@@ -132,9 +139,7 @@ module Bidi2pdf
       end
 
       def validate_shutdown_timeout!
-        return if shutdown_timeout.nil? || (shutdown_timeout.is_a?(Numeric) && shutdown_timeout.positive?)
-
-        raise ArgumentError, "shutdown_timeout must be nil or a positive number of seconds, got #{shutdown_timeout.inspect}"
+        Configuration.validate_timeout!("shutdown_timeout", shutdown_timeout)
       end
 
       def validate_sweeper!
@@ -291,15 +296,20 @@ module Bidi2pdf
     # slot, since checkout never depends on a warm one being there.
     #
     # All of that within +timeout+ seconds together (Configuration#shutdown_timeout; nil waits for
-    # ever). The spares are closed side by side. Whatever is still running at the deadline is left
-    # to finish on its own, or to die with the process.
+    # ever). The spares start closing first, side by side, so a hung sweep cannot use up their share
+    # of the deadline. Whatever is still running at the deadline is left to finish on its own, or to
+    # die with the process; a spare still closing loses its lease (it keeps its registry entry), so
+    # a sweeper can take its session even while this process lives on.
     #
     # @return [Hash{String => Integer}] what was still running at the deadline ("spare" => 1, ...) -
     #   empty when everything finished in time.
+    # @raise [ArgumentError] for a +timeout+ that is neither nil nor a positive number.
     def shutdown(timeout: @config.shutdown_timeout)
+      Configuration.validate_timeout!("timeout", timeout)
       spares, threads = stop_accepting
       deadline = timeout && (now + timeout)
-      pending = (stop_background(threads, deadline) + unfinished(retire_all(spares), deadline, "spare")).tally
+      closers = retire_all(spares)
+      pending = (stop_background(threads, deadline) + abandoned_spares(closers, deadline)).tally
       warn_abandoned(pending, timeout) unless pending.empty?
       pending
     end
@@ -330,16 +340,28 @@ module Bidi2pdf
       threads.reject { |thread| thread.join(remaining(deadline)) }.map { label }
     end
 
+    # [slot, closing thread] pairs.
     def retire_all(slots)
       slots.map do |slot|
-        Thread.new do
+        closer = Thread.new do
           retire(slot)
         rescue StandardError => e
           Bidi2pdf.logger.warn "session_warmer: retiring a spare failed: #{e.message}"
         end
+        [slot, closer]
       end
     end
 
+    # Spares still closing at the deadline, with their lease released: the heartbeat would otherwise
+    # keep renewing it, and no sweeper takes a leased session.
+    def abandoned_spares(closers, deadline)
+      closers.reject { |_, closer| closer.join(remaining(deadline)) }.map do |slot, _|
+        @registry&.release(session_id_of(slot))
+        "spare"
+      end
+    end
+
+    # Only called with something pending, which needs a deadline - so +timeout+ is a number here.
     def warn_abandoned(pending, timeout)
       Bidi2pdf.logger.warn "session_warmer: shutdown gave up after #{timeout}s, still running: #{pending.map { |what, count| "#{count} #{what}" }.join(", ")}"
       Bidi2pdf.notification_service.instrument("session_warmer.shutdown_timeout.bidi2pdf", { timeout: timeout, pending: pending })

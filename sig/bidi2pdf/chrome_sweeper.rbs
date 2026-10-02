@@ -135,6 +135,8 @@ module Bidi2pdf
 
     # Starts the periodic sweep thread (needs an +interval+). Idempotent. Each thread has its own
     # wakeup queue, so one that #stop stopped waiting for can never take a later thread's :stop.
+    # After such a #stop, a new thread can sweep while the abandoned sweep is still running: the
+    # lock file lets only one of them sweep at a time, the other's sweep is skipped.
     def start: () -> self
 
     # Stops the periodic sweep thread and waits up to +timeout+ seconds (nil: for ever) for a sweep

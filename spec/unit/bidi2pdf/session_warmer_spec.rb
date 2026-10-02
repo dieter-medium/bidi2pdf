@@ -687,6 +687,26 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       expect(registry.recorded_before(Time.now.to_i + 1)).to be_empty
     end
 
+    context "with a spare still closing at the shutdown deadline" do
+      def gate = @gate ||= Thread::Queue.new
+
+      before { allow(session).to receive(:close) { gate.pop } }
+
+      after { gate << :go }
+
+      it "stops renewing its lease, so a sweeper can take the session" do
+        warmer.shutdown(timeout: 0.1)
+
+        expect(Bidi2pdf::SessionRegistry::Heartbeat.held_ids(registry)).not_to include("mine")
+      end
+
+      it "keeps its registry entry" do
+        warmer.shutdown(timeout: 0.1)
+
+        expect(registry.recorded_before(Time.now.to_i + 1)).to eq(["mine"])
+      end
+    end
+
     it "closes another process's leftover on start" do
       registry.record("dead-process", created_at: Time.now.to_i - 3_600)
       deleted = []
@@ -842,6 +862,27 @@ RSpec.describe Bidi2pdf::SessionWarmer do
 
     it "reports nothing left running when everything finished in time" do
       expect(warmer.shutdown).to eq({})
+    end
+
+    it "rejects a timeout that is neither nil nor positive" do
+      expect { warmer.shutdown(timeout: -1) }.to raise_error(ArgumentError, /timeout/)
+    end
+
+    it "closes a healthy spare even while a replenishment hangs" do
+      gate = Thread::Queue.new
+      calls = 0
+      config.size = 2
+      hanging = described_class.new(config, slot_factory: lambda {
+        calls += 1
+        gate.pop if calls == 3
+        slot
+      })
+      hanging.with_tab { |t| t }
+      allow(session).to receive(:close) { sleep 0.05 }
+
+      expect(hanging.shutdown(timeout: 0.3)).to eq("replenishment" => 1)
+    ensure
+      gate << :go
     end
 
     it "closes a slow spare that finishes within the timeout" do

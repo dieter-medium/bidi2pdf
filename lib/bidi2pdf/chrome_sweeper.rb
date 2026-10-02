@@ -169,6 +169,8 @@ module Bidi2pdf
 
     # Starts the periodic sweep thread (needs an +interval+). Idempotent. Each thread has its own
     # wakeup queue, so one that #stop stopped waiting for can never take a later thread's :stop.
+    # After such a #stop, a new thread can sweep while the abandoned sweep is still running: the
+    # lock file lets only one of them sweep at a time, the other's sweep is skipped.
     def start
       raise Bidi2pdf::InvalidConfigError, "chrome_sweeper: start needs an interval" unless interval
       return self if @thread

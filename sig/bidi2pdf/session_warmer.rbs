@@ -139,6 +139,9 @@ module Bidi2pdf
       # max_idle_age to derive it from).
       def effective_orphan_age: () -> untyped
 
+      # nil (no limit) or a positive number of seconds - for shutdown_timeout and #shutdown's argument.
+      def self.validate_timeout!: (untyped name, untyped value) -> (nil | untyped)
+
       # @raise [ArgumentError] if a setting can't be honored - checked once, at construction.
       def validate!: () -> untyped
 
@@ -150,7 +153,7 @@ module Bidi2pdf
 
       def validate_orphan_age!: () -> (nil | untyped)
 
-      def validate_shutdown_timeout!: () -> (nil | untyped)
+      def validate_shutdown_timeout!: () -> untyped
 
       def validate_sweeper!: () -> (nil | untyped)
     end
@@ -219,11 +222,14 @@ module Bidi2pdf
     # slot, since checkout never depends on a warm one being there.
     #
     # All of that within +timeout+ seconds together (Configuration#shutdown_timeout; nil waits for
-    # ever). The spares are closed side by side. Whatever is still running at the deadline is left
-    # to finish on its own, or to die with the process.
+    # ever). The spares start closing first, side by side, so a hung sweep cannot use up their share
+    # of the deadline. Whatever is still running at the deadline is left to finish on its own, or to
+    # die with the process; a spare still closing loses its lease (it keeps its registry entry), so
+    # a sweeper can take its session even while this process lives on.
     #
     # @return [Hash{String => Integer}] what was still running at the deadline ("spare" => 1, ...) -
     #   empty when everything finished in time.
+    # @raise [ArgumentError] for a +timeout+ that is neither nil nor a positive number.
     def shutdown: (?timeout: untyped) -> untyped
 
     private
@@ -238,8 +244,14 @@ module Bidi2pdf
     # Thread#join returns nil when the time ran out first.
     def unfinished: (untyped threads, untyped deadline, untyped label) -> untyped
 
+    # [slot, closing thread] pairs.
     def retire_all: (untyped slots) -> untyped
 
+    # Spares still closing at the deadline, with their lease released: the heartbeat would otherwise
+    # keep renewing it, and no sweeper takes a leased session.
+    def abandoned_spares: (untyped closers, untyped deadline) -> untyped
+
+    # Only called with something pending, which needs a deadline - so +timeout+ is a number here.
     def warn_abandoned: (untyped pending, untyped timeout) -> untyped
 
     # Fail-fast on purpose (a Chrome that can't start at boot should be loud), but not leaky: if slot
