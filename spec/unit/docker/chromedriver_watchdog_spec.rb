@@ -50,10 +50,12 @@ RSpec.describe "docker/chromedriver-watchdog.sh" do
                               "full avg10=#{full_avg10} avg60=0.00 avg300=0.00 total=0\n")
   end
 
+  def marker = File.join(dir, "restarted")
+
   def watch(port:, **env)
     settings = { "CHROMEDRIVER_PORT" => port.to_s, "WATCHDOG_INTERVAL" => "1", "WATCHDOG_FAILURES" => "2",
                  "WATCHDOG_STATUS_TIMEOUT" => "1", "WATCHDOG_PRESSURE_FILE" => pressure_file }
-    Open3.popen3(settings.merge(env), "bash", script, chromedriver.to_s)
+    Open3.popen3(settings.merge(env), "bash", script, chromedriver.to_s, marker)
   end
 
   def chromedriver_stopped_within?(seconds)
@@ -99,6 +101,42 @@ RSpec.describe "docker/chromedriver-watchdog.sh" do
     watcher = watch(port: status_port, "WATCHDOG_MEMORY_PRESSURE" => "0")
 
     expect(chromedriver_stopped_within?(4)).to be(false)
+  ensure
+    stop(watcher)
+  end
+
+  it "leaves the marker that makes the container exit non-zero" do
+    watcher = watch(port: closed_port)
+    chromedriver_stopped_within?(6)
+
+    expect(File).to exist(marker)
+  ensure
+    stop(watcher)
+  end
+
+  it "leaves no marker while chromedriver is fine" do
+    watcher = watch(port: status_port)
+    chromedriver_stopped_within?(3)
+
+    expect(File).not_to exist(marker)
+  ensure
+    stop(watcher)
+  end
+
+  it "reads a zero-padded limit as decimal, not octal" do
+    pressure("45.00")
+    watcher = watch(port: status_port, "WATCHDOG_MEMORY_PRESSURE" => "050")
+
+    expect(chromedriver_stopped_within?(4)).to be(false)
+  ensure
+    stop(watcher)
+  end
+
+  it "accepts a zero-padded number that is no valid octal number" do
+    pressure("9.00")
+    watcher = watch(port: status_port, "WATCHDOG_MEMORY_PRESSURE" => "08", "WATCHDOG_STOP_GRACE" => "09")
+
+    expect(chromedriver_stopped_within?(6)).to be(true)
   ensure
     stop(watcher)
   end

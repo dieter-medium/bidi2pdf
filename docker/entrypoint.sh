@@ -58,9 +58,14 @@ chromedriver_pid=$!
 trap 'kill -TERM "$chromedriver_pid" 2>/dev/null' TERM INT
 
 # Opt-in watchdog (see chromedriver-watchdog.sh): stops chromedriver when it no longer answers or
-# memory thrashes, so this script exits and the restart policy starts a fresh container.
+# memory thrashes, so this script exits and the restart policy starts a fresh container. It leaves
+# a marker first, in a private temp dir, so the exit below is non-zero for any restart policy.
+watchdog_marker=""
 if [ "${WATCHDOG_ENABLED:-false}" = "true" ]; then
-  /usr/local/bin/chromedriver-watchdog.sh "$chromedriver_pid" &
+  if watchdog_dir="$(mktemp -d)"; then
+    watchdog_marker="${watchdog_dir}/restarted"
+  fi
+  /usr/local/bin/chromedriver-watchdog.sh "$chromedriver_pid" "$watchdog_marker" &
 fi
 
 # A trapped signal interrupts wait before chromedriver has ended: wait again until it has.
@@ -70,4 +75,8 @@ while kill -0 "$chromedriver_pid" 2>/dev/null; do
   status=0
   wait "$chromedriver_pid" || status=$?
 done
+
+if [ -n "$watchdog_marker" ] && [ -e "$watchdog_marker" ] && [ "$status" -eq 0 ]; then
+  status=1
+fi
 exit "$status"
