@@ -16,6 +16,14 @@ on:
     tags:
       - 'v**'
 
+# One build per ref at a time, in push order: two merges a few seconds apart built side by side, and
+# the older build finished last and moved latest back onto the older commit (sha-3a4cfac over
+# sha-6e5260a, 2026-10-02). Queued, not cancelled, so the running build still pushes its sha- tag;
+# of several waiting builds GitHub keeps only the newest.
+concurrency:
+  group: chromedriver-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   push_chromedriver_to_registry:
     name: Push Docker Chromedriver image to Docker Hub
