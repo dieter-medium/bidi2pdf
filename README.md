@@ -459,6 +459,43 @@ the box in either image, no extra install step needed.
 Chromium comes from Debian's packages at build time, so every build can carry a different
 Chromium - for a byte-exact pin use the digest (`docker buildx imagetools inspect <image:tag>`).
 
+### ChromeDriver health check and watchdog
+
+The image has a Docker `HEALTHCHECK` (chromedriver's `/status`), so `docker ps` shows a
+chromedriver that stopped answering as `unhealthy`. It does not see a Chrome that is wedged behind
+a chromedriver that still answers - memory thrashing shows only to the watchdog. And Docker does
+not restart a container for being unhealthy - only when its main process exits.
+
+That is what the opt-in watchdog does. With `WATCHDOG_ENABLED=true` it checks every
+`WATCHDOG_INTERVAL` seconds and, after `WATCHDOG_FAILURES` failed checks in a row, stops
+chromedriver; the container exits non-zero and its restart policy starts a fresh one - any policy
+but `no` (`--restart unless-stopped` or `on-failure`, `restart:` in Compose; Kamal sets
+`unless-stopped` for accessories). Without one, a watchdog restart just stops the container. A
+check fails when chromedriver does not answer `/status`, or when the
+container's memory thrashes: Linux's pressure stall information (`memory.pressure`, "full") shows
+every task stalled on memory for at least `WATCHDOG_MEMORY_PRESSURE` percent of the last 10 s - a
+Chrome swapping at its memory limit, which answers no command but never crashes.
+
+Renders still running on that Chrome fail when it restarts; a client with a sweeper retries them.
+
+| Variable                   | Default                          | Description                                                  |
+|----------------------------|----------------------------------|--------------------------------------------------------------|
+| `WATCHDOG_ENABLED`         | `false`                          | `true` starts the watchdog.                                  |
+| `WATCHDOG_INTERVAL`        | `15`                             | Seconds between checks.                                      |
+| `WATCHDOG_FAILURES`        | `3`                              | Failed checks in a row before the restart.                   |
+| `WATCHDOG_STATUS_TIMEOUT`  | `5`                              | Seconds `/status` may take.                                  |
+| `WATCHDOG_MEMORY_PRESSURE` | `50`                             | "full avg10" percent that fails a check; `0` turns it off.   |
+| `WATCHDOG_STOP_GRACE`      | `10`                             | Seconds between stopping chromedriver (TERM) and killing it. |
+| `WATCHDOG_PRESSURE_FILE`   | `/sys/fs/cgroup/memory.pressure` | The PSI file; without one (cgroup v1, PSI off) only `/status` counts. |
+
+All values are whole numbers (seconds, percent). A malformed value stops the watchdog from
+starting - chromedriver keeps running unwatched, and the container log says why.
+
+Picking `WATCHDOG_MEMORY_PRESSURE`: "full" counts only the time *every* task waited on memory, so it
+stays near 0 while renders merely run; 50 % of the last 10 s is a container that is stuck, not busy.
+Before lowering it, watch `/sys/fs/cgroup/memory.pressure` inside the container under your usual
+render load and stay well above what you see there.
+
 ### Docker Compose
 
 ```bash
