@@ -9,6 +9,7 @@ module Bidi2pdf
     DEFAULT_PIDS_BUDGET = 0.8
     DEFAULT_THREADS_PER_SESSION = 110
     DEFAULT_LEASE_TTL = SessionRegistry::DEFAULT_LEASE_TTL
+    DEFAULT_STOP_TIMEOUT = 10
 
     # What a ChromeSweeper closes and when - validated on construction; an unknown setting raises
     # ArgumentError.

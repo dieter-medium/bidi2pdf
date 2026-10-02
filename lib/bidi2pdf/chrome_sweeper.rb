@@ -167,21 +167,30 @@ module Bidi2pdf
       end
     end
 
-    # Starts the periodic sweep thread (needs an +interval+). Idempotent.
+    # Starts the periodic sweep thread (needs an +interval+). Idempotent. Each thread has its own
+    # wakeup queue, so one that #stop stopped waiting for can never take a later thread's :stop.
     def start
       raise Bidi2pdf::InvalidConfigError, "chrome_sweeper: start needs an interval" unless interval
+      return self if @thread
 
-      @thread ||= Thread.new { sweep!(reason: :periodic) until @wakeup.pop(timeout: interval) == :stop }
+      wakeup = @wakeup = Thread::Queue.new
+      @thread = Thread.new { sweep!(reason: :periodic) until wakeup.pop(timeout: interval) == :stop }
       self
     end
 
-    # Stops the periodic sweep thread and waits for a sweep in progress to finish.
-    def stop
-      return unless @thread
+    # Stops the periodic sweep thread and waits up to +timeout+ seconds (nil: for ever) for a sweep
+    # in progress to finish - one inspecting sessions of a Chrome that no longer answers can take
+    # far longer. A sweep still running then is left to finish on its own; the thread ends after it.
+    #
+    # @return [Boolean] true when the thread has ended.
+    def stop(timeout: DEFAULT_STOP_TIMEOUT)
+      return true unless @thread
 
       @wakeup << :stop
-      @thread.join
+      stopped = !@thread.join(timeout).nil?
+      Bidi2pdf.logger.warn "chrome_sweeper: a sweep of #{@session_url} still running after #{timeout}s - not waiting for it" unless stopped
       @thread = nil
+      stopped
     end
 
     private

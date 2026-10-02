@@ -72,6 +72,8 @@ module Bidi2pdf
 
       @retry_refused_sessions: untyped
 
+      @shutdown_timeout: untyped
+
       # @return [Integer] Number of Chrome slots to keep pre-warmed.
       attr_accessor size: untyped
 
@@ -120,7 +122,16 @@ module Bidi2pdf
       #   pressure and try once more. Default true; false leaves a refused session to the caller.
       attr_accessor retry_refused_sessions: untyped
 
+      # @return [Numeric, nil] Seconds #shutdown waits, all in all, for its background threads and
+      #   for closing the warm spares. A Chrome that hangs or ran out of memory answers no command,
+      #   and every close would wait out its own timeout - an exiting process must not hang on that.
+      #   What is still running then is left behind (a warning, +session_warmer.shutdown_timeout+);
+      #   its sessions stay in the registry and a later sweep closes them. +nil+ waits for ever.
+      attr_accessor shutdown_timeout: untyped
+
       DEFAULT_MAX_IDLE_AGE: 300
+
+      DEFAULT_SHUTDOWN_TIMEOUT: 10
 
       def initialize: () -> void
 
@@ -138,6 +149,8 @@ module Bidi2pdf
       def validate_max_idle_age!: () -> (nil | untyped)
 
       def validate_orphan_age!: () -> (nil | untyped)
+
+      def validate_shutdown_timeout!: () -> (nil | untyped)
 
       def validate_sweeper!: () -> (nil | untyped)
     end
@@ -204,9 +217,30 @@ module Bidi2pdf
     # finish (each of those, seeing @shutdown, retires its own result instead of stashing it - see
     # #stash_or_retire). A subsequent #with_tab still works - it just falls back to a synchronous
     # slot, since checkout never depends on a warm one being there.
-    def shutdown: () -> untyped
+    #
+    # All of that within +timeout+ seconds together (Configuration#shutdown_timeout; nil waits for
+    # ever). The spares are closed side by side. Whatever is still running at the deadline is left
+    # to finish on its own, or to die with the process.
+    #
+    # @return [Hash{String => Integer}] what was still running at the deadline ("spare" => 1, ...) -
+    #   empty when everything finished in time.
+    def shutdown: (?timeout: untyped) -> untyped
 
     private
+
+    def stop_accepting: () -> untyped
+
+    # The labels of whatever is still running at the deadline: reaper, sweeper, replenishments.
+    def stop_background: (untyped threads, untyped deadline) -> untyped
+
+    def remaining: (untyped deadline) -> untyped
+
+    # Thread#join returns nil when the time ran out first.
+    def unfinished: (untyped threads, untyped deadline, untyped label) -> untyped
+
+    def retire_all: (untyped slots) -> untyped
+
+    def warn_abandoned: (untyped pending, untyped timeout) -> untyped
 
     # Fail-fast on purpose (a Chrome that can't start at boot should be loud), but not leaky: if slot
     # N fails, no instance is returned to own slots 1..N-1, so they are retired here first.

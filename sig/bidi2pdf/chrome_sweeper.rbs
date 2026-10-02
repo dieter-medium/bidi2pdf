@@ -133,11 +133,16 @@ module Bidi2pdf
     # @return [Result]
     def sweep!: (?reason: ::Symbol, ?check_interval: untyped?, ?pressure: bool) -> untyped
 
-    # Starts the periodic sweep thread (needs an +interval+). Idempotent.
+    # Starts the periodic sweep thread (needs an +interval+). Idempotent. Each thread has its own
+    # wakeup queue, so one that #stop stopped waiting for can never take a later thread's :stop.
     def start: () -> self
 
-    # Stops the periodic sweep thread and waits for a sweep in progress to finish.
-    def stop: () -> (nil | untyped)
+    # Stops the periodic sweep thread and waits up to +timeout+ seconds (nil: for ever) for a sweep
+    # in progress to finish - one inspecting sessions of a Chrome that no longer answers can take
+    # far longer. A sweep still running then is left to finish on its own; the thread ends after it.
+    #
+    # @return [Boolean] true when the thread has ended.
+    def stop: (?timeout: untyped) -> (true | untyped)
 
     private
 

@@ -62,9 +62,27 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       expect(cfg.max_idle_age).to eq(300)
     end
 
+    it "bounds shutdown by default rather than waiting on a Chrome that never answers" do
+      expect(cfg.shutdown_timeout).to eq(10)
+    end
+
     describe "#validate!" do
       it "accepts the defaults" do
         expect { cfg.validate! }.not_to raise_error
+      end
+
+      it "accepts nil shutdown_timeout (waits for ever)" do
+        cfg.shutdown_timeout = nil
+
+        expect { cfg.validate! }.not_to raise_error
+      end
+
+      [0, -1, "10"].each do |bad|
+        it "rejects shutdown_timeout #{bad.inspect}" do
+          cfg.shutdown_timeout = bad
+
+          expect { cfg.validate! }.to raise_error(ArgumentError, /shutdown_timeout/)
+        end
       end
 
       it "accepts nil max_idle_age (limit disabled)" do
@@ -820,6 +838,55 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       warmer.with_tab { |t| yielded = t }
 
       expect(yielded).to eq(tab)
+    end
+
+    it "reports nothing left running when everything finished in time" do
+      expect(warmer.shutdown).to eq({})
+    end
+
+    it "closes a slow spare that finishes within the timeout" do
+      allow(session).to receive(:close) { sleep 0.1 }
+      warmer.shutdown(timeout: 2)
+
+      expect(session).to have_received(:close)
+    end
+
+    context "with a spare whose Chrome no longer answers" do
+      let(:gate) { Thread::Queue.new }
+
+      before { allow(session).to receive(:close) { gate.pop } }
+
+      after { gate << :go }
+
+      it "stops waiting for it after the timeout" do
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        warmer.shutdown(timeout: 0.1)
+
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 1
+      end
+
+      it "takes its timeout from the configuration" do
+        config.shutdown_timeout = 0.1
+
+        expect(warmer.shutdown).to eq("spare" => 1)
+      end
+
+      it "warns about what it left behind" do
+        allow(Bidi2pdf.logger).to receive(:warn)
+        warmer.shutdown(timeout: 0.1)
+
+        expect(Bidi2pdf.logger).to have_received(:warn).with(/shutdown gave up after 0.1s, still running: 1 spare/)
+      end
+
+      it "reports what it left behind" do
+        events = []
+        subscriber = Bidi2pdf.notification_service.subscribe("session_warmer.shutdown_timeout.bidi2pdf") { |event| events << event.payload }
+        warmer.shutdown(timeout: 0.1)
+
+        expect(events).to eq([{ timeout: 0.1, pending: { "spare" => 1 } }])
+      ensure
+        Bidi2pdf.notification_service.unsubscribe("session_warmer.shutdown_timeout.bidi2pdf", subscriber)
+      end
     end
   end
 end
