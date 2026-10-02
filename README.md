@@ -574,6 +574,7 @@ Bidi2pdf::SessionWarmer.shutdown
 | `registry_dir`       | `Dir.tmpdir`          | Where the session registry file lives - every process that should clean up after the others must share it. |
 | `sweeper`            | `nil`                 | Remote only: settings for a [`ChromeSweeper`](#leaked-chrome-sessions-bidi2pdfchromesweeper) on the same chromedriver, e.g. `{ scope: :all, max_sessions: :auto, pids_limit: 1024, interval: 60 }`. The warmer's own sessions are never touched; `Bidi2pdf::SessionWarmer.sweep!` sweeps on demand. |
 | `retry_refused_sessions` | `true`         | With a `sweeper`: when chromedriver refuses a new session, sweep under pressure and try once more. `false` leaves it to the caller. |
+| `shutdown_timeout`   | `10`                  | Seconds `shutdown` waits, all in all, for its background threads and for closing the warm sessions. `nil` waits for ever. |
 
 #### Leftover sessions on a shared chromedriver
 
@@ -594,6 +595,13 @@ cleanup is off. Closed leftovers are reported as `session_warmer.orphans_closed.
 With a `sweeper` configured, the warmer also sweeps in the background every `interval` seconds,
 and when chromedriver refuses a new session ("session not created" - typically a container out of
 room for another Chrome) it sweeps once and tries once more.
+
+`shutdown` is bounded by `shutdown_timeout`. A Chrome that hangs or ran out of memory answers no
+command, and closing each of its sessions would wait out every command timeout in turn - long
+enough that a stopping server looks hung. At the deadline the warmer stops waiting, logs what is
+still running and instruments `session_warmer.shutdown_timeout.bidi2pdf` (`timeout`, `pending`);
+`shutdown` returns the same tally, e.g. `{ "spare" => 1 }`, and `{}` when everything finished.
+Sessions it could not close stay in the registry, so a later sweep closes them.
 
 > **Security note:** an idle warm session is an open, unauthenticated automation endpoint
 > (chromedriver's port, Chrome's debugging port - loopback only for a local chromedriver) for as
@@ -663,7 +671,7 @@ session is refused.
 | `pids_limit`          | `nil`       | The chromedriver container's pids limit (Docker counts threads). `:auto` without it means no limit.         |
 | `pids_budget`         | `0.8`       | Share of `pids_limit` the Chrome sessions may use.                                                           |
 | `threads_per_session` | `110`       | Threads one Chrome session uses.                                                                             |
-| `interval`            | `nil`       | Seconds between background sweeps (`start`/`stop`).                                                          |
+| `interval`            | `nil`       | Seconds between background sweeps (`start`/`stop`). `stop(timeout: 10)` waits that long for a sweep in progress, then stops waiting and returns `false` (`nil` waits for ever). |
 | `dry_run`             | `false`     | Report what would be closed, close nothing.                                                                  |
 | `registry_dir`        | `Dir.tmpdir`| The registry to read and update - same meaning as the warmer's setting.                                      |
 | `own_sessions`        | `-> { [] }` | A callable returning the caller's live session ids; they are never touched.                                  |

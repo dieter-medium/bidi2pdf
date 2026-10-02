@@ -14,6 +14,8 @@ module Bidi2pdf
 
     DEFAULT_LEASE_TTL: untyped
 
+    DEFAULT_STOP_TIMEOUT: 10
+
     # What a ChromeSweeper closes and when - validated on construction; an unknown setting raises
     # ArgumentError.
     #

@@ -396,6 +396,56 @@ RSpec.describe Bidi2pdf::ChromeSweeper do
     it "needs an interval to start" do
       expect { sweeper.start }.to raise_error(Bidi2pdf::InvalidConfigError, /interval/)
     end
+
+    it "has nothing to stop when it never started" do
+      expect(sweeper.stop).to be(true)
+    end
+
+    it "reports a stop that waited for the sweep to end" do
+      service = sweeper(scope: :all, interval: 0.01).start
+
+      expect(service.stop(timeout: 2)).to be(true)
+    end
+
+    context "with a sweep that hangs on a chromedriver that no longer answers" do
+      let(:gate) { Thread::Queue.new }
+      let(:hanging) do
+        api = Bidi2pdf::ChromedriverApi.new(session_url, http: lambda { |*|
+          gate.pop
+          raise Errno::ECONNREFUSED
+        })
+        described_class.new(session_url, registry: registry, api: api, inspector: inspector, interval: 0.01)
+      end
+
+      def hang_in_a_sweep
+        hanging.start
+        Timeout.timeout(2) { sleep 0.01 until gate.num_waiting.positive? }
+      end
+
+      after { gate << :go }
+
+      it "stops waiting for it after the timeout" do
+        hang_in_a_sweep
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        hanging.stop(timeout: 0.1)
+
+        expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 1
+      end
+
+      it "reports that the sweep is still running" do
+        hang_in_a_sweep
+
+        expect(hanging.stop(timeout: 0.1)).to be(false)
+      end
+
+      it "warns that it no longer waits" do
+        hang_in_a_sweep
+        allow(Bidi2pdf.logger).to receive(:warn)
+        hanging.stop(timeout: 0.1)
+
+        expect(Bidi2pdf.logger).to have_received(:warn).with(/still running after 0.1s/)
+      end
+    end
   end
 
   it "sweeps once through the class method" do

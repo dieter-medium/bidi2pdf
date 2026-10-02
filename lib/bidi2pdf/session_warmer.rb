@@ -72,7 +72,15 @@ module Bidi2pdf
       #   pressure and try once more. Default true; false leaves a refused session to the caller.
       attr_accessor :retry_refused_sessions
 
+      # @return [Numeric, nil] Seconds #shutdown waits, all in all, for its background threads and
+      #   for closing the warm spares. A Chrome that hangs or ran out of memory answers no command,
+      #   and every close would wait out its own timeout - an exiting process must not hang on that.
+      #   What is still running then is left behind (a warning, +session_warmer.shutdown_timeout+);
+      #   its sessions stay in the registry and a later sweep closes them. +nil+ waits for ever.
+      attr_accessor :shutdown_timeout
+
       DEFAULT_MAX_IDLE_AGE = 300
+      DEFAULT_SHUTDOWN_TIMEOUT = 10
 
       def initialize
         @size = 1
@@ -85,6 +93,7 @@ module Bidi2pdf
         @registry_dir = nil
         @sweeper = nil
         @retry_refused_sessions = true
+        @shutdown_timeout = DEFAULT_SHUTDOWN_TIMEOUT
       end
 
       # The orphan age in seconds, or nil when the sweep is off (also when +:auto+ has no
@@ -93,12 +102,20 @@ module Bidi2pdf
         orphan_age == :auto ? max_idle_age && (max_idle_age * 2) : orphan_age
       end
 
+      # nil (no limit) or a positive number of seconds - for shutdown_timeout and #shutdown's argument.
+      def self.validate_timeout!(name, value)
+        return if value.nil? || (value.is_a?(Numeric) && value.positive?)
+
+        raise ArgumentError, "#{name} must be nil or a positive number of seconds, got #{value.inspect}"
+      end
+
       # @raise [ArgumentError] if a setting can't be honored - checked once, at construction.
       def validate!
         validate_size!
         validate_max_idle_age!
         validate_orphan_age!
         validate_sweeper!
+        validate_shutdown_timeout!
       end
 
       private
@@ -119,6 +136,10 @@ module Bidi2pdf
         return if orphan_age.nil? || orphan_age == :auto || (orphan_age.is_a?(Numeric) && orphan_age.positive?)
 
         raise ArgumentError, "orphan_age must be :auto, nil or a positive number of seconds, got #{orphan_age.inspect}"
+      end
+
+      def validate_shutdown_timeout!
+        Configuration.validate_timeout!("shutdown_timeout", shutdown_timeout)
       end
 
       def validate_sweeper!
@@ -273,20 +294,78 @@ module Bidi2pdf
     # finish (each of those, seeing @shutdown, retires its own result instead of stashing it - see
     # #stash_or_retire). A subsequent #with_tab still works - it just falls back to a synchronous
     # slot, since checkout never depends on a warm one being there.
-    def shutdown
-      spares, threads = @mutex.synchronize do
-        @shutdown = true
-        [@available.dup.tap { @available.clear }, @replenish_threads.dup.tap { @replenish_threads.clear }]
-      end
-
-      @reaper_wakeup << :stop
-      @reaper&.join
-      @sweeper&.stop
-      threads.each(&:join)
-      spares.each { |slot| retire(slot) }
+    #
+    # All of that within +timeout+ seconds together (Configuration#shutdown_timeout; nil waits for
+    # ever). The spares start closing first, side by side, so a hung sweep cannot use up their share
+    # of the deadline. Whatever is still running at the deadline is left to finish on its own, or to
+    # die with the process; a spare still closing loses its lease (it keeps its registry entry), so
+    # a sweeper can take its session even while this process lives on.
+    #
+    # @return [Hash{String => Integer}] what was still running at the deadline ("spare" => 1, ...) -
+    #   empty when everything finished in time.
+    # @raise [ArgumentError] for a +timeout+ that is neither nil nor a positive number.
+    def shutdown(timeout: @config.shutdown_timeout)
+      Configuration.validate_timeout!("timeout", timeout)
+      spares, threads = stop_accepting
+      deadline = timeout && (now + timeout)
+      closers = retire_all(spares)
+      pending = (stop_background(threads, deadline) + abandoned_spares(closers, deadline)).tally
+      warn_abandoned(pending, timeout) unless pending.empty?
+      pending
     end
 
     private
+
+    def stop_accepting
+      @mutex.synchronize do
+        @shutdown = true
+        [@available.dup.tap { @available.clear }, @replenish_threads.dup.tap { @replenish_threads.clear }]
+      end
+    end
+
+    # The labels of whatever is still running at the deadline: reaper, sweeper, replenishments.
+    def stop_background(threads, deadline)
+      @reaper_wakeup << :stop
+      pending = unfinished([@reaper].compact, deadline, "reaper")
+      pending << "sweeper" unless @sweeper.nil? || @sweeper.stop(timeout: remaining(deadline))
+      pending + unfinished(threads, deadline, "replenishment")
+    end
+
+    def remaining(deadline)
+      deadline && [deadline - now, 0].max
+    end
+
+    # Thread#join returns nil when the time ran out first.
+    def unfinished(threads, deadline, label)
+      threads.reject { |thread| thread.join(remaining(deadline)) }.map { label }
+    end
+
+    # [slot, closing thread] pairs.
+    def retire_all(slots)
+      slots.map do |slot|
+        closer = Thread.new do
+          retire(slot)
+        rescue StandardError => e
+          Bidi2pdf.logger.warn "session_warmer: retiring a spare failed: #{e.message}"
+        end
+        [slot, closer]
+      end
+    end
+
+    # Spares still closing at the deadline, with their lease released: the heartbeat would otherwise
+    # keep renewing it, and no sweeper takes a leased session.
+    def abandoned_spares(closers, deadline)
+      closers.reject { |_, closer| closer.join(remaining(deadline)) }.map do |slot, _|
+        @registry&.release(session_id_of(slot))
+        "spare"
+      end
+    end
+
+    # Only called with something pending, which needs a deadline - so +timeout+ is a number here.
+    def warn_abandoned(pending, timeout)
+      Bidi2pdf.logger.warn "session_warmer: shutdown gave up after #{timeout}s, still running: #{pending.map { |what, count| "#{count} #{what}" }.join(", ")}"
+      Bidi2pdf.notification_service.instrument("session_warmer.shutdown_timeout.bidi2pdf", { timeout: timeout, pending: pending })
+    end
 
     # Fail-fast on purpose (a Chrome that can't start at boot should be loud), but not leaky: if slot
     # N fails, no instance is returned to own slots 1..N-1, so they are retired here first.
