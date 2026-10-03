@@ -11,6 +11,7 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, "#print", :chromedriver, :session do
   # Blink breaks words at the dictionary's hyphenation points and prints U+2010 HYPHEN at the break,
   # or "-" when the font has no U+2010 glyph; pdf-reader ends the line after it.
   let(:hyphen_break) { /[-‐]\n\s*/ }
+  let(:german_word) { "Donaudampfschifffahrtsgesellschaftskapitän" }
 
   # Every language the image promises (README "Hyphenation"), by the `lang` tag Blink maps to each
   # dictionary, with a word far wider than the 120 px box - it fits only when broken inside. Checked
