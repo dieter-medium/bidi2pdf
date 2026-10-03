@@ -13,10 +13,18 @@ RUN apt-get update && apt-get upgrade -y &&\
     libatk-bridge2.0-0 \
     libgtk-3-0 \
     libdrm2 \
-    curl \
+    curl ca-certificates \
     unzip \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
+
+# Chromium's hyphenation dictionaries, so that `hyphens: auto` works in the PDFs. Debian's chromium
+# ships none and Chrome cannot download them here - see docker/install-hyphen-data.sh for the whole
+# story. They go next to the chromium binary, where the component installer looks for a bundled copy.
+ARG HYPHEN_DATA_CHROMIUM_REF=refs/tags/154.0.8037.92
+COPY ./docker/install-hyphen-data.sh /usr/local/bin/install-hyphen-data.sh
+RUN chmod +x /usr/local/bin/install-hyphen-data.sh && \
+    /usr/local/bin/install-hyphen-data.sh "${HYPHEN_DATA_CHROMIUM_REF}" /usr/lib/chromium/hyphen-data
 
 # Create a non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -m -d /home/appuser appuser
