@@ -459,6 +459,16 @@ the box in either image, no extra install step needed.
 Chromium comes from Debian's packages at build time, so every build can carry a different
 Chromium - for a byte-exact pin use the digest (`docker buildx imagetools inspect <image:tag>`).
 
+### Hyphenation
+
+The images (`chromedriver`, `bidi2pdf` and its slim variant) ship Chromium's hyphenation dictionaries
+in `/usr/lib/chromium/hyphen-data/`, so CSS `hyphens: auto` breaks long words in the page's language
+(`lang="de"` on the element or the document). Debian's Chromium has none, and the component it would
+download needs a profile that outlives the session. `docker/install-hyphen-data.sh` fetches them at
+build time from Chromium's source, pinned by the `HYPHEN_DATA_CHROMIUM_REF` build argument, with
+their licence notice (`LICENSE` next to them). Do not pass `--disable-component-update` in
+`chrome_args`: Chromium then skips the dictionaries.
+
 ### ChromeDriver health check and watchdog
 
 The image has a Docker `HEALTHCHECK` (chromedriver's `/status`), so `docker ps` shows a
