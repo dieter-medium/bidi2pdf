@@ -463,8 +463,19 @@ Chromium - for a byte-exact pin use the digest (`docker buildx imagetools inspec
 
 The images (`chromedriver`, `bidi2pdf` and its slim variant) ship Chromium's hyphenation dictionaries
 in `/usr/lib/chromium/hyphen-data/`, so CSS `hyphens: auto` breaks long words in the page's language
-(`lang="de"` on the element or the document) - for exactly these languages: German (`de`: 1996 and
-1901 spelling, Swiss 1901), English (`en-gb`, `en-us`), French, Spanish, Italian, Dutch and Portuguese.
+(`lang="de"` on the element or the document) - for exactly these languages, by the `lang` tag Blink
+maps to each dictionary (case does not matter; Blink drops trailing subtags until one matches):
+
+| `lang` | Dictionary |
+|---|---|
+| `de`, `de-DE`, `de-AT`, `de-CH` (and `de-DE-1901` - the region wins) | German, 1996 spelling (`de-1996`) |
+| `de-1901` | German, traditional spelling |
+| `de-CH-1901`, `de-LI-1901` | Swiss German, traditional spelling |
+| `en`, `en-US` | US English |
+| `en-GB`, `en-AU`, `en-IE`, ... (every other `en-*`) | British English |
+| `fr`, `es`, `it`, `nl`, `pt` (with any region, e.g. `pt-BR`) | French, Spanish, Italian, Dutch, Portuguese |
+
+The hyphenation spec prints one word in each of these, against a control without hyphenation.
 Debian's Chromium has none, and the component it would download needs a profile that outlives the
 session. `docker/install-hyphen-data.sh` fetches them at build time from Chromium's source, pinned by
 the `HYPHEN_DATA_REF` build argument - deliberately independent of the Debian Chromium the image

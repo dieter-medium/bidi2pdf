@@ -10,6 +10,14 @@ module Bidi2pdf
         # then sits silently in the pull for many minutes.
         DEFAULT_IMAGE = "dieters877565/chromedriver:latest"
 
+        # BIDI2PDF_BUILD_CHROMEDRIVER_IMAGE=true: build the image from the checkout (build_dir,
+        # docker_file) and run that, so a change to the image is tested before it is published -
+        # bidi2pdf's own CI sets it. Unset, the published image is pulled. Testcontainers' #start
+        # always pulls, so a locally built tag cannot go through it; #start_local_image builds instead.
+        def self.build_locally?(env = ENV)
+          env["BIDI2PDF_BUILD_CHROMEDRIVER_IMAGE"] == "true"
+        end
+
         attr_reader :docker_file, :build_dir
 
         def initialize(image = DEFAULT_IMAGE, **options)

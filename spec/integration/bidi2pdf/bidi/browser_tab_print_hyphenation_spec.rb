@@ -5,18 +5,28 @@ require "spec_helper"
 # `hyphens: auto` needs Chromium's hyphenation dictionaries, which Debian's chromium does not ship and
 # which Chrome cannot download in the container (docker/install-hyphen-data.sh). Without them Chrome
 # silently falls back to `hyphens: manual` - no error, no console message, just unbroken words - so
-# this is checked on the actual image, remote-chrome, not on whatever Chrome the host has. The
-# :chromedriver specs start the published dieters877565/chromedriver:latest, so these pass only once an
-# image built with the dictionaries is published.
+# this is checked on the actual image: in CI the one built from this checkout
+# (BIDI2PDF_BUILD_CHROMEDRIVER_IMAGE, ChromedriverContainer.build_locally?), elsewhere the published one.
 RSpec.describe Bidi2pdf::Bidi::BrowserTab, "#print", :chromedriver, :session do
   # Blink breaks words at the dictionary's hyphenation points and prints U+2010 HYPHEN at the break,
   # or "-" when the font has no U+2010 glyph; pdf-reader ends the line after it.
   let(:hyphen_break) { /[-‐]\n\s*/ }
 
-  # Far wider than the 120 px box, so the only way to fit is to break inside the word. German because
-  # "de" maps to hyph-de-1996.hyb; English for the en -> en-gb / en-us mapping.
-  let(:german_word) { "Donaudampfschifffahrtsgesellschaftskapitän" }
-  let(:english_word) { "internationalization" }
+  # Every language the image promises (README "Hyphenation"), by the `lang` tag Blink maps to each
+  # dictionary, with a word far wider than the 120 px box - it fits only when broken inside. Checked
+  # on the published image 2026-10-03, one fresh session each.
+  cases = {
+    "de" => "Donaudampfschifffahrtsgesellschaftskapitän",
+    "de-1901" => "Donaudampfschiffahrtsgesellschaftskapitän",
+    "de-CH-1901" => "Donaudampfschiffahrtsgesellschaftskapitän",
+    "en" => "internationalization",
+    "en-GB" => "internationalisation",
+    "fr" => "anticonstitutionnellement",
+    "es" => "electroencefalografista",
+    "it" => "precipitevolissimevolmente",
+    "nl" => "arbeidsongeschiktheidsverzekering",
+    "pt" => "inconstitucionalissimamente"
+  }
 
   def document(lang:, word:, hyphens:)
     <<~HTML
@@ -50,17 +60,13 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, "#print", :chromedriver, :session do
   end
 
   # Rejoined, the pieces are the whole word again: it was broken at hyphenation points, not cut,
-  # wrapped or dropped.
-  it "hyphenates German with hyphens: auto and lang=de" do
-    text = print_text(document(lang: "de", word: german_word, hyphens: "auto"))
+  # wrapped or dropped - and the whole word appears nowhere else.
+  cases.each do |lang, word|
+    it "hyphenates with hyphens: auto and lang=#{lang}" do
+      text = print_text(document(lang: lang, word: word, hyphens: "auto"))
 
-    expect(shape(text, german_word)).to eq(broken: true, whole: false, rejoined: true)
-  end
-
-  it "hyphenates English with hyphens: auto and lang=en" do
-    text = print_text(document(lang: "en", word: english_word, hyphens: "auto"))
-
-    expect(shape(text, english_word)).to include(broken: true, rejoined: true)
+      expect(shape(text, word)).to eq(broken: true, whole: false, rejoined: true)
+    end
   end
 
   # Guards the assertions above: the same document without `hyphens: auto` must keep the word in one
@@ -68,6 +74,6 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, "#print", :chromedriver, :session do
   it "leaves the word whole with hyphens: manual" do
     text = print_text(document(lang: "de", word: german_word, hyphens: "manual"))
 
-    expect(shape(text, german_word)).to include(broken: false, whole: true)
+    expect(shape(text, german_word)).to eq(broken: false, whole: true, rejoined: true)
   end
 end

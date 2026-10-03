@@ -26,12 +26,17 @@ jobs:
     env:
       SHOW_CONTAINER_LOGS: true
       DISABLE_CHROME_SANDBOX: true
+      # The :chromedriver specs build docker/Dockerfile.chromedriver from this checkout and run that
+      # image, not the published one - an image change is tested in its own PR (ChromedriverContainer
+      # .build_locally?). A job without :chromedriver specs builds nothing.
+      BIDI2PDF_BUILD_CHROMEDRIVER_IMAGE: true
     steps:
       - uses: actions/checkout@v5
       - name: Setup Ruby Environment
         uses: ./.github/actions/setup-ruby
       - name: Run Tests with tag ${{ inputs.test_tag }}
-        timeout-minutes: 6
+        # The chromedriver image is built inside this step (apt-get, Chromium, dictionaries).
+        timeout-minutes: 20
         run: COVERAGE=true bundle exec rake spec SPEC_OPTS="--tag ${{ inputs.test_tag }}${{ inputs.exclude_tag != '' && format(' --tag ~{0}', inputs.exclude_tag) || '' }}"
       - name: Upload ${{ inputs.artifact_name }} coverage
         uses: actions/upload-artifact@v6
