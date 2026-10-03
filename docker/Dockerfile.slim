@@ -60,10 +60,14 @@ COPY --from=builder /usr/local/bundle /usr/local/bundle
 # Chromium's hyphenation dictionaries, so that `hyphens: auto` works in the PDFs. Debian's chromium
 # ships none and Chrome cannot download them here - see docker/install-hyphen-data.sh for the whole
 # story. They go next to the chromium binary, where the component installer looks for a bundled copy.
-ARG HYPHEN_DATA_CHROMIUM_REF=refs/tags/154.0.8037.92
+# The patterns are data files and intentionally do not track the Debian Chromium installed above (the
+# minikin .hyb format is unchanged since 2016, the files since 2023): update this ref when the pattern
+# data itself changes. The hyphenation integration spec, run against the image's own Chromium, catches
+# a Chromium that stops reading them.
+ARG HYPHEN_DATA_REF=refs/tags/154.0.8037.92
 COPY ./docker/install-hyphen-data.sh /usr/local/bin/install-hyphen-data.sh
 RUN chmod +x /usr/local/bin/install-hyphen-data.sh && \
-    /usr/local/bin/install-hyphen-data.sh "${HYPHEN_DATA_CHROMIUM_REF}" /usr/lib/chromium/hyphen-data
+    /usr/local/bin/install-hyphen-data.sh "${HYPHEN_DATA_REF}" /usr/lib/chromium/hyphen-data
 
 # Create a non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -m -d /home/appuser appuser

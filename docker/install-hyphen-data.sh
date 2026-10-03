@@ -17,7 +17,10 @@
 # (chrome/BUILD.gn -> third_party/hyphenation-patterns:bundle_hyphen_data), with the same bogus version
 # "1.0.0.0" that is used below. The dictionaries themselves are the AOSP minikin .hyb files that live in
 # chromium/src at third_party/hyphenation-patterns/hyb and are fetched from there, pinned to a Chromium tag
-# (unchanged since 2023 - the de/en files of 151 and 154 are byte-identical).
+# (unchanged since 2023 - the de/en files of 151 and 154 are byte-identical). The pin intentionally does
+# not follow the Debian Chromium the image installs: the patterns are data in a format unchanged since
+# 2016, updated when the pattern data changes; the hyphenation integration spec, run against the
+# image's own Chromium, catches a Chromium that stops reading them.
 #
 # The component is only registered by the full browser (chrome_browser_main.cc), never by the old
 # headless shell - fine for Debian's chromium >= 132, where --headless is the new headless mode - and
@@ -26,16 +29,18 @@
 # Usage: install-hyphen-data.sh [chromium-ref] [target-dir]
 set -euo pipefail
 
-ref="${1:-${HYPHEN_DATA_CHROMIUM_REF:-refs/tags/154.0.8037.92}}"
+ref="${1:-${HYPHEN_DATA_REF:-refs/tags/154.0.8037.92}}"
 target="${2:-/usr/lib/chromium/hyphen-data}"
 source_dir="third_party/hyphenation-patterns"
 archive_url="https://chromium.googlesource.com/chromium/src/+archive/${ref}/${source_dir}.tar.gz"
 
-# The locales a PDF service is most likely to rely on. The archive carries ~50; these must be in it or
-# the build fails, so a renamed or dropped dictionary shows up at build time and not as a silent
-# fallback to no hyphenation. Inside Blink "de" maps to de-1996, "en" tries en-gb, then en-us
+# The image's language contract: exactly these dictionaries are installed, and each must be in the
+# download or the build fails - a renamed or dropped dictionary shows up at build time, not as a silent
+# fallback to no hyphenation, and the image does not grow when Chromium adds languages. The archive
+# carries ~50; add a language here (and to README "Hyphenation") to support it. Inside Blink "de" maps
+# to de-1996, "en" tries en-gb, then en-us
 # (third_party/blink/renderer/platform/text/hyphenation/hyphenation_minikin.cc, MapLocale).
-required="hyph-de-1996.hyb hyph-de-1901.hyb hyph-de-ch-1901.hyb hyph-en-us.hyb hyph-en-gb.hyb hyph-fr.hyb hyph-es.hyb hyph-it.hyb hyph-nl.hyb hyph-pt.hyb"
+dictionaries="hyph-de-1996.hyb hyph-de-1901.hyb hyph-de-ch-1901.hyb hyph-en-us.hyb hyph-en-gb.hyb hyph-fr.hyb hyph-es.hyb hyph-it.hyb hyph-nl.hyb hyph-pt.hyb"
 
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
@@ -63,16 +68,16 @@ fetch_from_github() {
 fetch_from_gitiles || { echo "gitiles download failed, trying the GitHub mirror" >&2; fetch_from_github; }
 
 mkdir -p "${target}"
-install -m 0644 "${workdir}"/src/hyb/hyph-*.hyb "${target}/"
-# The patterns are TeX hyphenation patterns under a mix of licenses; keep their notice with the data.
-install -m 0644 "${workdir}/src/LICENSE" "${target}/LICENSE"
-
-for file in ${required}; do
-  if [ ! -s "${target}/${file}" ]; then
+for file in ${dictionaries}; do
+  if [ ! -s "${workdir}/src/hyb/${file}" ]; then
     echo "hyphenation dictionary ${file} missing from ${archive_url}" >&2
     exit 1
   fi
+  install -m 0644 "${workdir}/src/hyb/${file}" "${target}/${file}"
 done
+# The patterns are TeX hyphenation patterns under a mix of licenses; keep their notice with the data
+# (Chromium's file covers every language, these included).
+install -m 0644 "${workdir}/src/LICENSE" "${target}/LICENSE"
 
 # Chromium's component installer only accepts the directory with a manifest carrying a valid version.
 # 1.0.0.0 is what Chrome for Testing uses for its bundled copy: lower than anything the component

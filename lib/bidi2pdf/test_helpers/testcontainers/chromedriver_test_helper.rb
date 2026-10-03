@@ -132,7 +132,7 @@ def start_chromedriver_container(build_dir:, mounts:, shared_network:, chromedri
 
   container.with_filesystem_binds(mounts) if mounts&.any?
 
-  container.start
+  ChromedriverTestcontainer.build_locally? ? container.start_local_image : container.start
 
   container
 end
