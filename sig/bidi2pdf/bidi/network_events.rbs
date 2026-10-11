@@ -24,7 +24,14 @@ module Bidi2pdf
 
       def log_network_traffic: (?format: ::Symbol) -> untyped
 
-      def wait_until_network_idle: (?timeout: ::Integer, ?poll_interval: ::Float) -> untyped
+      # Waits until no request is in flight, or until +timeout+ seconds passed.
+      #
+      # @return [Symbol] :idle when every request completed, :timeout when some were still open -
+      #   it never raises for a timeout, so a caller decides whether a busy page is good enough.
+      def wait_until_network_idle: (?timeout: ::Integer, ?poll_interval: ::Float) -> (:idle | :timeout | untyped)
+
+      # Names the requests still open when the wait gives up - it carries on, it does not raise.
+      def log_idle_timeout: () -> untyped
     end
   end
 end

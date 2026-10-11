@@ -53,8 +53,9 @@ module Bidi2pdf
         write(event: "page_loaded")
       end
 
-      def on_network_idle(_event)
-        write(event: "network_idle")
+      # A wait that timed out is its own event: a consumer reading "network_idle" can trust it.
+      def on_network_idle(event)
+        write(event: event.payload[:timed_out] ? "network_idle_timeout" : "network_idle")
       end
 
       def on_console(event)
