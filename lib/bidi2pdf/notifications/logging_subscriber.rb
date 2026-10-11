@@ -61,7 +61,7 @@ module Bidi2pdf
       def network_idle(event)
         return unless logger.info?
 
-        requests = event.payload[:requests]
+        requests = event.payload[:requests] || []
         transfered = requests.map { |request| request.bytes_received || 0 }.sum
         status_counts = requests
                           .group_by { |evt| evt.http_status_code || 0 }

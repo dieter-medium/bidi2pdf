@@ -25,6 +25,9 @@ module Bidi2pdf
       def log_network_traffic: (?format: ::Symbol) -> untyped
 
       def wait_until_network_idle: (?timeout: ::Integer, ?poll_interval: ::Float) -> untyped
+
+      # Names the requests still open when the wait gives up - it carries on, it does not raise.
+      def log_idle_timeout: () -> untyped
     end
   end
 end

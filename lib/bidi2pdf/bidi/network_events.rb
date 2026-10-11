@@ -105,13 +105,18 @@ module Bidi2pdf
           end
 
           if Time.now - start_time > timeout
-            Bidi2pdf.logger.warn "⏰ Timeout while waiting for network events to complete. Still in progress: #{in_progress.map(&:id)}"
-            # rubocop:enable Layout/LineLength
+            log_idle_timeout
             break
           end
 
           sleep(poll_interval)
         end
+      end
+
+      # Names the requests still open when the wait gives up - it carries on, it does not raise.
+      def log_idle_timeout
+        in_progress = events.values.select(&:in_progress?)
+        Bidi2pdf.logger.warn "⏰ Timeout while waiting for network events to complete. Still in progress: #{in_progress.map(&:id)}"
       end
     end
   end
