@@ -95,18 +95,22 @@ module Bidi2pdf
         end
       end
 
+      # Waits until no request is in flight, or until +timeout+ seconds passed.
+      #
+      # @return [Symbol] :idle when every request completed, :timeout when some were still open -
+      #   it never raises for a timeout, so a caller decides whether a busy page is good enough.
       def wait_until_network_idle(timeout: 10, poll_interval: 0.01)
         start_time = Time.now
 
         loop do
           unless events.values.any?(&:in_progress?)
             Bidi2pdf.logger.debug "✅ All network events completed."
-            break
+            return :idle
           end
 
           if Time.now - start_time > timeout
             log_idle_timeout
-            break
+            return :timeout
           end
 
           sleep(poll_interval)

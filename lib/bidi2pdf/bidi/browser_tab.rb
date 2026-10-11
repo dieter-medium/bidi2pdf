@@ -334,15 +334,20 @@ module Bidi2pdf
         end
       end
 
-      # Waits until the network is idle in the browser tab.
+      # Waits until the network is idle in the browser tab. A timeout does not raise: the
+      # network_idle.bidi2pdf event then carries +timed_out: true+, so subscribers never report a busy
+      # page as idle.
       #
       # @param [Integer] timeout The timeout duration in seconds. Defaults to 10.
       # @param [Float] poll_interval The polling interval in seconds. Defaults to 0.1.
+      # @return [Symbol] :idle or :timeout
       def wait_until_network_idle(timeout: 10, poll_interval: 0.1)
         Bidi2pdf.notification_service.instrument("network_idle.bidi2pdf") do |instrumentation_payload|
-          network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
+          status = network_events.wait_until_network_idle(timeout: timeout, poll_interval: poll_interval)
 
           instrumentation_payload[:requests] = network_events.all_events.dup
+          instrumentation_payload[:timed_out] = status == :timeout
+          status
         end
       end
 

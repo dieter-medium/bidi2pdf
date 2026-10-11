@@ -31,7 +31,8 @@ module Bidi2pdf
 
       def on_page_loaded: (untyped _event) -> untyped
 
-      def on_network_idle: (untyped _event) -> untyped
+      # A wait that timed out is its own event: a consumer reading "network_idle" can trust it.
+      def on_network_idle: (untyped event) -> untyped
 
       def on_console: (untyped event) -> untyped
 

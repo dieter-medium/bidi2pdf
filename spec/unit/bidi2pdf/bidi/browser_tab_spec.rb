@@ -212,6 +212,31 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
     end
   end
 
+  describe "#wait_until_network_idle" do
+    def captured_payloads
+      payloads = []
+      subscription = Bidi2pdf.notification_service.subscribe("network_idle.bidi2pdf") { |event| payloads << event.payload }
+      yield
+      payloads
+    ensure
+      Bidi2pdf.notification_service.unsubscribe("network_idle.bidi2pdf", subscription)
+    end
+
+    it "marks the network_idle event as timed out when requests stay open" do
+      allow(browser_tab.network_events).to receive(:wait_until_network_idle).and_return(:timeout)
+
+      payloads = captured_payloads { browser_tab.wait_until_network_idle(timeout: 0.01) }
+
+      expect(payloads.map { |payload| payload[:timed_out] }).to eq([true])
+    end
+
+    it "returns the wait's status" do
+      allow(browser_tab.network_events).to receive(:wait_until_network_idle).and_return(:idle)
+
+      expect(browser_tab.wait_until_network_idle).to eq(:idle)
+    end
+  end
+
   describe "#set_viewport" do
     it "sends the setViewport command to the client" do
       browser_tab.set_viewport(width: 1280, height: 800)

@@ -58,4 +58,16 @@ RSpec.describe Bidi2pdf::Notifications::JsonSubscriber do
 
     expect(lines).to eq([])
   end
+
+  it "emits network_idle for a wait that reached an idle network" do
+    Bidi2pdf.notification_service.instrument("network_idle.bidi2pdf", requests: [], timed_out: false)
+
+    expect(lines.first[:event]).to eq("network_idle")
+  end
+
+  it "emits network_idle_timeout, never network_idle, for a wait that gave up" do
+    Bidi2pdf.notification_service.instrument("network_idle.bidi2pdf", requests: [], timed_out: true)
+
+    expect(lines.first[:event]).to eq("network_idle_timeout")
+  end
 end

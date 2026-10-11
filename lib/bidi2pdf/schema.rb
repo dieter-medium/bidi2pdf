@@ -196,7 +196,8 @@ module Bidi2pdf
       "properties" => {
         "schema_version" => { "const" => 1 },
         "t_ms" => { "type" => "integer", "description" => "milliseconds since the render started" },
-        "event" => { "type" => "string", "enum" => %w[navigate page_loaded network_idle console print screenshot result] },
+        "event" => { "type" => "string", "enum" => %w[navigate page_loaded network_idle network_idle_timeout console print screenshot result],
+                     "description" => "network_idle_timeout: the wait for an idle network gave up with requests still open" },
         "url" => { "type" => "string", "description" => "present on a navigate event" },
         "level" => { "type" => "string", "description" => "present on a console event" },
         "text" => { "type" => "string", "description" => "present on a console event" },

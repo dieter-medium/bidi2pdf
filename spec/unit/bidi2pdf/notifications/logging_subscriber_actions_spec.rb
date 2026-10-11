@@ -22,5 +22,13 @@ RSpec.describe Bidi2pdf::Notifications::LoggingSubscriberActions do
 
       expect(io.string).to include("0 requests")
     end
+
+    it "never calls a timed-out wait idle" do
+      event = Struct.new(:payload, :duration).new({ requests: [], timed_out: true }, 8000.0)
+
+      subscriber.network_idle(event)
+
+      expect([io.string.include?("still busy"), io.string.include?("was idle")]).to eq([true, false])
+    end
   end
 end

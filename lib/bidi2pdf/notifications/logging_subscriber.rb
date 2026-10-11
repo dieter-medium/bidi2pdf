@@ -70,8 +70,12 @@ module Bidi2pdf
                           .map { |code, count| "#{code}: #{count}" }
                           .join(", ")
 
-        logger.info "Network was idle after #{event.duration.round(1)}ms, #{requests.size} requests, " \
-                      "transferred #{transfered} bytes (status codes: #{status_counts})"
+        summary = "#{requests.size} requests, transferred #{transfered} bytes (status codes: #{status_counts})"
+        if event.payload[:timed_out]
+          logger.warn "Network was still busy after #{event.duration.round(1)}ms (timed out), #{summary}"
+        else
+          logger.info "Network was idle after #{event.duration.round(1)}ms, #{summary}"
+        end
       end
 
       # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity

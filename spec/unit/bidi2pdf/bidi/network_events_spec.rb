@@ -47,10 +47,14 @@ RSpec.describe Bidi2pdf::Bidi::NetworkEvents do
                                                 "response" => { "status" => 200 } })
     end
 
-    it "returns once the timeout passes while a request is still open" do
+    it "says it timed out, without raising, while a request is still open" do
       start_request("req-open")
 
-      expect { network_events.wait_until_network_idle(timeout: 0.05, poll_interval: 0.01) }.not_to raise_error
+      expect(network_events.wait_until_network_idle(timeout: 0.05, poll_interval: 0.01)).to eq(:timeout)
+    end
+
+    it "says the network went idle when nothing is open" do
+      expect(network_events.wait_until_network_idle(timeout: 0.05, poll_interval: 0.01)).to eq(:idle)
     end
 
     it "names the open requests when it gives up" do
