@@ -227,6 +227,14 @@ module Bidi2pdf
       # @param [Float, nil] device_pixel_ratio Defaults to nil (browser default).
       def set_viewport: (width: untyped, height: untyped, ?device_pixel_ratio: untyped?) -> untyped
 
+      # Switches JavaScript off (or on again) for this tab, through Chrome's own
+      # Emulation.setScriptExecutionDisabled (CDP, via goog:cdp.sendCommand). Call it before
+      # navigating: it holds for every later navigation in the tab, so a page printed from untrusted
+      # HTML runs none of its scripts.
+      #
+      # @param [Boolean] disabled Defaults to true.
+      def disable_script_execution: (?disabled: bool) -> untyped
+
       private
 
       def build_command_and_extractor: (untyped print_options) -> ::Array[untyped]
