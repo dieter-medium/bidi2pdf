@@ -220,6 +220,24 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
     end
   end
 
+  describe "#disable_script_execution" do
+    let(:response) { { "result" => { "context" => "abc123", "session" => "cdp-session-1" } } }
+
+    it "sends Emulation.setScriptExecutionDisabled on the tab's CDP session" do
+      browser_tab.disable_script_execution
+
+      expect(client.cmd_params.first).to eq(Bidi2pdf::Bidi::Commands::CdpSendCommand.new(
+                                              method: "Emulation.setScriptExecutionDisabled", params: { value: true }, session: "cdp-session-1"
+                                            ))
+    end
+
+    it "switches scripts on again when asked" do
+      browser_tab.disable_script_execution(disabled: false)
+
+      expect(client.cmd_params.first.params).to include(params: { value: false })
+    end
+  end
+
   # Private, tested directly via #send: this had zero coverage before a real DNS failure against a
   # real remote browser crashed with `Bidi2pdf::Error#initialize: wrong number of arguments (given
   # 2, expected 0..1)` instead of reporting DNS_ERROR - NavigationDNSError never defined its own

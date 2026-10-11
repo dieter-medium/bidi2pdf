@@ -496,6 +496,18 @@ module Bidi2pdf
         client.send_cmd_and_wait(cmd) { |response| response }
       end
 
+      # Switches JavaScript off (or on again) for this tab, through Chrome's own
+      # Emulation.setScriptExecutionDisabled (CDP, via goog:cdp.sendCommand). Call it before
+      # navigating: it holds for every later navigation in the tab, so a page printed from untrusted
+      # HTML runs none of its scripts.
+      #
+      # @param [Boolean] disabled Defaults to true.
+      def disable_script_execution(disabled: true)
+        cmd = Commands::CdpSendCommand.new(method: "Emulation.setScriptExecutionDisabled", params: { value: disabled },
+                                           session: cdp_session)
+        client.send_cmd_and_wait(cmd) { |response| response }
+      end
+
       private
 
       def build_command_and_extractor(print_options)

@@ -347,6 +347,9 @@ tab.navigate_to "https://example.com/invoice/14432423"
 # or inline
 # tab.inject_style content: "body { background-color: red; }"
 
+# Printing HTML you do not trust? Switch its scripts off before navigating:
+# tab.disable_script_execution
+
 tab.wait_until_network_idle
 tab.print("my.pdf")
 
