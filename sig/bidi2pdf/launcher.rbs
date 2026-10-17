@@ -29,43 +29,28 @@ module Bidi2pdf
   # @param [Hash] print_options Options for printing the page. Defaults to an empty hash.
   # @param [String, nil] remote_browser_url The URL of a remote browser to connect to. Defaults to nil.
   # @param [Symbol] network_log_format The format for network logs. Defaults to :console.
+  # @param [Hash] emulate_media Media type and features for BrowserTab#emulate_media (media:,
+  #   color_scheme:, reduced_motion:). Defaults to none.
   class Launcher
-    @url: untyped
-
-    @inputfile: untyped
+    # What both runners get, unchanged - SessionRunner's own keyword arguments.
+    @runner_options: untyped
 
     @port: untyped
 
     @headless: untyped
 
-    @output: untyped
-
-    @cookies: untyped
-
-    @headers: untyped
-
-    @auth: untyped
-
     @manager: untyped
-
-    @wait_window_loaded: untyped
-
-    @wait_network_idle: untyped
-
-    @print_options: untyped
 
     @remote_browser_url: untyped
 
     @custom_session: untyped
-
-    @network_log_format: untyped
 
     @chrome_args: untyped
 
     @diagnose_runner: untyped
 
     # rubocop:disable Metrics/ParameterLists
-    def initialize: (url: untyped, inputfile: untyped, output: untyped, cookies: untyped, headers: untyped, auth: untyped, ?headless: bool, ?port: ::Integer, ?wait_window_loaded: bool, ?wait_network_idle: bool, ?print_options: ::Hash[untyped, untyped], ?remote_browser_url: untyped?, ?network_log_format: ::Symbol, ?chrome_args: untyped) -> void
+    def initialize: (url: untyped, inputfile: untyped, output: untyped, cookies: untyped, headers: untyped, auth: untyped, ?headless: bool, ?port: ::Integer, ?wait_window_loaded: bool, ?wait_network_idle: bool, ?print_options: ::Hash[untyped, untyped], ?remote_browser_url: untyped?, ?network_log_format: ::Symbol, ?chrome_args: untyped, ?emulate_media: ::Hash[untyped, untyped]) -> void
 
     def launch: () -> untyped
 

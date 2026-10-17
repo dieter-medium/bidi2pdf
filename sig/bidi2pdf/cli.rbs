@@ -144,6 +144,10 @@ module Bidi2pdf
 
     def launcher: () -> untyped
 
+    # The --media/--color_scheme/--reduced_motion choices for BrowserTab#emulate_media; empty when none
+    # is given, so the browser keeps its own.
+    def emulate_media_options: () -> untyped
+
     def configure: () -> untyped
 
     def log_level: () -> untyped

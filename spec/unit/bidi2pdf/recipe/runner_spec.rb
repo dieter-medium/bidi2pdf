@@ -45,6 +45,14 @@ RSpec.describe Bidi2pdf::Recipe::Runner do
       expect(tab).to have_received(:set_viewport).with(width: 1280, height: 900, device_pixel_ratio: nil)
     end
 
+    it "calls emulate_media with the given media type and features" do
+      allow(tab).to receive(:emulate_media)
+
+      runner({ "actions" => [{ "emulate_media" => { "media" => "screen", "color_scheme" => "dark" } }] }).run_actions
+
+      expect(tab).to have_received(:emulate_media).with(media: "screen", color_scheme: "dark", reduced_motion: nil)
+    end
+
     it "calls inject_style with the given content" do
       allow(tab).to receive(:inject_style)
 

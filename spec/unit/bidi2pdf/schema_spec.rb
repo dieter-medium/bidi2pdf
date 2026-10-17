@@ -44,7 +44,8 @@ RSpec.describe Bidi2pdf::Schema do
       "inject_script" => { "content" => "1" },
       "inject_style" => { "content" => "body{}" },
       "set_viewport" => { "width" => 100, "height" => 100 },
-      "wait_network_idle" => { "timeout" => 5 }
+      "wait_network_idle" => { "timeout" => 5 },
+      "emulate_media" => { "media" => "screen", "color_scheme" => "dark", "reduced_motion" => "reduce" }
     }
 
     example_actions.each do |name, opts|

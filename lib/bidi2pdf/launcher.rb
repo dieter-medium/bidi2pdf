@@ -35,45 +35,31 @@ module Bidi2pdf
   # @param [Hash] print_options Options for printing the page. Defaults to an empty hash.
   # @param [String, nil] remote_browser_url The URL of a remote browser to connect to. Defaults to nil.
   # @param [Symbol] network_log_format The format for network logs. Defaults to :console.
+  # @param [Hash] emulate_media Media type and features for BrowserTab#emulate_media (media:,
+  #   color_scheme:, reduced_motion:). Defaults to none.
   class Launcher
     # rubocop:disable Metrics/ParameterLists
     def initialize(url:, inputfile:, output:, cookies:, headers:, auth:, headless: true, port: 0, wait_window_loaded: false,
                    wait_network_idle: false, print_options: {}, remote_browser_url: nil, network_log_format: :console,
-                   chrome_args: Bidi::Session::DEFAULT_CHROME_ARGS)
-      @url = url
-      @inputfile = inputfile
+                   chrome_args: Bidi::Session::DEFAULT_CHROME_ARGS, emulate_media: {})
+      # What both runners get, unchanged - SessionRunner's own keyword arguments.
+      @runner_options = {
+        url: url, inputfile: inputfile, output: output, cookies: cookies, headers: headers, auth: auth,
+        wait_window_loaded: wait_window_loaded, wait_network_idle: wait_network_idle, print_options: print_options || {},
+        network_log_format: network_log_format, emulate_media: emulate_media || {}
+      }
       @port = port
       @headless = headless
-      @output = output
-      @cookies = cookies
-      @headers = headers
-      @auth = auth
       @manager = nil
-      @wait_window_loaded = wait_window_loaded
-      @wait_network_idle = wait_network_idle
-      @print_options = print_options || {}
       @remote_browser_url = remote_browser_url
       @custom_session = nil
-      @network_log_format = network_log_format
       @chrome_args = chrome_args
     end
 
     # rubocop:enable Metrics/ParameterLists
 
     def launch
-      runner = SessionRunner.new(
-        session: session,
-        url: @url,
-        inputfile: @inputfile,
-        output: @output,
-        cookies: @cookies,
-        headers: @headers,
-        auth: @auth,
-        wait_window_loaded: @wait_window_loaded,
-        wait_network_idle: @wait_network_idle,
-        print_options: @print_options,
-        network_log_format: @network_log_format
-      )
+      runner = SessionRunner.new(session: session, **@runner_options)
       runner.run
     end
 
@@ -83,19 +69,7 @@ module Bidi2pdf
     #
     # @return [Bidi2pdf::Bidi::BrowserTab] the navigated tab.
     def diagnose
-      @diagnose_runner = SessionRunner.new(
-        session: session,
-        url: @url,
-        inputfile: @inputfile,
-        output: @output,
-        cookies: @cookies,
-        headers: @headers,
-        auth: @auth,
-        wait_window_loaded: @wait_window_loaded,
-        wait_network_idle: @wait_network_idle,
-        print_options: @print_options,
-        network_log_format: @network_log_format
-      )
+      @diagnose_runner = SessionRunner.new(session: session, **@runner_options)
       @diagnose_runner.run_diagnose
     end
 

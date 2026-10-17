@@ -90,6 +90,7 @@ module Bidi2pdf
         when "inject_style" then @tab.inject_style(url: opts["url"], content: opts["content"], id: opts["id"])
         when "set_viewport" then @tab.set_viewport(width: opts["width"], height: opts["height"], device_pixel_ratio: opts["device_pixel_ratio"])
         when "wait_network_idle" then @tab.wait_until_network_idle(timeout: opts.fetch("timeout", 10))
+        when "emulate_media" then @tab.emulate_media(media: opts["media"], color_scheme: opts["color_scheme"], reduced_motion: opts["reduced_motion"])
         end
       end
 

@@ -78,10 +78,10 @@ module Bidi2pdf
     option :manifest, type: :string, desc: "Write a render manifest (see `bidi2pdf schema manifest`) to this file"
 
     option :background, type: :boolean, default: true, desc: "Print background graphics"
-    option :margin_top, type: :numeric, default: 1.0, desc: "Top margin in inches"
-    option :margin_bottom, type: :numeric, default: 1.0, desc: "Bottom margin in inches"
-    option :margin_left, type: :numeric, default: 1.0, desc: "Left margin in inches"
-    option :margin_right, type: :numeric, default: 1.0, desc: "Right margin in inches"
+    option :margin_top, type: :numeric, default: 1.0, desc: "Top margin in cm"
+    option :margin_bottom, type: :numeric, default: 1.0, desc: "Bottom margin in cm"
+    option :margin_left, type: :numeric, default: 1.0, desc: "Left margin in cm"
+    option :margin_right, type: :numeric, default: 1.0, desc: "Right margin in cm"
     option :orientation, type: :string, default: "portrait", enum: %w[portrait landscape], desc: "Page orientation"
     option :page_width, type: :numeric, default: 21.59, desc: "Page width in cm (min 0.0352)"
     option :page_height, type: :numeric, default: 27.94, desc: "Page height in cm (min 0.0352)"
@@ -90,6 +90,9 @@ module Bidi2pdf
     option :shrink_to_fit, type: :boolean, default: true, desc: "Shrink content to fit page"
     option :generate_tagged_pdf, type: :boolean, default: false, desc: "Generate tagged PDF"
     option :generate_document_outline, type: :boolean, default: false, desc: "Generate document outline"
+    option :media, type: :string, enum: %w[screen print], desc: "Emulate a CSS media type; screen prints the page with its screen styles. For its mobile layout, narrow the page: the layout width is --page_width minus the side margins, 9.525 cm with --margin_left 0 --margin_right 0 = 360 CSS px"
+    option :color_scheme, type: :string, enum: %w[light dark], desc: "Emulate prefers-color-scheme"
+    option :reduced_motion, type: :string, enum: %w[reduce no-preference], desc: "Emulate prefers-reduced-motion"
 
     class << self
       def exit_on_failure?
@@ -152,6 +155,9 @@ module Bidi2pdf
     option :json, type: :boolean, default: false, desc: "Emit a single structured JSON document (see `bidi2pdf schema diagnose`) instead of a human-readable summary"
     option :json_stream, type: :boolean, default: false, desc: "Emit one JSON progress event per line to stderr as diagnostics run, with or without --json (see `bidi2pdf schema event`)"
     option :screenshot, type: :string, desc: "Also capture a screenshot to this PNG file"
+    option :media, type: :string, enum: %w[screen print], desc: "Emulate a CSS media type; screen prints the page with its screen styles. For its mobile layout, narrow the page: the layout width is --page_width minus the side margins, 9.525 cm with --margin_left 0 --margin_right 0 = 360 CSS px"
+    option :color_scheme, type: :string, enum: %w[light dark], desc: "Emulate prefers-color-scheme"
+    option :reduced_motion, type: :string, enum: %w[reduce no-preference], desc: "Emulate prefers-reduced-motion"
     option :pdf, type: :string, desc: "Also render a PDF to this file and report its page count / blank-check"
 
     def diagnose
@@ -818,9 +824,16 @@ module Bidi2pdf
                         wait_network_idle: merged_options[:wait_network_idle],
                         print_options: print_options,
                         network_log_format: merged_options[:network_log_format],
-                        chrome_args: chrome_args
+                        chrome_args: chrome_args,
+                        emulate_media: emulate_media_options
                       )
                     end
+    end
+
+    # The --media/--color_scheme/--reduced_motion choices for BrowserTab#emulate_media; empty when none
+    # is given, so the browser keeps its own.
+    def emulate_media_options
+      { media: merged_options[:media], color_scheme: merged_options[:color_scheme], reduced_motion: merged_options[:reduced_motion] }.compact
     end
 
     def configure

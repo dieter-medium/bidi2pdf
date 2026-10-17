@@ -70,6 +70,34 @@ RSpec.describe Bidi2pdf::CLI do
       end
     end
 
+    context "with emulated media" do
+      def launcher_arguments(options)
+        captured = nil
+        allow(Bidi2pdf::Launcher).to receive(:new) do |**kwargs|
+          captured = kwargs
+          instance_double(Bidi2pdf::Launcher, launch: nil, stop: nil)
+        end
+        cli_runner.invoke(:render, [], { url: "http://localhost/test" }.merge(options))
+        captured
+      end
+
+      it "hands --media, --color_scheme and --reduced_motion to the launcher" do
+        arguments = launcher_arguments(media: "screen", color_scheme: "dark", reduced_motion: "reduce")
+
+        expect(arguments[:emulate_media]).to eq(media: "screen", color_scheme: "dark", reduced_motion: "reduce")
+      end
+
+      it "emulates nothing when none is given" do
+        expect(launcher_arguments({})[:emulate_media]).to eq({})
+      end
+
+      it "refuses a media type Chrome does not know, through Thor's real dispatch" do
+        _status, _stdout, stderr = capture_streams { described_class.start(%w[render --url http://localhost/test --media tv]) }
+
+        expect(stderr).to include("Expected '--media' to be one of screen, print; got tv")
+      end
+    end
+
     context "with print options and validation" do
       it "calls the print option validator" do
         allow_any_instance_of(Bidi2pdf::Launcher).to receive(:launch)
@@ -307,6 +335,18 @@ RSpec.describe Bidi2pdf::CLI do
         _status, stdout, = capture_streams { cli_runner.invoke(:diagnose, [], url: "http://localhost/test", json: true) }
 
         expect(JSON.parse(stdout).values_at("page", "fonts", "print_media", "paged_js")).to eq([{}, {}, {}, {}])
+      end
+
+      it "hands the emulated media to the launcher" do
+        captured = nil
+        allow(Bidi2pdf::Launcher).to receive(:new) do |**kwargs|
+          captured = kwargs[:emulate_media]
+          instance_double(Bidi2pdf::Launcher, diagnose: tab, stop: nil)
+        end
+
+        capture_streams { cli_runner.invoke(:diagnose, [], url: "http://localhost/test", json: true, color_scheme: "dark") }
+
+        expect(captured).to eq(color_scheme: "dark")
       end
 
       # rubocop:disable-next RSpec/MultipleExpectations

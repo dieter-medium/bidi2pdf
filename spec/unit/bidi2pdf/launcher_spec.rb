@@ -23,11 +23,23 @@ RSpec.describe Bidi2pdf::Launcher do
 
       expect(runner).to have_received(:run)
     end
+
+    it "hands the emulated media to the runner" do
+      launcher(emulate_media: { media: "screen" }).launch
+
+      expect(Bidi2pdf::SessionRunner).to have_received(:new).with(hash_including(emulate_media: { media: "screen" }))
+    end
   end
 
   describe "#diagnose" do
     it "returns the navigated tab from SessionRunner#run_diagnose" do
       expect(launcher.diagnose).to eq(tab)
+    end
+
+    it "hands the emulated media to the runner" do
+      launcher(emulate_media: { color_scheme: "dark" }).diagnose
+
+      expect(Bidi2pdf::SessionRunner).to have_received(:new).with(hash_including(emulate_media: { color_scheme: "dark" }))
     end
 
     it "does not itself call SessionRunner#run" do

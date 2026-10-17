@@ -210,6 +210,75 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
     end
   end
 
+  describe "#emulate_media" do
+    # Each marker is shown under exactly one condition, so the printed text says which one held.
+    let(:media_page) do
+      <<~HTML
+        <!doctype html><html><head><style>
+          .screen, .print, .dark, .phone, .under300 { display: none }
+          @media screen { .screen { display: block } }
+          @media print { .print { display: block } }
+          @media (prefers-color-scheme: dark) { .dark { display: block } }
+          @media (min-width: 350px) and (max-width: 370px) { .phone { display: block } }
+          @media (max-width: 300px) { .under300 { display: block } }
+        </style></head><body>
+          <p class="screen">MEDIA-SCREEN</p><p class="print">MEDIA-PRINT</p>
+          <p class="dark">SCHEME-DARK</p><p class="phone">WIDTH-360</p><p class="under300">WIDTH-UNDER-300</p>
+        </body></html>
+      HTML
+    end
+
+    before { browser_tab.render_html_content(media_page) }
+
+    it "prints a page's screen styles when the screen media type is emulated" do
+      browser_tab.emulate_media(media: "screen")
+
+      expect(browser_tab.print).to contains_pdf_text("MEDIA-SCREEN")
+    end
+
+    it "prints a page's dark mode" do
+      browser_tab.emulate_media(color_scheme: "dark")
+
+      expect(browser_tab.print).to contains_pdf_text("SCHEME-DARK")
+    end
+
+    # The layout width is the page width minus the side margins, at 96 / 2.54 px per cm: 9.525 cm is
+    # 360 px only without side margins (README "The page as it looks on screen, ...").
+    it "lays a 9.525 cm page without side margins out at a 360 px phone width" do
+      browser_tab.emulate_media(media: "screen")
+      phone = { background: true, page: { width: 9.525, height: 20 }, margin: { left: 0, right: 0 } }
+
+      expect(browser_tab.print(print_options: phone)).to contains_pdf_text("WIDTH-360")
+    end
+
+    it "lays the same page out narrower with Chrome's default 1 cm side margins" do
+      browser_tab.emulate_media(media: "screen")
+
+      expect(browser_tab.print(print_options: { background: true, page: { width: 9.525, height: 20 } })).to contains_pdf_text("WIDTH-UNDER-300")
+    end
+
+    it "resets a media type a later call leaves out" do
+      browser_tab.emulate_media(media: "screen")
+      browser_tab.emulate_media(color_scheme: "dark")
+
+      expect(browser_tab.print).to contains_pdf_text(/MEDIA-PRINT.*SCHEME-DARK/m)
+    end
+
+    it "keeps the emulation for a later document in the tab" do
+      browser_tab.emulate_media(media: "screen")
+      browser_tab.render_html_content(media_page)
+
+      expect(browser_tab.print).to contains_pdf_text("MEDIA-SCREEN")
+    end
+
+    it "prints the print styles again once the emulation is ended" do
+      browser_tab.emulate_media(media: "screen")
+      browser_tab.emulate_media
+
+      expect(browser_tab.print).to contains_pdf_text("MEDIA-PRINT")
+    end
+  end
+
   describe "#inject_script" do
     before do
       # a website is required to inject a script
