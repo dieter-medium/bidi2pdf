@@ -10,7 +10,7 @@ module Bidi2pdf
 
     KNOWN_TOP_LEVEL_KEYS: ::Array["version" | "source" | "browser" | "headers" | "cookies" | "auth" | "actions" | "assert" | "print" | "output"]
 
-    KNOWN_ACTIONS: ::Array["wait_for" | "click" | "evaluate" | "inject_script" | "inject_style" | "set_viewport" | "wait_network_idle"]
+    KNOWN_ACTIONS: ::Array["wait_for" | "click" | "evaluate" | "inject_script" | "inject_style" | "set_viewport" | "wait_network_idle" | "emulate_media"]
 
     PAGE_ASSERTIONS: ::Array["selector_exists" | "text_present" | "no_console_errors" | "no_network_failures" | "fonts_loaded"]
 

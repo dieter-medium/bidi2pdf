@@ -56,6 +56,9 @@ module Bidi2pdf
 
       include JsLoggerHelper
 
+      # The values #emulate_media accepts, by argument - what Chrome's Emulation.setEmulatedMedia knows.
+      EMULATED_MEDIA: { media: ::Array["screen" | "print"], color_scheme: ::Array["light" | "dark"], reduced_motion: ::Array["reduce" | "no-preference"] }
+
       # @return [Object] The WebSocket client.
       attr_reader client: untyped
 
@@ -238,7 +241,24 @@ module Bidi2pdf
       # @param [Boolean] disabled Defaults to true.
       def disable_script_execution: (?disabled: bool) -> untyped
 
+      # Emulates a CSS media type and media features for this tab, through Chrome's own
+      # Emulation.setEmulatedMedia (CDP, via goog:cdp.sendCommand). It holds for every later
+      # navigation in the tab and for printing: +media: "screen"+ prints a page with its screen styles
+      # instead of its print stylesheet, +color_scheme: "dark"+ in its dark mode. With a narrow page
+      # (e.g. +page: { width: 9.5 }+ in cm, about 360 CSS px) the screen media type prints a page's
+      # mobile layout. Each call replaces the previous emulation; a call without arguments ends it.
+      #
+      # @param [String, Symbol, nil] media "screen" or "print"; nil leaves it to the browser.
+      # @param [String, Symbol, nil] color_scheme "light" or "dark" (prefers-color-scheme).
+      # @param [String, Symbol, nil] reduced_motion "reduce" or "no-preference" (prefers-reduced-motion).
+      # @raise [ArgumentError] for a value Chrome does not know, before anything is sent.
+      def emulate_media: (?media: untyped?, ?color_scheme: untyped?, ?reduced_motion: untyped?) -> untyped
+
       private
+
+      def emulated_media_params: (**untyped values) -> { media: untyped, features: untyped }
+
+      def check_emulated_media: (untyped name, untyped value) -> (nil | untyped)
 
       def build_command_and_extractor: (untyped print_options) -> ::Array[untyped]
 

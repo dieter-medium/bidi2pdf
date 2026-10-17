@@ -48,10 +48,17 @@ RSpec.describe Bidi2pdf::Recipe::Validator do
       data = valid_data("actions" => [
                            { "wait_for" => { "selector" => "#x" } }, { "click" => { "selector" => "#x" } }, { "evaluate" => { "script" => "1" } },
                            { "inject_script" => { "content" => "1" } }, { "inject_style" => { "content" => "x" } },
-                           { "set_viewport" => { "width" => 100, "height" => 100 } }, { "wait_network_idle" => { "timeout" => 5 } }
+                           { "set_viewport" => { "width" => 100, "height" => 100 } }, { "wait_network_idle" => { "timeout" => 5 } },
+                           { "emulate_media" => { "media" => "screen", "color_scheme" => "dark", "reduced_motion" => "reduce" } }
                          ])
 
       expect { recipe(data).validate! }.not_to raise_error
+    end
+
+    it "rejects a media type Chrome does not know, without a browser" do
+      data = valid_data("actions" => [{ "emulate_media" => { "media" => "tv" } }])
+
+      expect { recipe(data).validate! }.to raise_error(Bidi2pdf::InvalidRecipeError, /must be one of \["screen", "print"\]/)
     end
 
     # rubocop:disable-next RSpec/MultipleExpectations

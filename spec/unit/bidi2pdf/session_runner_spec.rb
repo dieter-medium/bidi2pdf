@@ -11,7 +11,8 @@ RSpec.describe Bidi2pdf::SessionRunner do
   let(:tab) do
     instance_double(Bidi2pdf::Bidi::BrowserTab,
                     set_cookie: nil, add_headers: nil, basic_auth: nil, navigate_to: nil, render_html_content: nil,
-                    wait_until_network_idle: nil, wait_until_page_loaded: nil, log_network_traffic: nil, print: nil, close: nil)
+                    wait_until_network_idle: nil, wait_until_page_loaded: nil, log_network_traffic: nil, print: nil, close: nil,
+                    emulate_media: nil)
   end
 
   def runner(**overrides)
@@ -62,6 +63,28 @@ RSpec.describe Bidi2pdf::SessionRunner do
 
       expect(tab).to have_received(:render_html_content).with(File.read(html_file))
     end
+
+    it "emulates the given media before navigating, so the page loads with it" do
+      calls = []
+      allow(tab).to receive(:emulate_media) { calls << :emulate_media }
+      allow(tab).to receive(:navigate_to) { calls << :navigate_to }
+
+      runner(emulate_media: { media: "screen", color_scheme: "dark" }).run
+
+      expect(calls).to eq(%i[emulate_media navigate_to])
+    end
+
+    it "passes the emulated media on to the tab" do
+      runner(emulate_media: { media: "screen", color_scheme: "dark" }).run
+
+      expect(tab).to have_received(:emulate_media).with(media: "screen", color_scheme: "dark")
+    end
+
+    it "leaves the media alone when none is given" do
+      runner.run
+
+      expect(tab).not_to have_received(:emulate_media)
+    end
   end
 
   describe "#run_diagnose" do
@@ -91,6 +114,12 @@ RSpec.describe Bidi2pdf::SessionRunner do
 
     it "returns the navigated tab" do
       expect(runner.run_diagnose).to eq(tab)
+    end
+
+    it "emulates the given media too" do
+      runner(emulate_media: { reduced_motion: "reduce" }).run_diagnose
+
+      expect(tab).to have_received(:emulate_media).with(reduced_motion: "reduce")
     end
 
     it "waits for the window to be loaded when requested" do

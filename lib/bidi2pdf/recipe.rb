@@ -12,7 +12,7 @@ module Bidi2pdf
   # launches) -> Validator -> Runner.
   class Recipe
     KNOWN_TOP_LEVEL_KEYS = %w[version source browser headers cookies auth actions assert print output].freeze
-    KNOWN_ACTIONS = %w[wait_for click evaluate inject_script inject_style set_viewport wait_network_idle].freeze
+    KNOWN_ACTIONS = %w[wait_for click evaluate inject_script inject_style set_viewport wait_network_idle emulate_media].freeze
     PAGE_ASSERTIONS = %w[selector_exists text_present no_console_errors no_network_failures fonts_loaded].freeze
     PDF_ASSERTIONS = %w[page_count pdf_text_present pdf_not_blank].freeze
     KNOWN_ASSERTIONS = (PAGE_ASSERTIONS + PDF_ASSERTIONS).freeze

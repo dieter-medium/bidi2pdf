@@ -263,6 +263,56 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
     end
   end
 
+  describe "#emulate_media" do
+    let(:response) { { "result" => { "context" => "abc123", "session" => "cdp-session-1" } } }
+
+    it "sends Emulation.setEmulatedMedia on the tab's CDP session" do
+      browser_tab.emulate_media(media: "screen", color_scheme: "dark")
+
+      expect(client.cmd_params.first).to eq(Bidi2pdf::Bidi::Commands::CdpSendCommand.new(
+                                              method: "Emulation.setEmulatedMedia",
+                                              params: { media: "screen", features: [{ name: "prefers-color-scheme", value: "dark" }] },
+                                              session: "cdp-session-1"
+                                            ))
+    end
+
+    it "emulates reduced motion as a media feature" do
+      browser_tab.emulate_media(reduced_motion: "reduce")
+
+      expect(client.cmd_params.first.params).to include(params: { media: "", features: [{ name: "prefers-reduced-motion", value: "reduce" }] })
+    end
+
+    it "switches the emulation off when called without arguments" do
+      browser_tab.emulate_media
+
+      expect(client.cmd_params.first.params).to include(params: { media: "", features: [] })
+    end
+
+    it "accepts symbols" do
+      browser_tab.emulate_media(media: :print, color_scheme: :light)
+
+      expect(client.cmd_params.first.params).to include(params: { media: "print", features: [{ name: "prefers-color-scheme", value: "light" }] })
+    end
+
+    it "refuses a media type Chrome does not know" do
+      expect { browser_tab.emulate_media(media: "tv") }.to raise_error(ArgumentError, "media must be one of screen, print, got \"tv\"")
+    end
+
+    it "refuses a color scheme Chrome does not know" do
+      expect { browser_tab.emulate_media(color_scheme: "sepia") }.to raise_error(ArgumentError, /color_scheme must be one of light, dark/)
+    end
+
+    it "sends nothing when an argument is refused" do
+      begin
+        browser_tab.emulate_media(reduced_motion: "slow")
+      rescue ArgumentError
+        nil
+      end
+
+      expect(client.cmd_params).to be_nil
+    end
+  end
+
   # Private, tested directly via #send: this had zero coverage before a real DNS failure against a
   # real remote browser crashed with `Bidi2pdf::Error#initialize: wrong number of arguments (given
   # 2, expected 0..1)` instead of reporting DNS_ERROR - NavigationDNSError never defined its own

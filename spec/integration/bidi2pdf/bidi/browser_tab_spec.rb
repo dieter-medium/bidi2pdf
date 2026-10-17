@@ -210,6 +210,58 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab, :chromedriver, :nginx, :session do
     end
   end
 
+  describe "#emulate_media" do
+    # Each marker is shown under exactly one condition, so the printed text says which one held.
+    let(:media_page) do
+      <<~HTML
+        <!doctype html><html><head><style>
+          .screen, .print, .dark, .narrow { display: none }
+          @media screen { .screen { display: block } }
+          @media print { .print { display: block } }
+          @media (prefers-color-scheme: dark) { .dark { display: block } }
+          @media (max-width: 500px) { .narrow { display: block } }
+        </style></head><body>
+          <p class="screen">MEDIA-SCREEN</p><p class="print">MEDIA-PRINT</p>
+          <p class="dark">SCHEME-DARK</p><p class="narrow">WIDTH-NARROW</p>
+        </body></html>
+      HTML
+    end
+
+    before { browser_tab.render_html_content(media_page) }
+
+    it "prints a page's screen styles when the screen media type is emulated" do
+      browser_tab.emulate_media(media: "screen")
+
+      expect(browser_tab.print).to contains_pdf_text("MEDIA-SCREEN")
+    end
+
+    it "prints a page's dark mode" do
+      browser_tab.emulate_media(color_scheme: "dark")
+
+      expect(browser_tab.print).to contains_pdf_text("SCHEME-DARK")
+    end
+
+    it "prints a page's mobile layout on a narrow page" do
+      browser_tab.emulate_media(media: "screen")
+
+      expect(browser_tab.print(print_options: { background: true, page: { width: 9.5, height: 20 } })).to contains_pdf_text("WIDTH-NARROW")
+    end
+
+    it "keeps the emulation for a later document in the tab" do
+      browser_tab.emulate_media(media: "screen")
+      browser_tab.render_html_content(media_page)
+
+      expect(browser_tab.print).to contains_pdf_text("MEDIA-SCREEN")
+    end
+
+    it "prints the print styles again once the emulation is ended" do
+      browser_tab.emulate_media(media: "screen")
+      browser_tab.emulate_media
+
+      expect(browser_tab.print).to contains_pdf_text("MEDIA-PRINT")
+    end
+  end
+
   describe "#inject_script" do
     before do
       # a website is required to inject a script

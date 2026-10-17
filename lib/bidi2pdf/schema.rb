@@ -219,7 +219,7 @@ module Bidi2pdf
     }.freeze
 
     RECIPE_ACTIONS = {
-      "description" => "one of the 7 known actions - a thin dispatch over BrowserTab's own methods, see README's " \
+      "description" => "one of the 8 known actions - a thin dispatch over BrowserTab's own methods, see README's " \
                         "Agent and Automation Usage section",
       "oneOf" => [
         {
@@ -271,6 +271,17 @@ module Bidi2pdf
           "type" => "object", "required" => %w[wait_network_idle], "additionalProperties" => false,
           "properties" => { "wait_network_idle" => { "type" => "object", "additionalProperties" => false,
                                                      "properties" => { "timeout" => { "type" => "number" } } } }
+        },
+        {
+          "type" => "object", "required" => %w[emulate_media], "additionalProperties" => false,
+          "properties" => {
+            "emulate_media" => {
+              "type" => "object", "additionalProperties" => false,
+              "description" => "the CSS media type and media features the page is shown and printed with, from here on; " \
+                               "media: screen prints the screen styles (with a narrow print page width, the mobile layout)",
+              "properties" => Bidi2pdf::Bidi::BrowserTab::EMULATED_MEDIA.to_h { |name, values| [name.to_s, { "type" => "string", "enum" => values }] }
+            }
+          }
         }
       ]
     }.freeze

@@ -110,6 +110,20 @@ bidi2pdf render \
   --log-level debug
 ```
 
+#### The page as it looks on screen, dark mode, or its mobile version
+
+By default Chrome prints with the page's print stylesheet. `--media screen` prints its screen styles
+instead, `--color_scheme dark` its dark mode, `--reduced_motion reduce` with animations off. A
+narrow page width adds the page's mobile layout, since a printed page is laid out at the paper's
+width (9.5 cm is about 360 CSS px):
+
+```bash
+bidi2pdf render --url https://example.com --output mobile.pdf \
+  --media screen --color_scheme dark --page_width 9.5 --page_height 20
+```
+
+`bidi2pdf diagnose` takes the same three options, so its screenshot shows the same emulation.
+
 ---
 
 ## 🤖 Agent and Automation Usage
@@ -243,7 +257,7 @@ bidi2pdf run invoice.yml --json       # actions, then the PDF, then assertions a
 ```
 
 Actions (`wait_for`, `click`, `evaluate`, `inject_script`, `inject_style`, `set_viewport`,
-`wait_network_idle`) and page assertions (`selector_exists`, `text_present`, `no_console_errors`,
+`wait_network_idle`, `emulate_media`) and page assertions (`selector_exists`, `text_present`, `no_console_errors`,
 `no_network_failures`, `fonts_loaded`) are a thin layer over the same `BrowserTab` methods the
 [Programmatic API](#-programmatic-api) below uses directly. PDF assertions (`page_count`,
 `pdf_text_present`, `pdf_not_blank`) need the `pdf-reader` gem - a recipe using one fails
@@ -349,6 +363,10 @@ tab.navigate_to "https://example.com/invoice/14432423"
 
 # Printing HTML you do not trust? Switch its scripts off before navigating:
 # tab.disable_script_execution
+
+# Print the screen styles in dark mode instead of the print stylesheet (holds for later
+# navigations in this tab; tab.emulate_media without arguments ends it):
+# tab.emulate_media(media: "screen", color_scheme: "dark")
 
 tab.wait_until_network_idle
 tab.print("my.pdf")

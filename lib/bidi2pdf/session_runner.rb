@@ -33,10 +33,12 @@ module Bidi2pdf
   # @param [Boolean] wait_network_idle Whether to wait for the network to become idle. Defaults to false.
   # @param [Hash] print_options Options for printing the page. Defaults to an empty hash.
   # @param [Symbol] network_log_format The format for network logs. Defaults to :console.
+  # @param [Hash] emulate_media Media type and features for BrowserTab#emulate_media (media:,
+  #   color_scheme:, reduced_motion:), applied before navigating. Defaults to none.
   class SessionRunner
     # rubocop: disable Metrics/ParameterLists
     def initialize(session:, url:, inputfile:, output:, cookies: {}, headers: {}, auth: {}, wait_window_loaded: false,
-                   wait_network_idle: false, print_options: {}, network_log_format: :console)
+                   wait_network_idle: false, print_options: {}, network_log_format: :console, emulate_media: {})
       @session = session
       @url = url
       @inputfile = inputfile
@@ -48,6 +50,7 @@ module Bidi2pdf
       @wait_network_idle = wait_network_idle
       @print_options = print_options || {}
       @network_log_format = network_log_format
+      @emulate_media = emulate_media || {}
     end
 
     # rubocop: enable Metrics/ParameterLists
@@ -100,6 +103,7 @@ module Bidi2pdf
 
       add_headers
       add_basic_auth
+      @tab.emulate_media(**@emulate_media) if @emulate_media.any?
     end
 
     def add_cookies(tab)

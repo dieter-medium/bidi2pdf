@@ -41,6 +41,13 @@ module Bidi2pdf
     class BrowserTab
       include JsLoggerHelper
 
+      # The values #emulate_media accepts, by argument - what Chrome's Emulation.setEmulatedMedia knows.
+      EMULATED_MEDIA = {
+        media: %w[screen print],
+        color_scheme: %w[light dark],
+        reduced_motion: %w[reduce no-preference]
+      }.freeze
+
       # @return [Object] The WebSocket client.
       attr_reader :client
 
@@ -513,7 +520,39 @@ module Bidi2pdf
         client.send_cmd_and_wait(cmd) { |response| response }
       end
 
+      # Emulates a CSS media type and media features for this tab, through Chrome's own
+      # Emulation.setEmulatedMedia (CDP, via goog:cdp.sendCommand). It holds for every later
+      # navigation in the tab and for printing: +media: "screen"+ prints a page with its screen styles
+      # instead of its print stylesheet, +color_scheme: "dark"+ in its dark mode. With a narrow page
+      # (e.g. +page: { width: 9.5 }+ in cm, about 360 CSS px) the screen media type prints a page's
+      # mobile layout. Each call replaces the previous emulation; a call without arguments ends it.
+      #
+      # @param [String, Symbol, nil] media "screen" or "print"; nil leaves it to the browser.
+      # @param [String, Symbol, nil] color_scheme "light" or "dark" (prefers-color-scheme).
+      # @param [String, Symbol, nil] reduced_motion "reduce" or "no-preference" (prefers-reduced-motion).
+      # @raise [ArgumentError] for a value Chrome does not know, before anything is sent.
+      def emulate_media(media: nil, color_scheme: nil, reduced_motion: nil)
+        params = emulated_media_params(media: media, color_scheme: color_scheme, reduced_motion: reduced_motion)
+        cmd = Commands::CdpSendCommand.new(method: "Emulation.setEmulatedMedia", params: params, session: cdp_session)
+        client.send_cmd_and_wait(cmd) { |response| response }
+      end
+
       private
+
+      def emulated_media_params(**values)
+        values.each { |name, value| check_emulated_media(name, value) }
+
+        features = { "prefers-color-scheme" => values[:color_scheme], "prefers-reduced-motion" => values[:reduced_motion] }
+                   .filter_map { |name, value| { name: name, value: value.to_s } unless value.nil? }
+        { media: values[:media].to_s, features: features }
+      end
+
+      def check_emulated_media(name, value)
+        allowed = EMULATED_MEDIA.fetch(name)
+        return if value.nil? || allowed.include?(value.to_s)
+
+        raise ArgumentError, "#{name} must be one of #{allowed.join(", ")}, got #{value.inspect}"
+      end
 
       def build_command_and_extractor(print_options)
         cmd_type = (print_options.delete(:cmd_type) || :bidi).to_sym
