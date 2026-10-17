@@ -523,9 +523,12 @@ module Bidi2pdf
       # Emulates a CSS media type and media features for this tab, through Chrome's own
       # Emulation.setEmulatedMedia (CDP, via goog:cdp.sendCommand). It holds for every later
       # navigation in the tab and for printing: +media: "screen"+ prints a page with its screen styles
-      # instead of its print stylesheet, +color_scheme: "dark"+ in its dark mode. With a narrow page
-      # (e.g. +page: { width: 9.5 }+ in cm, about 360 CSS px) the screen media type prints a page's
-      # mobile layout. Each call replaces the previous emulation; a call without arguments ends it.
+      # instead of its print stylesheet, +color_scheme: "dark"+ in its dark mode. On a narrow page the
+      # screen media type prints a page's mobile layout: the layout width is the page width minus the
+      # side margins (Chrome's default is 1 cm each), at 96 / 2.54 CSS px per cm - e.g.
+      # +page: { width: 9.525 }, margin: { left: 0, right: 0 }+ lays out at 360 px. Each call replaces
+      # the previous emulation, so a media type or feature it omits is reset; a call without arguments
+      # ends it.
       #
       # @param [String, Symbol, nil] media "screen" or "print"; nil leaves it to the browser.
       # @param [String, Symbol, nil] color_scheme "light" or "dark" (prefers-color-scheme).

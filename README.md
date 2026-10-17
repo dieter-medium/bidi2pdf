@@ -113,14 +113,20 @@ bidi2pdf render \
 #### The page as it looks on screen, dark mode, or its mobile version
 
 By default Chrome prints with the page's print stylesheet. `--media screen` prints its screen styles
-instead, `--color_scheme dark` its dark mode, `--reduced_motion reduce` with animations off. A
-narrow page width adds the page's mobile layout, since a printed page is laid out at the paper's
-width (9.5 cm is about 360 CSS px):
+instead, `--color_scheme dark` its dark mode, `--reduced_motion reduce` with animations off.
+
+A narrow page adds the page's mobile layout. A printed page is laid out at the width between its side
+margins, not at the paper's width: page width minus `--margin_left` and `--margin_right`, at about
+37.8 CSS px per cm (96 / 2.54). Without margins of your own Chrome uses 1 cm a side, so a 9.5 cm page
+lays out at about 283 px. For a 360 px phone layout, set the side margins explicitly:
 
 ```bash
 bidi2pdf render --url https://example.com --output mobile.pdf \
-  --media screen --color_scheme dark --page_width 9.5 --page_height 20
+  --media screen --color_scheme dark \
+  --page_width 9.525 --page_height 20 --margin_left 0 --margin_right 0
 ```
+
+8.467 cm without side margins gives 320 px. All page sizes and margins are in centimetres.
 
 `bidi2pdf diagnose` takes the same three options, so its screenshot shows the same emulation.
 

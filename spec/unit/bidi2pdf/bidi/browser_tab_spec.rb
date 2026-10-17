@@ -288,6 +288,13 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
       expect(client.cmd_params.first.params).to include(params: { media: "", features: [] })
     end
 
+    it "does not keep an earlier call's media type" do
+      browser_tab.emulate_media(media: "screen")
+      browser_tab.emulate_media(color_scheme: "dark")
+
+      expect(client.cmd_params.first.params).to include(params: { media: "", features: [{ name: "prefers-color-scheme", value: "dark" }] })
+    end
+
     it "accepts symbols" do
       browser_tab.emulate_media(media: :print, color_scheme: :light)
 

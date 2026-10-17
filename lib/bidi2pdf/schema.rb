@@ -278,7 +278,8 @@ module Bidi2pdf
             "emulate_media" => {
               "type" => "object", "additionalProperties" => false,
               "description" => "the CSS media type and media features the page is shown and printed with, from here on; " \
-                               "media: screen prints the screen styles (with a narrow print page width, the mobile layout)",
+                               "media: screen prints the screen styles; on a narrow print page (layout width = page width minus the side margins, " \
+                               "9.525 cm without side margins = 360 CSS px) the mobile layout",
               "properties" => Bidi2pdf::Bidi::BrowserTab::EMULATED_MEDIA.to_h { |name, values| [name.to_s, { "type" => "string", "enum" => values }] }
             }
           }
