@@ -1,0 +1,35 @@
+# A shared Chrome for bidi2pdf: add to your compose file and point bidi2pdf at
+# http://remote-chrome:3000/session. See ../SKILL.md for why each setting is here.
+services:
+  remote-chrome:
+    image: dieters877565/chromedriver:latest
+    # Pull the newest Chromium on every start: an old browser is the bigger risk than a changed one.
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      ENABLE_XVFB: "true"
+      ENABLE_VNC: "false"
+      # Stops chromedriver when it no longer answers or memory thrashes; restart: brings a fresh one.
+      WATCHDOG_ENABLED: "true"
+      # The browser's locale: date and number formats in form fields follow it.
+      LANG: en_US.UTF-8
+      LANGUAGE: en_US:en
+    # Chrome's own sandbox needs it; without it, every client passes --no-sandbox instead.
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - no-new-privileges:true
+    # One session: ~110 threads (pids) and a few hundred MB. No swap, so an out-of-memory Chrome is
+    # replaced instead of freezing every render.
+    pids_limit: 1024
+    mem_limit: 2g
+    memswap_limit: 2g
+    shm_size: 256m
+    ipc: private
+    # No ports: published. Only the services that render share this network.
+    networks:
+      - render
+
+networks:
+  render:
+    internal: true

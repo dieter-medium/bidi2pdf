@@ -1,0 +1,13 @@
+{
+  "name": "bidi2pdf",
+  "owner": {
+    "name": "dieter-medium"
+  },
+  "plugins": [
+    {
+      "name": "bidi2pdf",
+      "source": "./claude-plugin",
+      "description": "Skills for rendering web pages to PDF and screenshots with bidi2pdf."
+    }
+  ]
+}

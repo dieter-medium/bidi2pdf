@@ -276,6 +276,30 @@ rejected by both `bidi2pdf schema recipe` and `--validate` rather than being sil
 `wait_for` needs exactly one of `selector`, `paged_js`, `script` - zero or more than one is
 rejected the same way, before any browser launches.
 
+### Claude Code skills
+
+The repository ships a [Claude Code](https://claude.com/claude-code) plugin with six skills, so an
+agent uses bidi2pdf the way it is meant to be used instead of guessing options:
+
+| Skill | For |
+|---|---|
+| `render-pdf` | a URL or HTML file to PDF with the CLI: order of commands, waits, screen/dark/mobile view, reading the JSON result and exit codes |
+| `pdf-recipe` | a recipe for pages that need steps before printing, validated without a browser |
+| `diagnose-pdf` | a blank, unstyled or wrongly paged PDF: a checklist around `bidi2pdf diagnose` |
+| `remote-chrome` | a shared chromedriver container: settings, sizing, session cleanup, untrusted HTML |
+| `page-screenshots` | review screenshots per page at phone and desktop width, light and dark (with a script) |
+| `pdf-specs` | RSpec specs with the gem's PDF matchers and Chrome container helpers |
+
+```text
+/plugin marketplace add dieter-medium/bidi2pdf
+/plugin install bidi2pdf@bidi2pdf
+```
+
+The skills point at `bidi2pdf help <command>` and `bidi2pdf schema <kind>` for exact options and
+shapes; a spec (`spec/unit/claude_plugin_spec.rb`) checks every command, option, error code, recipe and
+method they name against the gem, so they cannot drift from it. The plugin is not part of the gem
+itself.
+
 ---
 
 ## 🧠 Programmatic API
