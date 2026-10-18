@@ -55,10 +55,11 @@ RSpec.describe "The Claude Code plugin" do # rubocop:disable RSpec/DescribeClass
   def frontmatter(text) = YAML.safe_load(text[/\A---\n(.*?)\n---\n/m, 1].to_s) || {}
 
   describe "manifests" do
-    it "names the plugin bidi2pdf, at the gem's own version" do
+    # Claude Code reads a plugin version as semver, so the gem's "0.1.23.pre" is spelled "0.1.23-pre".
+    it "names the plugin bidi2pdf, at the gem's own version in semver spelling" do
       manifest = JSON.parse(File.read(File.join(plugin_dir, ".claude-plugin", "plugin.json")))
 
-      expect(manifest.values_at("name", "version")).to eq(["bidi2pdf", Bidi2pdf::VERSION])
+      expect(manifest.values_at("name", "version")).to eq(["bidi2pdf", Bidi2pdf::VERSION.sub(/\.(?=[a-z])/, "-")])
     end
 
     it "lists the plugin in the repository's marketplace, at a folder that holds it" do
