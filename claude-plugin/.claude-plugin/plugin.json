@@ -1,0 +1,10 @@
+{
+  "name": "bidi2pdf",
+  "version": "0.1.23-pre",
+  "description": "Skills for rendering web pages to PDF and screenshots with bidi2pdf: the CLI, recipes, diagnosing a wrong PDF, a shared remote Chrome, review screenshots and PDF specs.",
+  "author": {
+    "name": "dieter-medium"
+  },
+  "homepage": "https://github.com/dieter-medium/bidi2pdf",
+  "license": "MIT"
+}
