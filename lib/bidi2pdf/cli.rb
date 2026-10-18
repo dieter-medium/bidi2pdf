@@ -524,10 +524,17 @@ module Bidi2pdf
     # Stops whatever browser this command started, once. The structured paths call it inside
     # reserve_stdout_for_machine_output, while the loggers still write to stderr: stopping logs
     # ("WebSocket closed"), and after the block those lines would land on stdout behind the JSON
-    # document or the PDF bytes.
+    # document or the PDF bytes. Each browser is stopped on its own, and a failing stop is logged,
+    # not raised: this runs in an ensure, where raising would replace the command's own result and
+    # exit status.
     def stop_browsers
-      [(@launcher if defined?(@launcher)), (@run_launcher if defined?(@run_launcher))].compact.each(&:stop)
+      launchers = [(@launcher if defined?(@launcher)), (@run_launcher if defined?(@run_launcher))].compact
       @launcher = @run_launcher = nil
+      launchers.each do |launcher|
+        launcher.stop
+      rescue StandardError => e
+        Bidi2pdf.logger.error "Stopping the browser failed: #{e.class}: #{e.message}"
+      end
     end
 
     def with_recipe_tab(recipe)

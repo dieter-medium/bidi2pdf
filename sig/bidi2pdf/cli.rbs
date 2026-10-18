@@ -67,7 +67,9 @@ module Bidi2pdf
     # Stops whatever browser this command started, once. The structured paths call it inside
     # reserve_stdout_for_machine_output, while the loggers still write to stderr: stopping logs
     # ("WebSocket closed"), and after the block those lines would land on stdout behind the JSON
-    # document or the PDF bytes.
+    # document or the PDF bytes. Each browser is stopped on its own, and a failing stop is logged,
+    # not raised: this runs in an ensure, where raising would replace the command's own result and
+    # exit status.
     def stop_browsers: () -> untyped
 
     def with_recipe_tab: (untyped recipe) { (untyped) -> untyped } -> untyped

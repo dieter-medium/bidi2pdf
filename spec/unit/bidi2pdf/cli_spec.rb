@@ -634,4 +634,36 @@ RSpec.describe Bidi2pdf::CLI do
       end
     end
   end
+
+  # Private, tested directly via #send: the cleanup every command runs in its ensure.
+  describe "#stop_browsers" do
+    def failing_launcher
+      instance_double(Bidi2pdf::Launcher).tap { |launcher| allow(launcher).to receive(:stop).and_raise(Bidi2pdf::WebsocketError, "gone") }
+    end
+
+    it "still stops the second browser when stopping the first one fails" do
+      run_launcher = instance_double(Bidi2pdf::Launcher, stop: nil)
+      cli_runner.instance_variable_set(:@launcher, failing_launcher)
+      cli_runner.instance_variable_set(:@run_launcher, run_launcher)
+
+      capture_streams { cli_runner.send(:stop_browsers) }
+
+      expect(run_launcher).to have_received(:stop)
+    end
+
+    it "logs a failed stop instead of raising it, so the command keeps its own exit status" do
+      cli_runner.instance_variable_set(:@launcher, failing_launcher)
+
+      expect { capture_streams { cli_runner.send(:stop_browsers) } }.not_to raise_error
+    end
+
+    it "stops each browser only once" do
+      launcher = instance_double(Bidi2pdf::Launcher, stop: nil)
+      cli_runner.instance_variable_set(:@launcher, launcher)
+
+      2.times { cli_runner.send(:stop_browsers) }
+
+      expect(launcher).to have_received(:stop).once
+    end
+  end
 end
