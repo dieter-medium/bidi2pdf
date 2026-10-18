@@ -301,7 +301,10 @@ marketplace once, then install the plugin from it. In a Claude Code session:
 /plugin install bidi2pdf@bidi2pdf
 ```
 
-or from a shell:
+`/plugin install` does not install right away: it opens the plugin's details, where you choose the scope
+(just you, the project, or only this checkout) and confirm the installation.
+
+Or from a shell, where the install happens at once:
 
 ```bash
 claude plugin marketplace add dieter-medium/bidi2pdf
