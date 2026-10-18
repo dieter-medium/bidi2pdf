@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lay a mobile print out at the intended width
 
 ### 📝 Docs
+- Explain how to install, pin and update the Claude Code skills
 - Fix the script path and weigh the Chrome sandbox
 
 ### 🔄 Changed
