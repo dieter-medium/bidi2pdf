@@ -47,7 +47,7 @@ output:
   - `set_viewport` (`width`, `height`, optional `device_pixel_ratio`).
   - `wait_network_idle` (`timeout`).
   - `emulate_media` (`media: screen|print`, `color_scheme: light|dark`, `reduced_motion`) - from the
-    release after 0.1.22.
+    0.1.23 or later.
 - **assert** runs after printing. Page checks: `selector_exists`, `text_present`,
   `no_console_errors`, `no_network_failures`, `fonts_loaded`. PDF checks: `page_count`,
   `pdf_text_present`, `pdf_not_blank` - these need the `pdf-reader` gem.

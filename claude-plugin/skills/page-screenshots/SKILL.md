@@ -40,7 +40,7 @@ name should not, or a query, the name gets a short hash of the path, so no two p
 other. It sets the viewport, emulates `prefers-color-scheme`
 with `media: screen`, waits for the network to go quiet and captures the full page. Without
 `--remote-browser-url` it starts a local chromedriver. It needs the bidi2pdf release with
-`BrowserTab#emulate_media` (after 0.1.22).
+`BrowserTab#emulate_media` (0.1.23 or later).
 
 - **360 px first.** Most layout bugs show at the narrow width; 1280 covers desktop. Add the site's own
   breakpoints when they matter (e.g. 768).
