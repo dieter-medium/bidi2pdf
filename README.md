@@ -290,9 +290,70 @@ agent uses bidi2pdf the way it is meant to be used instead of guessing options:
 | `page-screenshots` | review screenshots per page at phone and desktop width, light and dark (with a script) |
 | `pdf-specs` | RSpec specs with the gem's PDF matchers and Chrome container helpers |
 
+#### Installing the skills
+
+The plugin is not in a central store: this repository is its own Claude Code marketplace
+(`.claude-plugin/marketplace.json`, marketplace name `bidi2pdf`). You add the repository as a
+marketplace once, then install the plugin from it. In a Claude Code session:
+
 ```text
 /plugin marketplace add dieter-medium/bidi2pdf
 /plugin install bidi2pdf@bidi2pdf
+```
+
+`/plugin install` does not install right away: it opens the plugin's details, where you choose the scope
+(just you, the project, or only this checkout) and confirm the installation.
+
+Or from a shell, where the install happens at once:
+
+```bash
+claude plugin marketplace add dieter-medium/bidi2pdf
+claude plugin install bidi2pdf@bidi2pdf          # --scope user (default), project or local
+```
+
+The skills then load on their own when a task fits them; nothing else needs configuring.
+
+**Which version you get.** The plugin's version is the gem's (`claude-plugin/.claude-plugin/plugin.json`),
+and Claude Code installs an update only when that version changes - not with every commit. Adding the
+marketplace as above follows the default branch, so after a release the skills there can already
+describe the next, unreleased gem (the version then reads e.g. `0.1.24-pre`). To stay on the skills of
+the gem you actually use, add the marketplace at its release tag:
+
+```bash
+claude plugin marketplace add dieter-medium/bidi2pdf#v0.1.23
+```
+
+**Updating and removing.** Auto-update is off for this marketplace unless you turn it on (`/plugin` >
+Marketplaces). By hand:
+
+```bash
+claude plugin marketplace update bidi2pdf     # fetch the marketplace again
+claude plugin update bidi2pdf@bidi2pdf        # take the new version
+claude plugin uninstall bidi2pdf@bidi2pdf     # remove the plugin only
+claude plugin marketplace remove bidi2pdf     # remove the marketplace and every plugin installed from it
+```
+
+**For a whole team.** To give everyone working in a project the skills, commit this to the project's
+`.claude/settings.json` - each member gets them after accepting Claude Code's trust prompt for the
+folder:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "bidi2pdf": { "source": { "source": "github", "repo": "dieter-medium/bidi2pdf" } }
+  },
+  "enabledPlugins": { "bidi2pdf@bidi2pdf": true }
+}
+```
+
+`claude plugin marketplace add dieter-medium/bidi2pdf --scope project` and
+`claude plugin install bidi2pdf@bidi2pdf --scope project` write the same entries for you.
+
+**From a checkout, without installing** (to try a change to a skill):
+
+```bash
+claude --plugin-dir ./claude-plugin                   # for this one session
+claude plugin validate ./claude-plugin --strict       # check the plugin's structure
 ```
 
 The skills point at `bidi2pdf help <command>` and `bidi2pdf schema <kind>` for exact options and

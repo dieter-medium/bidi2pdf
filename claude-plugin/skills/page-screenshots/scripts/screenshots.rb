@@ -7,7 +7,7 @@
 #   ruby screenshots.rb --base http://app:4000 --pages /,/about --widths 360,1280 \
 #     --out tmp/screenshots --remote-browser-url http://remote-chrome:3000/session
 #
-# Needs a bidi2pdf with BrowserTab#emulate_media (the release after 0.1.22). Without
+# Needs bidi2pdf 0.1.23 or later (BrowserTab#emulate_media). Without
 # --remote-browser-url it starts a local chromedriver (Chrome must be installed).
 require "digest"
 require "fileutils"

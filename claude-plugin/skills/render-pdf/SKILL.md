@@ -18,8 +18,8 @@ renderer; for a page that needs steps before printing, write a recipe (the `pdf-
 bidi2pdf version --json
 ```
 
-`--media`, `--color_scheme` and `--reduced_motion` came after 0.1.22; a clean stdout for `--json` and
-`--output -` needs the release with the stdout fix as well. If `bidi2pdf help render` does not list
+`--media`, `--color_scheme` and `--reduced_motion`, and a clean stdout for `--json` and `--output -`,
+need 0.1.23 or later. If `bidi2pdf help render` does not list
 an option, the installed gem is older - say so instead of working around it.
 
 Where Chrome runs:
