@@ -446,7 +446,9 @@ module Bidi2pdf
 
               block.call(pdf_base64) if block_given?
 
-              return pdf_base64 unless outputfile || block_given?
+              # The block's value, not a `return`: returning out of the instrumented block would
+              # skip the print event, and with it every subscriber (ResultCollector, --output -).
+              outputfile || block_given? ? nil : pdf_base64
             else
               Bidi2pdf.logger.error "Error printing: #{response}"
             end
@@ -487,7 +489,8 @@ module Bidi2pdf
 
               block.call(png_base64) if block_given?
 
-              return png_base64 unless outputfile || block_given?
+              # The block's value, not a `return` - see #print.
+              outputfile || block_given? ? nil : png_base64
             else
               Bidi2pdf.logger.error "Error capturing screenshot: #{response}"
             end

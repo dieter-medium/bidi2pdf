@@ -180,6 +180,14 @@ RSpec.describe Bidi2pdf::CLI do
         allow(Bidi2pdf::Launcher).to receive(:new).and_return(double)
       end
 
+      it "keeps what the launcher logs while it stops out of the JSON document" do
+        stub_logging_launch(File.binread(fixture_file("sample.pdf")))
+
+        _status, stdout, = capture_streams { cli_runner.invoke(:render, [], url: "http://localhost/test", json: true) }
+
+        expect(JSON.parse(stdout)["ok"]).to be(true)
+      end
+
       it "emits a single ok:true JSON document on stdout, and exits 0" do
         stub_successful_launch
 
@@ -242,6 +250,21 @@ RSpec.describe Bidi2pdf::CLI do
       end
     end
 
+    # A launcher that prints like the real one and, like the real one, logs while it stops.
+    def stub_logging_launch(pdf_bytes)
+      launcher = printing_launcher(pdf_bytes)
+      allow(launcher).to receive(:stop) { Bidi2pdf.logger.info("WebSocket closed") }
+      allow(Bidi2pdf::Launcher).to receive(:new).and_return(launcher)
+    end
+
+    def printing_launcher(pdf_bytes)
+      instance_double(Bidi2pdf::Launcher).tap do |launcher|
+        allow(launcher).to receive(:launch) do
+          Bidi2pdf.notification_service.instrument("print.bidi2pdf") { |payload| payload[:pdf_base64] = Base64.strict_encode64(pdf_bytes) }
+        end
+      end
+    end
+
     context "with --output -" do
       def stub_successful_launch(pdf_bytes:)
         allow(Bidi2pdf::Launcher).to receive(:new) do
@@ -256,6 +279,17 @@ RSpec.describe Bidi2pdf::CLI do
       it "writes the raw PDF bytes to stdout, nothing else" do
         pdf_bytes = File.binread(fixture_file("sample.pdf"))
         stub_successful_launch(pdf_bytes: pdf_bytes)
+
+        _status, stdout, = capture_streams { cli_runner.invoke(:render, [], url: "http://localhost/test", output: "-") }
+
+        expect(stdout.b).to eq(pdf_bytes)
+      end
+
+      # Launcher#stop logs ("WebSocket closed") once the loggers point at stdout again unless it
+      # runs inside the reserved block.
+      it "keeps what the launcher logs while it stops out of the PDF bytes" do
+        pdf_bytes = File.binread(fixture_file("sample.pdf"))
+        stub_logging_launch(pdf_bytes)
 
         _status, stdout, = capture_streams { cli_runner.invoke(:render, [], url: "http://localhost/test", output: "-") }
 
@@ -318,6 +352,16 @@ RSpec.describe Bidi2pdf::CLI do
 
       def stub_diagnose_launcher
         allow(Bidi2pdf::Launcher).to receive(:new).and_return(instance_double(Bidi2pdf::Launcher, diagnose: tab, stop: nil))
+      end
+
+      it "keeps what the launcher logs while it stops out of the JSON document" do
+        launcher = instance_double(Bidi2pdf::Launcher, diagnose: tab)
+        allow(launcher).to receive(:stop) { Bidi2pdf.logger.info("WebSocket closed") }
+        allow(Bidi2pdf::Launcher).to receive(:new).and_return(launcher)
+
+        _status, stdout, = capture_streams { cli_runner.invoke(:diagnose, [], url: "http://localhost/test", json: true) }
+
+        expect(stdout.lines.size).to eq(1)
       end
 
       it "prints a JSON document with the diagnose shape under --json" do
@@ -439,6 +483,23 @@ RSpec.describe Bidi2pdf::CLI do
 
     def stub_run_launcher
       allow(Bidi2pdf::Launcher).to receive(:new).and_return(instance_double(Bidi2pdf::Launcher, diagnose: tab, stop: nil))
+    end
+
+    it "keeps what the launcher logs while it stops out of the JSON document" do
+      launcher = instance_double(Bidi2pdf::Launcher, diagnose: tab)
+      allow(launcher).to receive(:stop) { Bidi2pdf.logger.info("WebSocket closed") }
+      allow(Bidi2pdf::Launcher).to receive(:new).and_return(launcher)
+      recipe = write_recipe(<<~YAML)
+        version: 1
+        source:
+          url: https://example.com
+        output:
+          manifest: #{tmp_file("cli-run-manifest-#{SecureRandom.hex(4)}.json")}
+      YAML
+
+      status, stdout, = capture_streams { cli_runner.invoke(:run_recipe, [recipe], json: true) }
+
+      expect([status, stdout.lines.size]).to eq([0, 1])
     end
 
     context "with --validate" do

@@ -163,6 +163,17 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
       expect(browser_tab.print).to eq("some base64 data")
     end
 
+    # ResultCollector (and so `render --output -`) gets the PDF only through this event; an early
+    # return out of the instrumented block used to skip it whenever no file was given.
+    it "publishes the print event with the pdf data, when no filename is given" do
+      payloads = []
+      subscription = Bidi2pdf.notification_service.subscribe("print.bidi2pdf") { |event| payloads << event.payload[:pdf_base64] }
+      browser_tab.print
+      Bidi2pdf.notification_service.unsubscribe("print.bidi2pdf", subscription)
+
+      expect(payloads).to eq(["some base64 data"])
+    end
+
     it "yields the pdf data, when a block is given" do
       expect { |b| browser_tab.print(&b) }.to yield_with_args("some base64 data")
     end
@@ -200,6 +211,15 @@ RSpec.describe Bidi2pdf::Bidi::BrowserTab do
 
     it "returns the image data, when no filename is given" do
       expect(browser_tab.screenshot).to eq("some base64 image data")
+    end
+
+    it "publishes the screenshot event with the image data, when no filename is given" do
+      payloads = []
+      subscription = Bidi2pdf.notification_service.subscribe("screenshot.bidi2pdf") { |event| payloads << event.payload[:png_base64] }
+      browser_tab.screenshot
+      Bidi2pdf.notification_service.unsubscribe("screenshot.bidi2pdf", subscription)
+
+      expect(payloads).to eq(["some base64 image data"])
     end
 
     it "yields the image data, when a block is given" do
