@@ -313,9 +313,11 @@ module Bidi2pdf
         emit_structured_render_output(result, collector)
 
         exit_for_result(result)
+      ensure
+        stop_browsers
       end
     ensure
-      launcher.stop if defined?(@launcher) && @launcher
+      stop_browsers
       stream&.unsubscribe
       cleanup_stdin_tempfile
     end
@@ -375,9 +377,11 @@ module Bidi2pdf
         $stdout.puts(diagnose_payload(result, diagnostics).to_json)
 
         exit_for_result(result)
+      ensure
+        stop_browsers
       end
     ensure
-      launcher.stop if defined?(@launcher) && @launcher
+      stop_browsers
       stream&.unsubscribe
       cleanup_stdin_tempfile
     end
@@ -419,7 +423,6 @@ module Bidi2pdf
     # --- run - Loader/Validator run before any browser work, both in --validate and in a real
     # run, so an invalid recipe never launches one.
 
-    # rubocop:disable-next Metrics/CyclomaticComplexity
     def perform_human_run(recipe_path)
       recipe = load_and_validate_recipe(recipe_path)
       return puts "Recipe '#{recipe_path}' is valid." if merged_options[:validate]
@@ -454,12 +457,12 @@ module Bidi2pdf
     rescue Bidi2pdf::Error => e
       raise Thor::Error, e.message
     ensure
-      @run_launcher&.stop
+      stop_browsers
       stream&.unsubscribe
       cleanup_stdin_tempfile
     end
 
-    # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    # rubocop:disable-next Metrics/CyclomaticComplexity
     def perform_structured_run(recipe_path)
       recipe = load_and_validate_recipe(recipe_path)
 
@@ -496,12 +499,14 @@ module Bidi2pdf
         $stdout.puts(payload.to_json)
 
         exit_for_result(result)
+      ensure
+        stop_browsers
       end
     rescue Bidi2pdf::InvalidRecipeError, Bidi2pdf::PdfInspectionUnavailableError, Bidi2pdf::InvalidPrintOptionError => e
       $stdout.puts Bidi2pdf::Result.failure(command: "run", error: ErrorCodes.describe(e)).to_json
       exit(Bidi2pdf::ExitCodes.for(ErrorCodes.for(e)))
     ensure
-      @run_launcher&.stop
+      stop_browsers
       stream&.unsubscribe
       cleanup_stdin_tempfile
     end
@@ -514,6 +519,22 @@ module Bidi2pdf
 
     def recipe_requested_url(recipe)
       recipe.source["url"] || recipe.source["file"] || "(stdin)"
+    end
+
+    # Stops whatever browser this command started, once. The structured paths call it inside
+    # reserve_stdout_for_machine_output, while the loggers still write to stderr: stopping logs
+    # ("WebSocket closed"), and after the block those lines would land on stdout behind the JSON
+    # document or the PDF bytes. Each browser is stopped on its own, and a failing stop is logged,
+    # not raised: this runs in an ensure, where raising would replace the command's own result and
+    # exit status.
+    def stop_browsers
+      launchers = [(@launcher if defined?(@launcher)), (@run_launcher if defined?(@run_launcher))].compact
+      @launcher = @run_launcher = nil
+      launchers.each do |launcher|
+        launcher.stop
+      rescue StandardError => e
+        Bidi2pdf.logger.error "Stopping the browser failed: #{e.class}: #{e.message}"
+      end
     end
 
     def with_recipe_tab(recipe)

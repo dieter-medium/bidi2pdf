@@ -1,6 +1,8 @@
 module Bidi2pdf
   # rubocop:disable Metrics/AbcSize
   class CLI < Thor
+    @launcher: untyped
+
     @run_launcher: untyped
 
     @render_input_path: untyped
@@ -8,8 +10,6 @@ module Bidi2pdf
     @stdin_content: untyped
 
     @stdin_tempfile: untyped
-
-    @launcher: untyped
 
     include JsonOutput
 
@@ -55,15 +55,22 @@ module Bidi2pdf
 
     def capture_diagnose_pdf: (untyped tab) -> (nil | { path: untyped, pages: untyped, not_blank: untyped })
 
-    # rubocop:disable-next Metrics/CyclomaticComplexity
     def perform_human_run: (untyped recipe_path) -> untyped
 
-    # rubocop:disable-next Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
+    # rubocop:disable-next Metrics/CyclomaticComplexity
     def perform_structured_run: (untyped recipe_path) -> untyped
 
     def load_and_validate_recipe: (untyped recipe_path) -> untyped
 
     def recipe_requested_url: (untyped recipe) -> untyped
+
+    # Stops whatever browser this command started, once. The structured paths call it inside
+    # reserve_stdout_for_machine_output, while the loggers still write to stderr: stopping logs
+    # ("WebSocket closed"), and after the block those lines would land on stdout behind the JSON
+    # document or the PDF bytes. Each browser is stopped on its own, and a failing stop is logged,
+    # not raised: this runs in an ensure, where raising would replace the command's own result and
+    # exit status.
+    def stop_browsers: () -> untyped
 
     def with_recipe_tab: (untyped recipe) { (untyped) -> untyped } -> untyped
 
