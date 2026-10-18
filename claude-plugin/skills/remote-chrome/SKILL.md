@@ -21,9 +21,17 @@ runs it in development and production. The parts that matter, and why:
   included). It answers on port 3000; the new-session URL is `http://<service>:3000/session`.
 - **No published port, an internal network only.** Whoever reaches port 3000 drives a browser: keep
   it to the containers that render. No VNC (`ENABLE_VNC: "false"`).
-- **Chrome's sandbox:** either `cap_add: [SYS_ADMIN]`, or no extra capability and every client passes
-  `--no-sandbox` (`DISABLE_CHROME_SANDBOX=true` for the CLI). Some CI runners drop `--cap-add`
-  silently - there only `--no-sandbox` works.
+- **Chrome's sandbox** needs to create namespaces, which Docker's default seccomp profile only allows
+  with `CAP_SYS_ADMIN`. Three ways, from the narrowest:
+  1. The gem's seccomp profile `docker/chrome-driver/chrome.json` (`security_opt:
+     ["seccomp=chrome.json"]`), no extra capability. It allows the namespace calls Chrome uses, but
+     also some Docker's default refuses (`mount`, `bpf`, `ptrace`, `perf_event_open`); verify on your
+     host that sessions start before relying on it.
+  2. `cap_add: [SYS_ADMIN]` - works with the default profile, and is what the reference file uses. It
+     is a broad capability: keep the container on its internal network and give it nothing else.
+  3. No extra capability, and every client passes `--no-sandbox` (`DISABLE_CHROME_SANDBOX=true` for the
+     CLI). Chrome then runs every page without its own sandbox - only for pages you trust. Some CI
+     runners drop `--cap-add` silently; there only this works.
 - **Limits from measurement, not guesses:** one Chrome session runs ~110 threads (Docker counts them
   as pids) and a few hundred MB. `pids_limit: 1024`, `mem_limit: 2g` with `memswap_limit` equal (no
   swap: a Chrome out of memory is killed and replaced instead of freezing every render),
@@ -84,3 +92,10 @@ A page from a user is a page that runs its scripts in your browser. Before navig
   services. Never put it on the same network as your database.
 - Prefer printing HTML you built (`render_html_content`, `--html-file`) over handing Chrome a URL a
   user typed.
+
+**Before production, test the isolation with hostile pages**, not by reading the configuration. Render
+pages that try, each on its own: to fetch an internal service and your cloud metadata address, to load
+`file:///etc/passwd` and other `file:` URLs, to open new windows, to run scripts despite
+`disable_script_execution`, and to exhaust memory. Each must fail or stay contained, and the
+chromedriver must keep serving other renders. Repeat it after changing the image, the capabilities or
+the seccomp profile.

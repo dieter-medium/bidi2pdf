@@ -25,12 +25,19 @@ for review sets with fixed widths use the script below.
 ## 2. A review set
 
 ```bash
-ruby scripts/screenshots.rb --base http://app:4000 --pages /,/pricing,/signup \
+ruby "$SKILL_DIR/scripts/screenshots.rb" --base http://app:4000 --pages /,/pricing,/signup \
   --widths 360,1280 --out tmp/screenshots --remote-browser-url http://remote-chrome:3000/session
 ```
 
-`scripts/screenshots.rb` (next to this file) writes `<page>-<width>-<scheme>.png` for every page,
-width and colour scheme and prints each path. It sets the viewport, emulates `prefers-color-scheme`
+`$SKILL_DIR` stands for this skill's own folder - the base directory Claude Code names when it loads
+the skill; in a checkout of bidi2pdf it is `claude-plugin/skills/page-screenshots`. Run the script by
+that path, not relative to the project you are shooting.
+
+It writes one PNG for every page, width and colour scheme and prints each path:
+`<page path>-<width>-<scheme>.png`, with the page's folders kept (`/account/settings` becomes
+`account/settings-360-light.png`, `/` becomes `index-...`). When a page's path holds characters a file
+name should not, or a query, the name gets a short hash of the path, so no two pages overwrite each
+other. It sets the viewport, emulates `prefers-color-scheme`
 with `media: screen`, waits for the network to go quiet and captures the full page. Without
 `--remote-browser-url` it starts a local chromedriver. It needs the bidi2pdf release with
 `BrowserTab#emulate_media` (after 0.1.22).

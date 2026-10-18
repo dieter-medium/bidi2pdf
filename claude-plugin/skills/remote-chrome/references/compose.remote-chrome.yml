@@ -14,7 +14,9 @@ services:
       # The browser's locale: date and number formats in form fields follow it.
       LANG: en_US.UTF-8
       LANGUAGE: en_US:en
-    # Chrome's own sandbox needs it; without it, every client passes --no-sandbox instead.
+    # Chrome's own sandbox needs it with Docker's default seccomp profile. Narrower: drop cap_add and
+    # use bidi2pdf's docker/chrome-driver/chrome.json profile (security_opt: seccomp=...) - verify
+    # first that sessions start on your host. See ../SKILL.md, "Chrome's sandbox".
     cap_add:
       - SYS_ADMIN
     security_opt:
