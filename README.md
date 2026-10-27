@@ -825,6 +825,14 @@ session becomes a leftover like any other. Only processes that share the registr
 each other's leases: give job workers in another container the same `registry_dir` on a shared
 volume. Sessions other tools opened have no lease; under `scope: :all` only `min_age` protects them.
 
+**Forked processes (Puma workers).** The warmer belongs to the process that configured it. A child
+forked after that - Rails boots the app, and with it the warmer, in Puma's master before it forks its
+workers - does not use the copy it inherits: its threads did not survive the fork, and its slots,
+WebSocket connections included, are the parent's (a render on one used to time out while the parent
+took the answers). The child drops that copy without closing anything of its parent's and warms its
+own slots on its first render, or right away with `Bidi2pdf::SessionWarmer.after_fork` in Puma's
+`on_worker_boot`. The parent keeps its own warmer.
+
 **Last resort: pressure.** `sweep!(pressure: true)` closes every session nobody holds that is past
 `min_age`, without waiting for `orphan_age`, the unresponsive checks or the limit. `with_retry` does
 that when its block fails with a resource error - chromedriver refusing a session

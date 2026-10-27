@@ -354,6 +354,93 @@ RSpec.describe Bidi2pdf::SessionWarmer do
         expect(yielded).to eq(tab)
       end
     end
+
+    # A Puma worker: Rails boots the app - and configures the warmer - in the master, then forks.
+    describe "in a forked child" do
+      # Runs the block in a forked child and returns what it wrote to the pipe, one line per write.
+      def in_child
+        reader, writer = IO.pipe
+        pid = fork do
+          reader.close
+          yield writer
+        ensure
+          writer.close
+          exit!(0)
+        end
+        writer.close
+        Process.wait(pid)
+        reader.read.split("\n")
+      ensure
+        reader&.close
+      end
+
+      # A slot whose session says which process closed it.
+      def slot_reporting(label, writer)
+        reporting_session = instance_double(Bidi2pdf::Bidi::Session, started?: true, client: client)
+        allow(reporting_session).to receive(:close) { writer&.puts("#{label} closed") }
+        { session: reporting_session, browser: browser, manager: nil }
+      end
+
+      before { skip "needs fork" unless Process.respond_to?(:fork) }
+
+      it "renders on slots of its own, not on the ones it inherited" do
+        described_class.configure { |c| c.slot_factory = -> { slot_reporting("parent", nil) } }
+
+        lines = in_child do |writer|
+          described_class.config.slot_factory = lambda {
+            writer.puts("child warmed")
+            slot_reporting("child", nil)
+          }
+          described_class.with_tab { writer.puts("child rendered") }
+        end
+
+        expect(lines.first(2)).to eq(["child warmed", "child rendered"])
+      end
+
+      it "never closes its parent's slots, not even when it shuts down" do
+        reader, writer = IO.pipe
+        described_class.configure { |c| c.slot_factory = -> { slot_reporting("parent", writer) } }
+
+        in_child do |child_writer|
+          described_class.config.slot_factory = -> { slot_reporting("child", child_writer) }
+          described_class.with_tab { nil }
+          described_class.shutdown
+        end
+        writer.close
+
+        expect(reader.read).to eq("")
+      ensure
+        reader&.close
+        writer&.close unless writer.nil? || writer.closed?
+      end
+
+      it "leaves the parent its own instance" do
+        described_class.configure { |c| c.slot_factory = -> { slot } }
+        parent_instance = described_class.instance
+
+        in_child do |writer|
+          described_class.config.slot_factory = -> { slot }
+          writer.puts(described_class.instance.equal?(parent_instance) ? "same" : "own")
+        end
+
+        expect(described_class.instance).to equal(parent_instance)
+      end
+
+      it "warms its own slots at once with .after_fork" do
+        described_class.configure { |c| c.slot_factory = -> { slot } }
+
+        lines = in_child do |writer|
+          described_class.config.slot_factory = lambda {
+            writer.puts("warmed in #{Process.pid}")
+            slot
+          }
+          described_class.after_fork
+          writer.puts("pid #{Process.pid}")
+        end
+
+        expect(lines.first.delete_prefix("warmed in ")).to eq(lines.last.delete_prefix("pid "))
+      end
+    end
   end
 
   describe "#with_tab" do

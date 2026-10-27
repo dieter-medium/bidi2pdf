@@ -157,11 +157,13 @@ module Bidi2pdf
       def configure
         @config = Configuration.new
         yield @config if block_given?
+        abandon_inherited_instance
         @instance&.shutdown
         # Cleared first: if the constructor below raises, a stale, already-shut-down instance must
         # not stay registered (it would keep serving cold slots but never warm again).
         @instance = nil
         @instance = new(@config, slot_factory: @config.slot_factory)
+        @instance_pid = Process.pid
       end
 
       # Returns the warmer's configuration, initializing defaults if needed.
@@ -197,9 +199,18 @@ module Bidi2pdf
         Bidi2pdf.logger.warn "session_warmer: error closing #{label}: #{e.message}"
       end
 
-      # Returns the shared singleton warmer instance, creating it (and pre-warming it) on first call.
+      # Returns the shared singleton warmer instance, creating it (and pre-warming it) on first call -
+      # and in a forked child, its own one instead of the copy it inherited (see
+      # #abandon_inherited_instance).
       def instance
-        @instance ||= new(config, slot_factory: config.slot_factory)
+        abandon_inherited_instance
+        @instance ||= new(config, slot_factory: config.slot_factory).tap { @instance_pid = Process.pid }
+      end
+
+      # Warms this process's own slots now - for a forked child (a Puma worker's on_worker_boot), so
+      # its first render does not pay for them. Without it the child warms on its first render.
+      def after_fork
+        instance
       end
 
       # Checks out a slot, yields a fresh tab for one render, then retires the slot.
@@ -210,16 +221,33 @@ module Bidi2pdf
       # Sweeps the remote chromedriver with the configured sweeper; nil when there is none (or no
       # warmer yet - this never creates one).
       def sweep!(reason: :manual)
+        abandon_inherited_instance
         @instance&.sweep!(reason: reason)
       end
 
-      # Retires every currently-warm spare and resets the singleton.
+      # Retires every currently-warm spare and resets the singleton. In a forked child it only drops
+      # the inherited copy: those spares are the parent's.
       def shutdown
+        abandon_inherited_instance
         @instance&.shutdown
         @instance = nil
       end
 
       private
+
+      # The instance belongs to the process that created it. A forked child (a Puma worker - Rails
+      # boots the app, and with it this warmer, in the master before the fork) inherits a copy whose
+      # threads did not survive the fork and whose slots are its parent's, WebSocket connections
+      # included: a render on one sent its commands down the parent's socket, the parent's reader
+      # thread took the answers ("Unknown response"), and the child timed out. So the child drops its
+      # copy without touching it - closing those slots would end its parent's sessions - and builds
+      # its own from the same configuration.
+      def abandon_inherited_instance
+        return if @instance.nil? || @instance_pid == Process.pid
+
+        @instance = nil
+        @instance_pid = nil
+      end
 
       # Records each part in +parts+ the moment it exists, so #default_slot_factory's rescue can
       # retire exactly what was created so far. Mirrors Launcher#session's local/remote branch.
