@@ -366,6 +366,22 @@ shapes; a spec (`spec/unit/claude_plugin_spec.rb`) checks every command, option,
 method they name against the gem, so they cannot drift from it. The plugin is not part of the gem
 itself.
 
+#### In Codex
+
+The same six skills install in OpenAI's Codex. Codex reads the plugin folder through its portable manifest
+(`claude-plugin/plugin.json`, Agent Plugins 1.0.0, listing under `extensions.com.openai`) and the repository's
+own marketplace, `.agents/plugins/marketplace.json`:
+
+```bash
+codex plugin marketplace add dieter-medium/bidi2pdf              # follows the default branch
+codex plugin marketplace add dieter-medium/bidi2pdf@v<version>   # pinned to a release tag (or a commit SHA)
+```
+
+Then install **bidi2pdf** from that marketplace in Codex's plugin browser (`/plugins` in the CLI, or the
+Plugins Directory in the desktop app) and start a new session. The marketplace entry offers the plugin for Codex
+only (`"products": ["CODEX"]`, as in OpenAI's own marketplace): the skills run `bidi2pdf` in a shell, which
+ChatGPT does not have. `codex plugin marketplace upgrade bidi2pdf` fetches a newer state of the marketplace.
+
 ---
 
 ## 🧠 Programmatic API

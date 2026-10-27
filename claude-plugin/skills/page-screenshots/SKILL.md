@@ -25,13 +25,16 @@ for review sets with fixed widths use the script below.
 ## 2. A review set
 
 ```bash
+SKILL_DIR=/absolute/path/to/skills/page-screenshots
 ruby "$SKILL_DIR/scripts/screenshots.rb" --base http://app:4000 --pages /,/pricing,/signup \
   --widths 360,1280 --out tmp/screenshots --remote-browser-url http://remote-chrome:3000/session
 ```
 
-`$SKILL_DIR` stands for this skill's own folder - the base directory Claude Code names when it loads
-the skill; in a checkout of bidi2pdf it is `claude-plugin/skills/page-screenshots`. Run the script by
-that path, not relative to the project you are shooting.
+Set `SKILL_DIR` first, to the absolute path of this skill's own folder - the folder of this SKILL.md, which the
+agent (Claude Code, Codex) names when it loads the skill. Nothing guarantees that the variable is already set:
+without it, the command looks for `/scripts/screenshots.rb`. In a checkout of bidi2pdf it is
+`"$PWD/claude-plugin/skills/page-screenshots"`. Run the script by that path, not relative to the project you are
+shooting.
 
 It writes one PNG for every page, width and colour scheme and prints each path:
 `<page path>-<width>-<scheme>.png`, with the page's folders kept (`/account/settings` becomes
