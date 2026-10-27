@@ -23,6 +23,13 @@ RSpec.describe "The landing page" do # rubocop:disable RSpec/DescribeClass
 
   def every_flag = Bidi2pdf::CLI.all_commands.values.flat_map { |command| flags_of(command) }.uniq
 
+  def command_for(name) = Bidi2pdf::CLI.all_commands[Bidi2pdf::CLI.map.fetch(name, name).to_s]
+
+  def flags(text) = text.scan(/(?<![\w-])--[a-z][a-z0-9_-]*/).map { |flag| flag.tr("_", "-") }.uniq
+
+  # Every `bidi2pdf <command> ...` call, one per line: [command, the rest of the line].
+  def invocations(code) = code.scan(/\bbidi2pdf ([a-z_-]+)([^\n]*)/)
+
   # GitHub's anchor for a heading: lower case, everything but letters, digits, spaces, hyphens and underscores
   # dropped, spaces turned into hyphens.
   def readme_anchors
@@ -38,13 +45,32 @@ RSpec.describe "The landing page" do # rubocop:disable RSpec/DescribeClass
       let(:code) { text.scan(code_span).flatten.map { |span| CGI.unescapeHTML(span) }.join("\n") }
 
       it "names only commands bidi2pdf has" do
-        expect(code.scan(/\bbidi2pdf ([a-z_-]+)/).flatten.uniq - command_names).to eq([])
+        expect(invocations(code).map(&:first).uniq - command_names).to eq([])
       end
 
-      it "shows only options some command takes" do
-        flags = code.scan(/(?<![\w-])--[a-z][a-z0-9_-]*/).map { |flag| flag.tr("_", "-") }.uniq
+      it "gives every command only options that command takes" do
+        wrong = invocations(code).filter_map do |name, rest|
+          command = command_for(name)
+          [name, flags(rest) - flags_of(command)] if command && (flags(rest) - flags_of(command)).any?
+        end
 
-        expect(flags - every_flag).to eq([])
+        expect(wrong).to eq([])
+      end
+
+      # An option shown on its own (`--media`) names no command to check it against - only that some command has it.
+      it "mentions only options some command takes" do
+        expect(flags(code) - every_flag).to eq([])
+      end
+
+      it "asks schema only for kinds it has" do
+        kinds = invocations(code).filter_map { |name, rest| rest.split.first if name == "schema" }
+        unknown = kinds.reject do |kind|
+          Bidi2pdf::Schema.for(kind)
+        rescue ArgumentError
+          false
+        end
+
+        expect(unknown).to eq([])
       end
 
       it "lists the exit codes bidi2pdf uses, no more and no fewer" do

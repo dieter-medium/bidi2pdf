@@ -206,7 +206,8 @@ still emits exactly this shape, with `ok: false` and a structured `error` (`code
 ### stdin/stdout, manifests, and progress streaming
 
 ```bash
-# Render HTML piped on stdin, PDF bytes piped out on stdout - no files touched
+# Render HTML piped on stdin, PDF bytes piped out on stdout - no input or output file of your own
+# (the PDF goes straight to stdout; the HTML is kept in a temporary file while Chrome loads it, then deleted)
 cat page.html | bidi2pdf render --stdin --output - > page.pdf
 
 # A render manifest: enough to reproduce and diagnose the render later

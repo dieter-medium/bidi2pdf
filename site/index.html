@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bidi2pdf – HTML to PDF with Chrome's BiDi protocol, for scripts, CI and AI agents</title>
-<meta name="description" content="bidi2pdf renders URLs and HTML to PDF and screenshots with headless Chrome over WebDriver BiDi. Built for automation: one JSON document per call, stable exit codes, built-in JSON Schemas, page diagnosis, declarative recipes and a Claude Code plugin.">
+<meta name="description" content="bidi2pdf is an open-source Ruby gem and CLI that converts web pages and HTML to PDF with headless Chrome over WebDriver BiDi – for Ruby and Rails apps, CI pipelines and AI agents: JSON results, stable exit codes, page diagnosis and declarative recipes.">
 <link rel="canonical" href="https://dieter-medium.github.io/bidi2pdf/">
 <link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
 <link rel="icon" type="image/png" href="icon.png">
@@ -49,6 +49,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
 th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 footer { margin-top: 3rem; color: var(--muted); font-size: 0.95rem; }
+@media (max-width: 30rem) {
+  header { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  h1 { font-size: 1.6rem; }
+}
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 </style>
 </head>
@@ -56,14 +60,14 @@ footer { margin-top: 3rem; color: var(--muted); font-size: 0.95rem; }
 <main>
 <header>
   <img src="icon.png" alt="" width="64" height="64">
-  <h1>bidi2pdf</h1>
+  <h1>HTML to PDF in Ruby, with headless Chrome and WebDriver BiDi</h1>
 </header>
-<p class="lead">Renders a URL or HTML to PDF – and screenshots – with headless Chrome over WebDriver BiDi. A Ruby gem and a CLI, built to be driven by scripts, CI and AI agents.</p>
+<p class="lead"><strong>bidi2pdf</strong> is an open-source Ruby gem and command-line tool that turns web pages and HTML into PDFs. It is built for developers, CI pipelines and AI coding agents that need PDF generation they can script: structured JSON results, predictable exit codes and rendering by a real browser.</p>
 
-<h2 id="use-cases">What it is for</h2>
+<h2 id="use-cases">What it does</h2>
 <ul>
   <li><strong>A web page or HTML file to PDF</strong> from the command line, with waits for page load or network idle, cookies, headers and basic auth.</li>
-  <li><strong>HTML in, PDF out</strong>: <code>--stdin</code> and <code>--output -</code> pipe without touching a file.</li>
+  <li><strong>HTML in, PDF out</strong>: <code>--stdin</code> and <code>--output -</code> pipe without an input or output file of your own. The PDF goes straight to stdout; the piped HTML is kept in a temporary file while Chrome loads it, then deleted.</li>
   <li><strong>Automation and agents</strong>: with <code>--json</code>, stdout carries exactly one JSON document per call; failures come back in the same shape with a structured error and a stable exit code; the JSON Schema of every shape is built in.</li>
   <li><strong>Why does the PDF not look like the page?</strong> <code>bidi2pdf diagnose</code> reports console errors, failed requests, font loading, print rules and Paged.js – without producing a PDF.</li>
   <li><strong>Pages that need steps before printing</strong>: declarative recipes, validated without launching a browser.</li>
@@ -76,6 +80,19 @@ footer { margin-top: 3rem; color: var(--muted); font-size: 0.95rem; }
 <pre tabindex="0"><code>gem install bidi2pdf
 bidi2pdf render --url https://example.com --output example.pdf</code></pre>
 <p>Requires Ruby 3.4 or later and Chrome or Chromium – or use the published Docker image.</p>
+
+<h2 id="tasks">Common tasks</h2>
+<ul>
+  <li><strong>Generate PDFs in Ruby or Rails</strong> – reports, invoices and other HTML templates, rendered by headless Chrome: <a href="https://github.com/dieter-medium/bidi2pdf-rails">bidi2pdf-rails</a> gives controllers <code>render pdf:</code>; plain Ruby uses the gem's API.</li>
+  <li><strong>Convert HTML to PDF in CI</strong> – one command, then read <code>ok</code> and the exit code instead of parsing logs:
+    <pre tabindex="0"><code>bidi2pdf render --html-file report.html --output report.pdf --json</code></pre></li>
+  <li><strong>Debug a PDF that looks wrong</strong> – missing fonts, failed requests, print CSS, JavaScript errors, without producing a PDF:
+    <pre tabindex="0"><code>bidi2pdf diagnose --url https://example.com/invoice --json</code></pre></li>
+</ul>
+
+<h2 id="when">When to use bidi2pdf</h2>
+<p>It fits when the PDF should look like the page does in a browser – modern CSS, web fonts, content a script renders, Paged.js print layouts – because Chrome itself renders it; when PDFs are made unattended, in CI, background jobs or by an agent, and a failure has to say what went wrong; and when the code around it is Ruby or Rails, or several processes share one remote Chrome.</p>
+<p>Something else fits better when the PDF is drawn in code rather than from HTML – a PDF library does that without a browser – or where neither Chrome nor Docker can run.</p>
 
 <h2 id="agents">For agents and CI</h2>
 <pre tabindex="0"><code># check compatibility - no browser launched
