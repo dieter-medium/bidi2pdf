@@ -507,6 +507,43 @@ RSpec.describe Bidi2pdf::SessionWarmer do
         writer&.close unless writer.nil? || writer.closed?
       end
 
+      it "lets go of a slot the parent was still retiring when it forked" do
+        reader, writer = IO.pipe
+        closing = Thread::Queue.new
+        closed = Thread::Queue.new
+        retiring = instance_double(Bidi2pdf::Bidi::Session, started?: true, client: client)
+        allow(retiring).to receive(:close) do
+          closing << true
+          closed.pop
+        end
+        allow(retiring).to receive(:release_after_fork) { writer.puts("retiring released by #{Process.pid}") }
+        later = instance_double(Bidi2pdf::Bidi::Session, started?: true, client: client, close: nil)
+        allow(later).to receive(:release_after_fork) { writer.puts("spare released by #{Process.pid}") }
+        built = 0
+        described_class.configure do |c|
+          c.slot_factory = lambda {
+            built += 1
+            { session: built == 1 ? retiring : later, browser: browser, manager: nil }
+          }
+        end
+        render = Thread.new { described_class.with_tab { |_tab| nil } }
+        closing.pop
+
+        lines = in_child do |child_writer|
+          described_class.config.slot_factory = -> { slot }
+          described_class.instance
+          child_writer.puts(Process.pid)
+        end
+        closed << true
+        render.join(5)
+        writer.close
+
+        expect(reader.read.lines.map(&:chomp)).to include("retiring released by #{lines.first}")
+      ensure
+        reader&.close
+        writer&.close unless writer.nil? || writer.closed?
+      end
+
       it "lets go of every other inherited slot when one fails to, and still builds its own warmer" do
         reader, writer = IO.pipe
         described_class.configure do |c|

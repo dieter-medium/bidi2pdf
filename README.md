@@ -859,8 +859,26 @@ before_fork do
 end
 ```
 
-A child releases every slot it inherited, the spares and any slot out for a render at the moment of the
-fork; a release that fails is logged and the others go on.
+With `fork_worker`, worker 0 serves requests and forks the other workers itself; `before_fork` runs only
+in the master and does not cover those forks. Puma runs `before_refork` in worker 0 before it forks and
+`after_refork` once the cycle is done, so end worker 0's warmer before and give it a new one after:
+
+```ruby
+# config/puma.rb, with fork_worker
+before_refork do
+  Bidi2pdf::SessionWarmer.shutdown
+end
+
+after_refork do
+  Bidi2pdf::SessionWarmer.after_fork # builds worker 0 a warmer of its own again
+end
+```
+
+The workers worker 0 forks run `on_worker_boot` like any other. A render still in flight in worker 0 when
+it forks is fine: a child releases every slot it inherited - warm, out for a render, or being checked out
+or retired - and a release that fails is logged while the others go on. Not covered is a session still
+being built in the forking process at that instant: its socket copy in the child is left to garbage
+collection (a file descriptor, nothing the child or the parent uses).
 
 **Last resort: pressure.** `sweep!(pressure: true)` closes every session nobody holds that is past
 `min_age`, without waiting for `orphan_age`, the unresponsive checks or the limit. `with_retry` does

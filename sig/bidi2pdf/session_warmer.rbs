@@ -36,8 +36,9 @@ module Bidi2pdf
 
     @available: untyped
 
-    # Slots out for a render right now - kept so a forked child can let go of these too.
-    @checked_out: untyped
+    # Every slot from its creation to its retirement - warm, out for a render, or in between - so a
+    # forked child can let go of all of them (#release_after_fork).
+    @live: untyped
 
     @replenish_threads: untyped
 
@@ -230,11 +231,16 @@ module Bidi2pdf
     def initialize: (untyped config, ?slot_factory: untyped?) -> void
 
     # In a forked child, for the copy it inherited: closes the child's copies of the sockets of every
-    # slot the parent had - the warm spares and those out for a render at the moment of the fork -
-    # locally (Session#release_after_fork: no close frame, no session end), and forgets the slots.
-    # The parent's sessions, its renders in flight, its leases and its threads are untouched. One slot
-    # that fails to release does not stop the others. The warmer itself is unusable afterwards -
-    # .instance builds the child its own.
+    # slot the parent had - warm, out for a render, or between the two (being checked out, being
+    # retired) - locally (Session#release_after_fork: no close frame, no session end), and forgets the
+    # slots. The parent's sessions, its renders in flight, its leases and its threads are untouched.
+    # One slot that fails to release does not stop the others. The warmer itself is unusable
+    # afterwards - .instance builds the child its own.
+    #
+    # Not covered: a session still being built when the parent forked - between chromedriver's
+    # answer and #create_slot listing it, a fraction of a second. Its socket copy in the child is left
+    # to garbage collection. That needs a fork from a process that is building a slot on another
+    # thread at that moment; Puma's master never renders, so its forks do not meet it.
     def release_after_fork: () -> untyped
 
     # Sweeps the remote chromedriver now - for an application that suspects leaked sessions.
@@ -339,11 +345,6 @@ module Bidi2pdf
     # ones are used; and one past max_idle_age is never handed out, even if the reaper hasn't got to
     # it yet - it is retired like a dead spare and this render cold-starts instead.
     def checkout: () -> untyped
-
-    # A slot goes on the checked-out list for its render - so a forked child can release it too.
-    def lend: (untyped slot) -> untyped
-
-    def take_back: (untyped slot) -> untyped
 
     def cold_checkout: (untyped dead_slot) -> untyped
 
