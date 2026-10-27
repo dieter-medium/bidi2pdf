@@ -12,15 +12,62 @@ pitfalls; the exact options are in `bidi2pdf help render`, the exact result shap
 **Does not:** scrape page content or automate a site (log in, click through). bidi2pdf is a
 renderer; for a page that needs steps before printing, write a recipe (the `pdf-recipe` skill).
 
-## 1. Check what you have
+## Ground rules
+
+- **bidi2pdf is the renderer.** When it fails, never make the PDF or screenshot another way (Chrome's
+  own print-to-PDF, wkhtmltopdf, a browser script of your own): report its `error.code`, `error.hint`
+  and exit code, then fix the cause or ask.
+- **Install nothing unasked.** If bidi2pdf, Ruby 3.4+ or Chrome is missing, say which and offer the
+  ways: `gem install bidi2pdf` where Ruby is there, the image `dieters877565/bidi2pdf:main-slim`
+  (Chromium and pdf-reader included), or a shared browser (the `remote-chrome` skill); the
+  `render-pdf` skill's preflight has the commands. No system packages without the user's go-ahead.
+- **Use bidi2pdf's own results.** Pages, size and checksum are in the `--json` result (`pages`,
+  `bytes`, `sha256`). `pages` is `null` without the `pdf-reader` gem: say so, or ask to install that
+  gem - never other PDF tools.
+- **Diagnose only what went wrong.** `bidi2pdf diagnose` is for a render that failed or looks wrong,
+  not a step before every render.
+
+## 1. Preflight
 
 ```bash
 bidi2pdf version --json
 ```
 
-`--media`, `--color_scheme` and `--reduced_motion`, and a clean stdout for `--json` and `--output -`,
-need 0.1.23 or later. If `bidi2pdf help render` does not list
-an option, the installed gem is older - say so instead of working around it.
+One call answers three questions: is bidi2pdf there at all, which version (`bidi2pdf`), and whether
+`pages` will be filled (`pdf_reader` is `null` without that gem). `--media`, `--color_scheme` and
+`--reduced_motion`, and a clean stdout for `--json` and `--output -`, need 0.1.23 or later. If
+`bidi2pdf help render` does not list an option, the installed gem is older - say so instead of
+working around it.
+
+**When bidi2pdf is missing**, look first, install nothing yet, and suggest the lightest way that fits:
+
+```bash
+ruby -v; docker --version; command -v chromium chromium-browser google-chrome
+```
+
+1. **Docker is there:** nothing to install - the image has Ruby, Chromium and pdf-reader.
+2. **Ruby 3.4 or later is there:** the two gems, plus a browser if none was found.
+3. **No Ruby, or an older one:** a distribution's Ruby is too old (Debian 12 ships 3.1, Debian 13
+   3.3, Ubuntu 24.04 3.2 - and a `node` image is Debian). Homebrew's `ruby` on macOS, a version
+   manager (`mise`, `rbenv`) elsewhere - or option 1, which needs no Ruby at all.
+
+```bash
+# 1. Docker: no install
+docker run --rm -v "$PWD:/reports" dieters877565/bidi2pdf:main-slim \
+  bidi2pdf render --url https://example.com --output /reports/example.pdf --json
+# 2. Ruby 3.4+
+gem install pdf-reader bidi2pdf
+# Browser on Debian, or in a Debian-based container (the packaged driver also works on ARM)
+sudo apt-get install -y chromium chromium-driver
+# Ruby on macOS (Google Chrome, if installed, is the browser)
+brew install ruby
+```
+
+bidi2pdf fetches a matching chromedriver itself, which may fail on ARM Linux - there use the
+packaged `chromium-driver`. Ubuntu's `chromium` is a snap that does not run in a container: use a
+shared browser there (the `remote-chrome` skill).
+
+**Show the user the commands that fit and run them only after a yes** - they change the system.
 
 Where Chrome runs:
 
@@ -29,18 +76,7 @@ Where Chrome runs:
 - **Local**: bidi2pdf starts chromedriver itself; Chrome or Chromium must be installed. Inside a
   container add `--no-sandbox` (or set `DISABLE_CHROME_SANDBOX=true`).
 
-## 2. Look before you print
-
-```bash
-bidi2pdf diagnose --url https://example.com/invoice/123 --json
-```
-
-`diagnose` loads the page like `render` and prints no PDF. Read `console`, `network_failures`,
-`fonts.status`, `print_media` and `paged_js` first: a failed stylesheet or a font still loading is
-the usual reason a PDF looks wrong. Add `--screenshot page.png` to see what Chrome saw, or `--pdf
-try.pdf` to render once and get its page count. Something wrong here: the `diagnose-pdf` skill.
-
-## 3. Render
+## 2. Render
 
 ```bash
 bidi2pdf render --url https://example.com/invoice/123 --output invoice.pdf \
@@ -63,7 +99,7 @@ bidi2pdf render --url https://example.com/invoice/123 --output invoice.pdf \
 cat page.html | bidi2pdf render --stdin --output - > page.pdf
 ```
 
-## 4. Page size, margins, screen view, mobile layout
+## 3. Page size, margins, screen view, mobile layout
 
 All sizes are **centimetres**: `--page-width`/`--page-height` (default US Letter, 21.59 x 27.94),
 `--margin-top/-bottom/-left/-right`. Chrome's own default margin is 1 cm a side.
@@ -88,12 +124,12 @@ bidi2pdf render --url https://example.com --output phone.pdf --media screen \
 
 For an accessible PDF add `--generate-tagged-pdf` (and `--generate-document-outline` for bookmarks).
 
-## 5. Read the result, not the logs
+## 4. Read the result, not the logs
 
 With `--json`, stdout carries exactly one JSON document; logs go to stderr. Check `ok`, then:
 
-- `pages`, `bytes`, `sha256` of the PDF; `navigation.final_url` - a redirect to a login page answers 200
-  and prints perfectly. (A status of 400 or more fails the render instead.)
+- `pages`, `bytes`, `sha256` of the PDF (`pages` is `null` without `pdf-reader`, with a warning);
+  `navigation.final_url` - a redirect to a login page answers 200 and prints perfectly. (A status of 400 or more fails the render instead.)
 - `network_failures` and `console` even when `ok` is true: a missing image still gives a PDF.
 - On failure `error.code`, `error.retryable` and `error.hint`. Retry only when `retryable` is true.
 
@@ -116,3 +152,15 @@ The full list: `bidi2pdf schema render` (the `error` object) and README "Exit co
 
 `--json-stream` writes one progress event per line to stderr while it runs (`bidi2pdf schema
 event`), for a long render a user should see move.
+
+## 5. When it fails or looks wrong
+
+Only then, with the same options as the render:
+
+```bash
+bidi2pdf diagnose --url https://example.com/invoice/123 --json --screenshot seen.png
+```
+
+`diagnose` loads the page like `render` and prints no PDF; `console`, `network_failures`,
+`fonts.status`, `print_media` and `paged_js` usually name the cause. The checklist: the
+`diagnose-pdf` skill.

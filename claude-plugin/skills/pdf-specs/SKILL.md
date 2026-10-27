@@ -11,6 +11,21 @@ suite. This skill is how to use them, and the mistakes that made such specs flak
 **Does not:** replace a project's own spec conventions - follow those for naming and layout. And it
 does not cover bidi2pdf-rails' own test helpers (see that gem).
 
+## Ground rules
+
+- **bidi2pdf is the renderer.** When it fails, never make the PDF or screenshot another way (Chrome's
+  own print-to-PDF, wkhtmltopdf, a browser script of your own): report its `error.code`, `error.hint`
+  and exit code, then fix the cause or ask.
+- **Install nothing unasked.** If bidi2pdf, Ruby 3.4+ or Chrome is missing, say which and offer the
+  ways: `gem install bidi2pdf` where Ruby is there, the image `dieters877565/bidi2pdf:main-slim`
+  (Chromium and pdf-reader included), or a shared browser (the `remote-chrome` skill); the
+  `render-pdf` skill's preflight has the commands. No system packages without the user's go-ahead.
+- **Use bidi2pdf's own results.** Pages, size and checksum are in the `--json` result (`pages`,
+  `bytes`, `sha256`). `pages` is `null` without the `pdf-reader` gem: say so, or ask to install that
+  gem - never other PDF tools.
+- **Diagnose only what went wrong.** `bidi2pdf diagnose` is for a render that failed or looks wrong,
+  not a step before every render.
+
 ## 1. Set up
 
 ```ruby
