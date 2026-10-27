@@ -373,7 +373,8 @@ The same six skills install in OpenAI's Codex. Codex reads the plugin folder thr
 own marketplace, `.agents/plugins/marketplace.json`:
 
 ```bash
-codex plugin marketplace add dieter-medium/bidi2pdf              # @<tag or branch> to pin one
+codex plugin marketplace add dieter-medium/bidi2pdf              # follows the default branch
+codex plugin marketplace add dieter-medium/bidi2pdf@v<version>   # pinned to a release tag (or a commit SHA)
 ```
 
 Then install **bidi2pdf** from that marketplace in Codex's plugin browser (`/plugins` in the CLI, or the

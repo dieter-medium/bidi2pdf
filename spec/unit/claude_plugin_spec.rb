@@ -223,6 +223,20 @@ RSpec.describe "The Claude Code plugin" do # rubocop:disable RSpec/DescribeClass
     end
   end
 
+  # No agent guarantees a SKILL_DIR variable (Codex exports none): an example that uses it must set it first,
+  # or a copied command looks for /scripts/... at the file system root.
+  it "sets SKILL_DIR in every example before using it" do
+    unset = skill_files.flat_map do |path|
+      fenced_blocks(File.read(path), "bash").filter_map do |block|
+        first_use = block.index("$SKILL_DIR") or next
+        assignment = block =~ /^\s*(?:export\s+)?SKILL_DIR=/
+        "#{File.basename(File.dirname(path))}: #{block.lines.first.strip}" unless assignment && assignment < first_use
+      end
+    end
+
+    expect(unset).to eq([])
+  end
+
   describe "the page-screenshots script" do
     let(:script) { File.join(plugin_dir, "skills", "page-screenshots", "scripts", "screenshots.rb") }
 
