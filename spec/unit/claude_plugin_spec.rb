@@ -237,6 +237,63 @@ RSpec.describe "The Claude Code plugin" do # rubocop:disable RSpec/DescribeClass
     expect(unset).to eq([])
   end
 
+  # A Codex run without Ruby tried to install it from the system, printed with Chromium directly when bidi2pdf failed,
+  # and installed Poppler to count pages. Each skill may be loaded alone, so each states the rules against that; the
+  # wording may differ per skill, the setup details live in render-pdf's preflight. These check the text, not an agent.
+  describe "ground rules" do
+    def section(text, heading) = text[/^## #{Regexp.escape(heading)}\n.*?(?=^## )/m]
+
+    def render_pdf = File.read(File.join(plugin_dir, "skills", "render-pdf", "SKILL.md"))
+
+    def foreign_command
+      Regexp.union(
+        /\b(?:apt(?:-get)?|apk|yum|dnf|brew|pacman|pip3?|npm|npx)\s+(?:install|add)\b/,
+        /\b(?:pdfinfo|pdftotext|pdftoppm|mutool|wkhtmltopdf)\b/,
+        /\b(?:chrom(?:e|ium)[\w-]*|google-chrome)\b.*--(?:headless|print-to-pdf)/
+      )
+    end
+
+    it "states in every skill that bidi2pdf is the renderer and nothing is installed unasked" do
+      missing = skill_files.reject do |path|
+        rules = section(File.read(path), "Ground rules").to_s
+        rules.include?("**bidi2pdf is the renderer.**") && rules.include?("**Install nothing unasked.**")
+      end
+
+      expect(missing).to eq([])
+    end
+
+    # The one place that shows install commands is render-pdf's preflight, and only as suggestions to confirm.
+    it "shows install commands only in render-pdf's preflight, never another PDF tool or Chrome printing by itself" do
+      offending = skill_files.flat_map do |path|
+        text = File.read(path)
+        text = text.sub(section(text, "1. Preflight"), "") if path.end_with?("render-pdf/SKILL.md")
+        (shell_lines(text) + text.scan(/`([^`\n]+)`/).flatten).grep(foreign_command).map { |line| "#{File.basename(File.dirname(path))}: #{line}" }
+      end
+
+      expect(offending).to eq([])
+    end
+
+    it "has the preflight suggest installs for the user to confirm, without other PDF tools" do
+      preflight = section(render_pdf, "1. Preflight")
+
+      expect([preflight.include?("only after a yes"), preflight.match?(/pdfinfo|poppler|wkhtmltopdf|print-to-pdf/i)]).to eq([true, false])
+    end
+
+    # `docker --version` answers without a daemon; only `docker info` shows the image can run.
+    # pdf-reader only fills "pages", so it is never part of the bidi2pdf install itself.
+    it "has the preflight check that Docker answers and install bidi2pdf on its own" do
+      lines = shell_lines(section(render_pdf, "1. Preflight"))
+
+      expect([lines.any? { |line| line.include?("docker info") }, lines.grep(/gem install .*bidi2pdf/)]).to eq([true, ["gem install bidi2pdf"]])
+    end
+
+    it "renders before it diagnoses in the render-pdf skill" do
+      lines = shell_lines(render_pdf)
+
+      expect(lines.index { |line| line.start_with?("bidi2pdf render") }).to be < lines.index { |line| line.start_with?("bidi2pdf diagnose") }
+    end
+  end
+
   describe "the page-screenshots script" do
     let(:script) { File.join(plugin_dir, "skills", "page-screenshots", "scripts", "screenshots.rb") }
 

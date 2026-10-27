@@ -11,6 +11,15 @@ and the usual cause.
 **Does not:** fix the page's design or CSS for you - it finds why the PDF differs from what was
 expected, then the fix belongs in the page or the render call.
 
+## Ground rules
+
+- **bidi2pdf is the renderer.** If it fails, report its `error.code`, `error.hint` and exit code;
+  never make the PDF or screenshot another way (Chrome's own print-to-PDF, another PDF engine).
+- **Install nothing unasked.** Name what is missing and suggest a way (the `render-pdf` skill's
+  preflight); run nothing that changes the system without the user's yes.
+- **bidi2pdf's results first.** Read its `--json` result instead of inspecting the PDF with other
+  tools.
+
 ## 1. Ask Chrome
 
 ```bash

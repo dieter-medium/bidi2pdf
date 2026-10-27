@@ -288,12 +288,16 @@ agent uses bidi2pdf the way it is meant to be used instead of guessing options:
 
 | Skill | For |
 |---|---|
-| `render-pdf` | a URL or HTML file to PDF with the CLI: order of commands, waits, screen/dark/mobile view, reading the JSON result and exit codes |
+| `render-pdf` | a URL or HTML file to PDF with the CLI: a preflight that suggests how to get Ruby and a browser, order of commands, waits, screen/dark/mobile view, reading the JSON result and exit codes |
 | `pdf-recipe` | a recipe for pages that need steps before printing, validated without a browser |
 | `diagnose-pdf` | a blank, unstyled or wrongly paged PDF: a checklist around `bidi2pdf diagnose` |
 | `remote-chrome` | a shared chromedriver container: settings, sizing, session cleanup, untrusted HTML |
 | `page-screenshots` | review screenshots per page at phone and desktop width, light and dark (with a script) |
 | `pdf-specs` | RSpec specs with the gem's PDF matchers and Chrome container helpers |
+
+Every skill starts with short ground rules: bidi2pdf is the only renderer (a failure is reported,
+not worked around with another PDF engine), nothing is installed without the user's go-ahead, and
+bidi2pdf's own JSON result comes before other PDF tools. `render-pdf`'s preflight has the setup details.
 
 #### Installing the skills
 

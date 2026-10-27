@@ -13,6 +13,15 @@ page and the width in their names.
 visual regression check, diff the PNGs in your own test (bidi2pdf's `contains_pdf_image` compares
 images inside a PDF, see `pdf-specs`).
 
+## Ground rules
+
+- **bidi2pdf is the renderer.** If it fails, report its `error.code`, `error.hint` and exit code;
+  never make the PDF or screenshot another way (Chrome's own print-to-PDF, another PDF engine).
+- **Install nothing unasked.** Name what is missing and suggest a way (the `render-pdf` skill's
+  preflight); run nothing that changes the system without the user's yes.
+- **bidi2pdf's results first.** Read its `--json` result instead of inspecting the PDF with other
+  tools.
+
 ## 1. One shot
 
 ```bash
