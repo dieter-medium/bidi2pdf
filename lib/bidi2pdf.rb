@@ -3,6 +3,7 @@
 require "concurrent-ruby"
 require "logger"
 
+require_relative "bidi2pdf/version"
 require_relative "bidi2pdf/process_tree"
 require_relative "bidi2pdf/launcher"
 require_relative "bidi2pdf/bidi/session"
