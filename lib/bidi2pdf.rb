@@ -194,7 +194,9 @@ module Bidi2pdf # rubocop:disable Metrics/ModuleLength
       rescue LoadError => e
         raise unless e.message =~ /websocket-native/
 
-        logger.warn "websocket-native not available; installing it may enhance performance."
+        # Debug, not warn: this runs while the library loads, before the CLI moves logs off stdout, and a
+        # missing optional speed-up is no problem to report on every run.
+        logger.debug "websocket-native not available; installing it may enhance performance."
       end
     end
 
