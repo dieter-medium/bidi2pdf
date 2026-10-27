@@ -69,6 +69,16 @@ RSpec.describe "The Claude Code plugin" do # rubocop:disable RSpec/DescribeClass
       expect(sources.select { |path| File.file?(path) }).to eq(sources)
     end
 
+    # The developer portal takes it as the listing icon once, the first time the plugin is saved or submitted: a
+    # square PNG or JPEG of 512 to 2048 px a side, under 2 MB (no SVG, no WebP). A PNG's size sits in its IHDR chunk.
+    it "has a listing icon the developer portal accepts: a square PNG of 512 to 2048 px, under 2 MB" do
+      bytes = File.binread(File.join(plugin_dir, ".claude-plugin", "icon.png"))
+      width, height = bytes[16, 8].unpack("NN")
+
+      expect([bytes.start_with?("\x89PNG\r\n\x1A\n".b), width == height, (512..2048).cover?(width), bytes.bytesize < 2 * 1024 * 1024])
+        .to eq([true, true, true, true])
+    end
+
     it "has skills" do
       expect(skill_files.map { |path| File.basename(File.dirname(path)) }).to include("render-pdf", "pdf-recipe")
     end
