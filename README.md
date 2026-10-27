@@ -11,6 +11,10 @@
 **BiDirectional (BiDi)** protocol. Whether you're automating reports, archiving websites, or shipping documentation,
 Bidi2pdf gives you **precision, flexibility, and full control**.
 
+**For agents and automation:** the use cases on one page - [dieter-medium.github.io/bidi2pdf](https://dieter-medium.github.io/bidi2pdf/),
+and as plain text for language models: [llms.txt](https://dieter-medium.github.io/bidi2pdf/llms.txt). Both are
+published from `site/` by `.github/workflows/pages.yml`.
+
 ---
 
 ## 📚 Table of Contents

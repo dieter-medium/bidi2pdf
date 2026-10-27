@@ -1,0 +1,22 @@
+# bidi2pdf
+
+> bidi2pdf is a Ruby gem and CLI that renders a URL or HTML to PDF with headless Chrome over WebDriver BiDi. It is built to be driven by scripts, CI and AI agents: with `--json` every call writes exactly one JSON document to stdout, failures come back in the same shape with a structured error and a stable exit code, and the JSON Schema of every result is built into the CLI.
+
+Use it to: render a web page or HTML file to PDF (`bidi2pdf render --url https://example.com --output example.pdf`); pipe HTML in and PDF out (`--stdin`, `--output -`); find out why a PDF does not look like the page (`bidi2pdf diagnose`); print pages that need steps first with declarative recipes, validated without a browser (`bidi2pdf run recipe.yml --validate`); print screen, dark or mobile views (`--media`, `--color_scheme`); share one remote Chrome between processes with pre-warmed sessions; render from Ruby, Rails (bidi2pdf-rails) and RSpec.
+
+Start with `bidi2pdf version --json` (no browser launched), then `bidi2pdf schema render`, `bidi2pdf schema diagnose`, `bidi2pdf schema run` or `bidi2pdf schema recipe` for the shape of a result or a recipe. Exit codes: 0 success, 2 CLI/configuration/recipe-validation error, 3 browser or navigation error, 4 page not as expected, 6 output or PDF generation failure, 70 unexpected internal error. Requires Ruby 3.4 or later and Chrome or Chromium; a Docker image is published.
+
+## Docs
+
+- [README](https://github.com/dieter-medium/bidi2pdf#readme): installation, CLI, library API, Docker, configuration
+- [Structured render output](https://github.com/dieter-medium/bidi2pdf#structured-render-output): the JSON result and exit codes
+- [stdin/stdout, manifests and progress streaming](https://github.com/dieter-medium/bidi2pdf#stdinstdout-manifests-and-progress-streaming): piping, render manifests, NDJSON progress events
+- [Diagnosing a page](https://github.com/dieter-medium/bidi2pdf#diagnosing-a-page-before-trusting-its-pdf): console errors, failed requests, fonts, print rules, Paged.js
+- [Declarative recipes](https://github.com/dieter-medium/bidi2pdf#declarative-recipes): waits and PDF assertions as a YAML contract
+- [Claude Code skills](https://github.com/dieter-medium/bidi2pdf#claude-code-skills): the plugin with six skills and how to install it
+
+## Optional
+
+- [Rails integration](https://github.com/dieter-medium/bidi2pdf-rails): `render pdf:` in controllers
+- [Changelog](https://github.com/dieter-medium/bidi2pdf/blob/main/CHANGELOG.md)
+- [RubyGems](https://rubygems.org/gems/bidi2pdf)

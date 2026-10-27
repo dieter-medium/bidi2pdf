@@ -1,0 +1,44 @@
+name: Landing page
+
+# Publishes site/ (the agent landing page and llms.txt) to GitHub Pages, with the plugin's icon as favicon and
+# og:image. Needs Settings -> Pages -> Source "GitHub Actions" once.
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "site/**"
+      - "claude-plugin/.claude-plugin/icon.png"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, never cut off halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Add the plugin icon
+        run: cp claude-plugin/.claude-plugin/icon.png site/icon.png
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
