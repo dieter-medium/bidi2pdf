@@ -295,9 +295,9 @@ agent uses bidi2pdf the way it is meant to be used instead of guessing options:
 | `page-screenshots` | review screenshots per page at phone and desktop width, light and dark (with a script) |
 | `pdf-specs` | RSpec specs with the gem's PDF matchers and Chrome container helpers |
 
-Every skill carries the same ground rules: bidi2pdf is the only renderer (a failure is reported,
+Every skill starts with short ground rules: bidi2pdf is the only renderer (a failure is reported,
 not worked around with another PDF engine), nothing is installed without the user's go-ahead, and
-page count, size and checksum come from bidi2pdf's own JSON result, not from other PDF tools.
+bidi2pdf's own JSON result comes before other PDF tools. `render-pdf`'s preflight has the setup details.
 
 #### Installing the skills
 

@@ -238,7 +238,8 @@ RSpec.describe "The Claude Code plugin" do # rubocop:disable RSpec/DescribeClass
   end
 
   # A Codex run without Ruby tried to install it from the system, printed with Chromium directly when bidi2pdf failed,
-  # and installed Poppler to count pages. Each skill may be loaded alone, so each carries the same rules against that.
+  # and installed Poppler to count pages. Each skill may be loaded alone, so each states the rules against that; the
+  # wording may differ per skill, the setup details live in render-pdf's preflight. These check the text, not an agent.
   describe "ground rules" do
     def section(text, heading) = text[/^## #{Regexp.escape(heading)}\n.*?(?=^## )/m]
 
@@ -252,10 +253,13 @@ RSpec.describe "The Claude Code plugin" do # rubocop:disable RSpec/DescribeClass
       )
     end
 
-    it "carries the same ground rules in every skill" do
-      rules = skill_files.map { |path| section(File.read(path), "Ground rules") }
+    it "states in every skill that bidi2pdf is the renderer and nothing is installed unasked" do
+      missing = skill_files.reject do |path|
+        rules = section(File.read(path), "Ground rules").to_s
+        rules.include?("**bidi2pdf is the renderer.**") && rules.include?("**Install nothing unasked.**")
+      end
 
-      expect([rules.none?(&:nil?), rules.uniq.size]).to eq([true, 1])
+      expect(missing).to eq([])
     end
 
     # The one place that shows install commands is render-pdf's preflight, and only as suggestions to confirm.
@@ -273,6 +277,14 @@ RSpec.describe "The Claude Code plugin" do # rubocop:disable RSpec/DescribeClass
       preflight = section(render_pdf, "1. Preflight")
 
       expect([preflight.include?("only after a yes"), preflight.match?(/pdfinfo|poppler|wkhtmltopdf|print-to-pdf/i)]).to eq([true, false])
+    end
+
+    # `docker --version` answers without a daemon; only `docker info` shows the image can run.
+    # pdf-reader only fills "pages", so it is never part of the bidi2pdf install itself.
+    it "has the preflight check that Docker answers and install bidi2pdf on its own" do
+      lines = shell_lines(section(render_pdf, "1. Preflight"))
+
+      expect([lines.any? { |line| line.include?("docker info") }, lines.grep(/gem install .*bidi2pdf/)]).to eq([true, ["gem install bidi2pdf"]])
     end
 
     it "renders before it diagnoses in the render-pdf skill" do

@@ -14,18 +14,12 @@ renderer; for a page that needs steps before printing, write a recipe (the `pdf-
 
 ## Ground rules
 
-- **bidi2pdf is the renderer.** When it fails, never make the PDF or screenshot another way (Chrome's
-  own print-to-PDF, wkhtmltopdf, a browser script of your own): report its `error.code`, `error.hint`
-  and exit code, then fix the cause or ask.
-- **Install nothing unasked.** If bidi2pdf, Ruby 3.4+ or Chrome is missing, say which and offer the
-  ways: `gem install bidi2pdf` where Ruby is there, the image `dieters877565/bidi2pdf:main-slim`
-  (Chromium and pdf-reader included), or a shared browser (the `remote-chrome` skill); the
-  `render-pdf` skill's preflight has the commands. No system packages without the user's go-ahead.
-- **Use bidi2pdf's own results.** Pages, size and checksum are in the `--json` result (`pages`,
-  `bytes`, `sha256`). `pages` is `null` without the `pdf-reader` gem: say so, or ask to install that
-  gem - never other PDF tools.
-- **Diagnose only what went wrong.** `bidi2pdf diagnose` is for a render that failed or looks wrong,
-  not a step before every render.
+- **bidi2pdf is the renderer.** If it fails, report its `error.code`, `error.hint` and exit code;
+  never make the PDF or screenshot another way (Chrome's own print-to-PDF, another PDF engine).
+- **Install nothing unasked.** Name what is missing and suggest a way (the `render-pdf` skill's
+  preflight); run nothing that changes the system without the user's yes.
+- **bidi2pdf's results first.** Read its `--json` result instead of inspecting the PDF with other
+  tools.
 
 ## 1. Preflight
 
@@ -42,11 +36,15 @@ working around it.
 **When bidi2pdf is missing**, look first, install nothing yet, and suggest the lightest way that fits:
 
 ```bash
-ruby -v; docker --version; command -v chromium chromium-browser google-chrome
+ruby -v; docker info --format '{{.ServerVersion}}'; command -v chromium chromium-browser google-chrome
 ```
 
-1. **Docker is there:** nothing to install - the image has Ruby, Chromium and pdf-reader.
-2. **Ruby 3.4 or later is there:** the two gems, plus a browser if none was found.
+1. **Docker answers** (`docker info` prints a server version, not an error - an installed client
+   without a reachable daemon or socket permission does not count): nothing to install, the image
+   has Ruby, Chromium and pdf-reader. Inside a container that uses the host's Docker, `-v` mounts
+   a path of the host, not of the container.
+2. **Ruby 3.4 or later is there:** `gem install bidi2pdf`, plus a browser if none was found.
+   `pdf-reader` only when the page count is needed.
 3. **No Ruby, or an older one:** a distribution's Ruby is too old (Debian 12 ships 3.1, Debian 13
    3.3, Ubuntu 24.04 3.2 - and a `node` image is Debian). Homebrew's `ruby` on macOS, a version
    manager (`mise`, `rbenv`) elsewhere - or option 1, which needs no Ruby at all.
@@ -56,7 +54,8 @@ ruby -v; docker --version; command -v chromium chromium-browser google-chrome
 docker run --rm -v "$PWD:/reports" dieters877565/bidi2pdf:main-slim \
   bidi2pdf render --url https://example.com --output /reports/example.pdf --json
 # 2. Ruby 3.4+
-gem install pdf-reader bidi2pdf
+gem install bidi2pdf
+gem install pdf-reader    # optional: fills "pages"
 # Browser on Debian, or in a Debian-based container (the packaged driver also works on ARM)
 sudo apt-get install -y chromium chromium-driver
 # Ruby on macOS (Google Chrome, if installed, is the browser)
@@ -128,8 +127,10 @@ For an accessible PDF add `--generate-tagged-pdf` (and `--generate-document-outl
 
 With `--json`, stdout carries exactly one JSON document; logs go to stderr. Check `ok`, then:
 
-- `pages`, `bytes`, `sha256` of the PDF (`pages` is `null` without `pdf-reader`, with a warning);
-  `navigation.final_url` - a redirect to a login page answers 200 and prints perfectly. (A status of 400 or more fails the render instead.)
+- `pages`, `bytes`, `sha256` of the PDF. `pages` is `null` without `pdf-reader`, with a warning:
+  report it that way, or ask before installing that gem - no other PDF tool for a page count.
+- `navigation.final_url` - a redirect to a login page answers 200 and prints perfectly. (A status
+  of 400 or more fails the render instead.)
 - `network_failures` and `console` even when `ok` is true: a missing image still gives a PDF.
 - On failure `error.code`, `error.retryable` and `error.hint`. Retry only when `retryable` is true.
 

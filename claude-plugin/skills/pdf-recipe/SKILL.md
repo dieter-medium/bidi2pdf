@@ -14,18 +14,12 @@ and printed. For a plain page without steps, `render` is enough (the `render-pdf
 
 ## Ground rules
 
-- **bidi2pdf is the renderer.** When it fails, never make the PDF or screenshot another way (Chrome's
-  own print-to-PDF, wkhtmltopdf, a browser script of your own): report its `error.code`, `error.hint`
-  and exit code, then fix the cause or ask.
-- **Install nothing unasked.** If bidi2pdf, Ruby 3.4+ or Chrome is missing, say which and offer the
-  ways: `gem install bidi2pdf` where Ruby is there, the image `dieters877565/bidi2pdf:main-slim`
-  (Chromium and pdf-reader included), or a shared browser (the `remote-chrome` skill); the
-  `render-pdf` skill's preflight has the commands. No system packages without the user's go-ahead.
-- **Use bidi2pdf's own results.** Pages, size and checksum are in the `--json` result (`pages`,
-  `bytes`, `sha256`). `pages` is `null` without the `pdf-reader` gem: say so, or ask to install that
-  gem - never other PDF tools.
-- **Diagnose only what went wrong.** `bidi2pdf diagnose` is for a render that failed or looks wrong,
-  not a step before every render.
+- **bidi2pdf is the renderer.** If it fails, report its `error.code`, `error.hint` and exit code;
+  never make the PDF or screenshot another way (Chrome's own print-to-PDF, another PDF engine).
+- **Install nothing unasked.** Name what is missing and suggest a way (the `render-pdf` skill's
+  preflight); run nothing that changes the system without the user's yes.
+- **bidi2pdf's results first.** Read its `--json` result instead of inspecting the PDF with other
+  tools.
 
 ## 1. Write it
 
