@@ -11,6 +11,10 @@
 **BiDirectional (BiDi)** protocol. Whether you're automating reports, archiving websites, or shipping documentation,
 Bidi2pdf gives you **precision, flexibility, and full control**.
 
+**For agents and automation:** the use cases on one page - [dieter-medium.github.io/bidi2pdf](https://dieter-medium.github.io/bidi2pdf/),
+and as plain text for language models: [llms.txt](https://dieter-medium.github.io/bidi2pdf/llms.txt). Both are
+published from `site/` by `.github/workflows/pages.yml`.
+
 ---
 
 ## 📚 Table of Contents
@@ -202,7 +206,8 @@ still emits exactly this shape, with `ok: false` and a structured `error` (`code
 ### stdin/stdout, manifests, and progress streaming
 
 ```bash
-# Render HTML piped on stdin, PDF bytes piped out on stdout - no files touched
+# Render HTML piped on stdin, PDF bytes piped out on stdout - no input or output file of your own
+# (the PDF goes straight to stdout; the HTML is kept in a temporary file while Chrome loads it, then deleted)
 cat page.html | bidi2pdf render --stdin --output - > page.pdf
 
 # A render manifest: enough to reproduce and diagnose the render later
