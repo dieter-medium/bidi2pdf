@@ -844,8 +844,23 @@ on_worker_boot do
 end
 ```
 
-Every worker then holds `size` spares of its own, besides the master's: count them in when sizing the
-chromedriver (`max_sessions`, its memory and process limits).
+Every worker then holds `size` spares of its own, besides the master's: with `W` workers, `size * (W + 1)`
+idle sessions after boot - 2 workers at `size = 1` keep 3 Chromes waiting - and during renders one more
+per render in flight plus the replacements warming. Count them in when sizing the chromedriver
+(`max_sessions`, its memory and its process limit).
+
+Puma's master renders nothing. To keep it from holding warm sessions nobody uses, end its warmer before
+it forks - at that point no worker exists yet, so no child holds a copy of those sessions:
+
+```ruby
+# config/puma.rb
+before_fork do
+  Bidi2pdf::SessionWarmer.shutdown
+end
+```
+
+A child releases every slot it inherited, the spares and any slot out for a render at the moment of the
+fork; a release that fails is logged and the others go on.
 
 **Last resort: pressure.** `sweep!(pressure: true)` closes every session nobody holds that is past
 `min_age`, without waiting for `orphan_age`, the unresponsive checks or the limit. `with_retry` does

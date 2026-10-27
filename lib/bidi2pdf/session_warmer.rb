@@ -281,6 +281,8 @@ module Bidi2pdf
       @slot_factory = slot_factory || self.class.default_slot_factory(config)
       @mutex = Mutex.new
       @available = []
+      # Slots out for a render right now - kept so a forked child can let go of these too.
+      @checked_out = []
       @replenish_threads = []
       @warming = 0
       @shutdown = false
@@ -293,19 +295,21 @@ module Bidi2pdf
       start_background_work
     end
 
-    # In a forked child, for the copy it inherited: closes the child's copies of the spare slots'
-    # sockets locally (Session#release_after_fork - no close frame, no session end) and forgets the
-    # slots. The parent's sessions, leases and threads are untouched. A slot the parent had checked
-    # out at the moment of the fork is not in this list; its socket copy goes with the child's
-    # garbage. The warmer itself is unusable afterwards - .instance builds the child its own.
+    # In a forked child, for the copy it inherited: closes the child's copies of the sockets of every
+    # slot the parent had - the warm spares and those out for a render at the moment of the fork -
+    # locally (Session#release_after_fork: no close frame, no session end), and forgets the slots.
+    # The parent's sessions, its renders in flight, its leases and its threads are untouched. One slot
+    # that fails to release does not stop the others. The warmer itself is unusable afterwards -
+    # .instance builds the child its own.
     def release_after_fork
-      spares = @available.dup
-      @available.clear
-      spares.each do |slot|
+      inherited = @available + @checked_out
+      @available = []
+      @checked_out = []
+      inherited.each do |slot|
         session = slot[:session]
         session.release_after_fork if session.respond_to?(:release_after_fork)
       rescue StandardError => e
-        Bidi2pdf.logger.debug "session_warmer: releasing an inherited slot failed: #{e.message}"
+        Bidi2pdf.logger.warn "session_warmer: releasing an inherited slot failed: #{e.message}"
       end
     end
 
@@ -319,7 +323,7 @@ module Bidi2pdf
     # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
     # then unconditionally closes those resources and retires the underlying slot.
     def with_tab
-      slot = checkout
+      slot = lend(checkout)
       user_context = nil
       window = nil
       tab = nil
@@ -333,7 +337,7 @@ module Bidi2pdf
         safe_close("tab") { tab&.close }
         safe_close("window") { window&.close }
         safe_close("user context") { user_context&.close }
-        retire(slot)
+        retire(take_back(slot))
       end
     end
 
@@ -546,6 +550,17 @@ module Bidi2pdf
       # to the current deficit, so a miss on an already-full-or-filling cache starts nothing.
       replenish_async
       taken
+    end
+
+    # A slot goes on the checked-out list for its render - so a forked child can release it too.
+    def lend(slot)
+      @mutex.synchronize { @checked_out << slot }
+      slot
+    end
+
+    def take_back(slot)
+      @mutex.synchronize { @checked_out.delete_if { |out| out.equal?(slot) } }
+      slot
     end
 
     def cold_checkout(dead_slot)

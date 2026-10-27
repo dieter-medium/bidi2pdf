@@ -113,6 +113,9 @@ RSpec.feature "As an operator, I want every Puma worker to render on Chrome sess
       @parent_session = spare_session_id(Bidi2pdf::SessionWarmer.instance)
       workers = [fork_worker("worker one"), fork_worker("worker two")]
       @results = workers.map { |pid, reader| collect(pid, reader) }
+      # Read now, before any example renders: a render in the parent uses up its warm session, and
+      # retiring that session rightly ends its lease - in random order that came first (CI, seed 9683).
+      @leased_after_workers = Bidi2pdf::SessionRegistry.new(@session_url, dir: @registry_dir).leased
     end
 
     then_ "each worker rendered a real PDF" do
@@ -124,7 +127,7 @@ RSpec.feature "As an operator, I want every Puma worker to render on Chrome sess
     end
 
     then_ "the parent's warm session outlived the workers and their shutdown" do
-      expect(Bidi2pdf::SessionRegistry.new(@session_url, dir: @registry_dir).leased).to include(@parent_session)
+      expect(@leased_after_workers).to include(@parent_session)
     end
 
     then_ "the parent still renders" do

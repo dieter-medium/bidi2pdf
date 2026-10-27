@@ -238,24 +238,93 @@ RSpec.describe Bidi2pdf::Bidi::BufferedWebSocketClient do
     end
   end
 
-  # A Puma worker inherits the master's connection. Releasing the child's copy must leave the parent's
-  # connection working, and the peer must hear nothing - least of all a close frame.
-  it "lets a forked child drop its copy of the connection without the peer noticing" do
+  # A Puma worker inherits the master's connection. Releasing the child's copy must close the child's
+  # descriptor, leave the parent's connection working, and tell the peer nothing - least of all send a
+  # close frame (the next frame the peer sees is the parent's message).
+  it "lets a forked child close its copy of the connection without the peer noticing" do
     with_server_frame(type: :ping, data: "hello") do |url, received|
       client = described_class.connect(url)
       received.pop(timeout: 5) # the pong: the connection is up
 
-      pid = fork do
-        client.release_after_fork
-        exit!(client.closed? ? 0 : 1)
-      end
-      Process.wait(pid)
+      status = fork_and_wait { child_released_its_descriptor?(client) }
       client.send("still here")
 
-      expect([Process.last_status.exitstatus, received.pop(timeout: 5)&.then { |f| [f.type, f.data] }]).to eq([0, [:text, "still here"]])
+      expect([status, received.pop(timeout: 5)&.then { |f| [f.type, f.data] }]).to eq([0, [:text, "still here"]])
     ensure
       client&.close
     end
+  end
+
+  # The parent may be closing (or erroring) on another thread at the moment of the fork; the child's
+  # release takes the same monitor. MRI releases a lock whose owner thread did not survive the fork -
+  # this pins that, and fails instead of hanging if a runtime does not.
+  it "lets a forked child release even when another thread held the close lock at the fork" do
+    with_server_frame(type: :ping, data: "hello") do |url, received|
+      client = described_class.connect(url)
+      received.pop(timeout: 5)
+      locked = Thread::Queue.new
+      holder = Thread.new do
+        client.instance_variable_get(:@close_monitor).synchronize do
+          locked << true
+          sleep 5
+        end
+      end
+      locked.pop
+
+      status = fork_and_wait { child_released_its_descriptor?(client) }
+      holder.kill
+      client.send("still here")
+
+      expect([status, received.pop(timeout: 5)&.then { |f| [f.type, f.data] }]).to eq([0, [:text, "still here"]])
+    ensure
+      holder&.kill
+      client&.close
+    end
+  end
+
+  # Over TLS the release must close the TCP socket underneath, never the SSL one: SSLSocket#close sends
+  # a close_notify alert down the connection the parent still uses.
+  it "closes the TCP socket beneath a TLS connection on release, not the TLS session" do
+    tcp, peer = Socket.pair(:UNIX, :STREAM)
+    tls = Object.new
+    tls.define_singleton_method(:to_io) { tcp }
+    tls.define_singleton_method(:close) { raise "close_notify sent" }
+    client = described_class.new
+    client.instance_variable_set(:@socket, tls)
+
+    client.release_after_fork
+
+    expect([tcp.closed?, client.closed?]).to eq([true, true])
+  ensure
+    peer&.close
+  end
+
+  # Runs the block in a forked child: exit 0 when it returns true, 1 otherwise or when it raises; a
+  # child that hangs is killed after 10 s and counts as nil.
+  def fork_and_wait(&check)
+    pid = fork do
+      exit!(check.call ? 0 : 1)
+    rescue Exception # rubocop:disable Lint/RescueException -- any failure is a failing exit
+      exit!(1)
+    end
+    100.times do
+      _, status = Process.waitpid2(pid, Process::WNOHANG)
+      return status.exitstatus if status
+
+      sleep 0.1
+    end
+    Process.kill("KILL", pid)
+    Process.waitpid2(pid)
+    nil
+  end
+
+  # In the child: the inherited socket is closed and its descriptor gone after the release.
+  def child_released_its_descriptor?(client)
+    io = client.instance_variable_get(:@socket)
+    fd = io.fileno
+    client.release_after_fork
+    descriptor_gone = !File.exist?("/proc/self/fd/#{fd}") || !File.directory?("/proc/self/fd")
+    client.closed? && io.closed? && descriptor_gone
   end
 
   it "emits :close for a real close frame from the peer" do
