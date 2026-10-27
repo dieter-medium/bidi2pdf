@@ -239,14 +239,17 @@ module Bidi2pdf
       # boots the app, and with it this warmer, in the master before the fork) inherits a copy whose
       # threads did not survive the fork and whose slots are its parent's, WebSocket connections
       # included: a render on one sent its commands down the parent's socket, the parent's reader
-      # thread took the answers ("Unknown response"), and the child timed out. So the child drops its
-      # copy without touching it - closing those slots would end its parent's sessions - and builds
-      # its own from the same configuration.
+      # thread took the answers ("Unknown response"), and the child timed out. So the child lets go
+      # of its copy - closing only its own copies of the spare slots' sockets, never their sessions,
+      # which are its parent's (#release_after_fork) - and builds its own from the same
+      # configuration.
       def abandon_inherited_instance
         return if @instance.nil? || @instance_pid == Process.pid
 
+        inherited = @instance
         @instance = nil
         @instance_pid = nil
+        inherited.release_after_fork
       end
 
       # Records each part in +parts+ the moment it exists, so #default_slot_factory's rescue can
@@ -288,6 +291,22 @@ module Bidi2pdf
       @sweeper = build_sweeper
       prewarm
       start_background_work
+    end
+
+    # In a forked child, for the copy it inherited: closes the child's copies of the spare slots'
+    # sockets locally (Session#release_after_fork - no close frame, no session end) and forgets the
+    # slots. The parent's sessions, leases and threads are untouched. A slot the parent had checked
+    # out at the moment of the fork is not in this list; its socket copy goes with the child's
+    # garbage. The warmer itself is unusable afterwards - .instance builds the child its own.
+    def release_after_fork
+      spares = @available.dup
+      @available.clear
+      spares.each do |slot|
+        session = slot[:session]
+        session.release_after_fork if session.respond_to?(:release_after_fork)
+      rescue StandardError => e
+        Bidi2pdf.logger.debug "session_warmer: releasing an inherited slot failed: #{e.message}"
+      end
     end
 
     # Sweeps the remote chromedriver now - for an application that suspects leaked sessions.

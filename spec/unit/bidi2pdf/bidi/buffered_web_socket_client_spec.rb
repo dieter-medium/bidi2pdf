@@ -238,6 +238,26 @@ RSpec.describe Bidi2pdf::Bidi::BufferedWebSocketClient do
     end
   end
 
+  # A Puma worker inherits the master's connection. Releasing the child's copy must leave the parent's
+  # connection working, and the peer must hear nothing - least of all a close frame.
+  it "lets a forked child drop its copy of the connection without the peer noticing" do
+    with_server_frame(type: :ping, data: "hello") do |url, received|
+      client = described_class.connect(url)
+      received.pop(timeout: 5) # the pong: the connection is up
+
+      pid = fork do
+        client.release_after_fork
+        exit!(client.closed? ? 0 : 1)
+      end
+      Process.wait(pid)
+      client.send("still here")
+
+      expect([Process.last_status.exitstatus, received.pop(timeout: 5)&.then { |f| [f.type, f.data] }]).to eq([0, [:text, "still here"]])
+    ensure
+      client&.close
+    end
+  end
+
   it "emits :close for a real close frame from the peer" do
     with_server_frame(type: :close) do |url, received|
       closed = Thread::Queue.new

@@ -167,6 +167,14 @@ module Bidi2pdf
                          end
       end
 
+      # In a forked child: drops this process's copies of the parent's connections - the command client
+      # and the event socket - without ending the session, which is the parent's (see #close for that).
+      def release_after_fork
+        @client&.release_after_fork
+        @event_socket&.release_after_fork
+        @client = @event_socket = nil
+      end
+
       private
 
       # Sends a command to the WebSocket client.

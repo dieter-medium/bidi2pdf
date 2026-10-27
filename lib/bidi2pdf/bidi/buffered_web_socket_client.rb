@@ -82,6 +82,23 @@ module Bidi2pdf
         end
       end
 
+      # In a forked child: drops this process's copy of a connection the parent opened, without a word
+      # to the peer - no close frame, no TLS close_notify (the underlying TCP socket is closed, not the
+      # SSL one), no :close event - so the parent goes on using it. Closing a descriptor the parent also
+      # holds ends nothing for the peer; the reader thread did not survive the fork.
+      def release_after_fork
+        @close_monitor.synchronize do
+          return if @closed
+
+          @closed = true
+          io = @socket.respond_to?(:to_io) ? @socket.to_io : @socket
+          io&.close unless io.nil? || io.closed?
+          @socket = nil
+        end
+      rescue IOError, SystemCallError
+        nil
+      end
+
       def open? = @handshaked && !@closed
 
       def closed? = @closed

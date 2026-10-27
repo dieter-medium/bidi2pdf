@@ -357,27 +357,59 @@ RSpec.describe Bidi2pdf::SessionWarmer do
 
     # A Puma worker: Rails boots the app - and configures the warmer - in the master, then forks.
     describe "in a forked child" do
-      # Runs the block in a forked child and returns what it wrote to the pipe, one line per write.
-      def in_child
+      # Runs the block in a forked child and returns what it wrote to the pipe, one line per write. A
+      # child that raises exits non-zero and fails the example; one that hangs is killed after
+      # +timeout+ seconds and fails it too.
+      def in_child(timeout: 10, &)
         reader, writer = IO.pipe
-        pid = fork do
-          reader.close
-          yield writer
-        ensure
-          writer.close
-          exit!(0)
-        end
+        pid = fork_reporting(reader, writer, &)
         writer.close
-        Process.wait(pid)
+        child_status = wait_for(pid, timeout)
+        raise "child #{pid} failed: #{child_status.inspect}" unless child_status&.success?
+
         reader.read.split("\n")
       ensure
         reader&.close
       end
 
-      # A slot whose session says which process closed it.
+      # The child's exit status says whether its block finished: 0, or 1 for anything it raised.
+      def fork_reporting(reader, writer)
+        fork do
+          reader.close
+          status = 1
+          begin
+            yield writer
+            status = 0
+          rescue Exception => e # rubocop:disable Lint/RescueException -- report anything, then exit!
+            warn "child failed: #{e.class}: #{e.message}"
+          ensure
+            writer.close
+            exit!(status)
+          end
+        end
+      end
+
+      def wait_for(pid, timeout)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+        loop do
+          _, status = Process.waitpid2(pid, Process::WNOHANG)
+          return status if status
+
+          if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+            Process.kill("KILL", pid)
+            Process.waitpid2(pid)
+            return nil
+          end
+          sleep 0.01
+        end
+      end
+
+      # A slot whose session says what was done to it: closed (the session ended) or released (only
+      # this process's copy of its sockets dropped).
       def slot_reporting(label, writer)
         reporting_session = instance_double(Bidi2pdf::Bidi::Session, started?: true, client: client)
         allow(reporting_session).to receive(:close) { writer&.puts("#{label} closed") }
+        allow(reporting_session).to receive(:release_after_fork) { writer&.puts("#{label} released") }
         { session: reporting_session, browser: browser, manager: nil }
       end
 
@@ -397,7 +429,7 @@ RSpec.describe Bidi2pdf::SessionWarmer do
         expect(lines.first(2)).to eq(["child warmed", "child rendered"])
       end
 
-      it "never closes its parent's slots, not even when it shuts down" do
+      it "never closes its parent's slots, not even when it shuts down - it only drops its own copies of their sockets" do
         reader, writer = IO.pipe
         described_class.configure { |c| c.slot_factory = -> { slot_reporting("parent", writer) } }
 
@@ -408,7 +440,7 @@ RSpec.describe Bidi2pdf::SessionWarmer do
         end
         writer.close
 
-        expect(reader.read).to eq("")
+        expect(reader.read).to eq("parent released\n")
       ensure
         reader&.close
         writer&.close unless writer.nil? || writer.closed?

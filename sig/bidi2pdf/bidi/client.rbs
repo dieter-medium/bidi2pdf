@@ -114,6 +114,9 @@ module Bidi2pdf
       def remove_event_listener: (*untyped names, untyped listener) -> untyped
 
       # Closes the WebSocket connection.
+      # In a forked child: lets go of the parent's connection locally (BufferedWebSocketClient#release_after_fork).
+      def release_after_fork: () -> untyped
+
       def close: () -> (nil | untyped)
 
       private

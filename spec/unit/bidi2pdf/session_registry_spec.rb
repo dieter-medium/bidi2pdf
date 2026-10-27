@@ -158,5 +158,39 @@ RSpec.describe Bidi2pdf::SessionRegistry do
 
       expect(Process.last_status.exitstatus).to eq(0)
     end
+
+    # A Puma master forks while its heartbeat thread may be inside the lock. MRI releases a mutex whose
+    # owner thread did not survive the fork; this pins that the child can still lease, and fails
+    # instead of hanging if a runtime keeps the lock taken.
+    it "leases in a forked child even when another thread held the heartbeat's lock at the fork" do
+      locked = Thread::Queue.new
+      holder = Thread.new do
+        heartbeat.send(:synchronize) do
+          locked << true
+          sleep 5
+        end
+      end
+      locked.pop
+
+      pid = fork do
+        leased = Thread.new { registry.hold("child-session") && heartbeat.held_ids(registry) }.value
+        exit!(leased == ["child-session"] ? 0 : 1)
+      end
+      status = nil
+      50.times do
+        _, status = Process.waitpid2(pid, Process::WNOHANG)
+        break if status
+
+        sleep 0.1
+      end
+      unless status
+        Process.kill("KILL", pid)
+        Process.waitpid2(pid)
+      end
+
+      expect(status&.exitstatus).to eq(0)
+    ensure
+      holder&.kill
+    end
   end
 end

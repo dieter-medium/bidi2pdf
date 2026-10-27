@@ -51,6 +51,12 @@ module Bidi2pdf
       # nor be killed before :close has been emitted.
       def close: (?untyped? error) -> untyped
 
+      # In a forked child: drops this process's copy of a connection the parent opened, without a word
+      # to the peer - no close frame, no TLS close_notify (the underlying TCP socket is closed, not the
+      # SSL one), no :close event - so the parent goes on using it. Closing a descriptor the parent also
+      # holds ends nothing for the peer; the reader thread did not survive the fork.
+      def release_after_fork: () -> untyped
+
       def open?: () -> untyped
 
       def closed?: () -> untyped

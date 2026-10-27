@@ -101,6 +101,10 @@ module Bidi2pdf
       # @return [String] The WebSocket URL.
       def websocket_url: () -> untyped
 
+      # In a forked child: drops this process's copies of the parent's connections - the command client
+      # and the event socket - without ending the session, which is the parent's (see #close for that).
+      def release_after_fork: () -> untyped
+
       private
 
       # Sends a command to the WebSocket client.
