@@ -1,0 +1,35 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "bidi2pdf",
+  "version": "0.1.24",
+  "description": "Skills for rendering web pages to PDF and screenshots with bidi2pdf: the CLI, recipes, diagnosing a wrong PDF, a shared remote Chrome, review screenshots and PDF specs.",
+  "author": {
+    "name": "dieter-medium",
+    "url": "https://github.com/dieter-medium"
+  },
+  "homepage": "https://dieter-medium.github.io/bidi2pdf/",
+  "repository": "https://github.com/dieter-medium/bidi2pdf",
+  "license": "MIT",
+  "keywords": ["pdf", "html-to-pdf", "headless-chrome", "webdriver-bidi", "ruby", "rails", "screenshots"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "bidi2pdf",
+        "shortDescription": "Web pages to PDF with Chrome",
+        "longDescription": "Teaches Codex to turn web pages and HTML into PDFs with bidi2pdf, an open-source Ruby gem and command-line tool that renders with headless Chrome over WebDriver BiDi. Six skills cover the whole job: rendering a URL or HTML file to PDF from the command line (waits, screen, dark and mobile views, tagged PDFs, stdin and stdout) and reading its JSON result and exit codes; writing a recipe for pages that need steps before printing and validating it without a browser; diagnosing a PDF that comes out blank, unstyled or wrongly paged; running a shared remote Chrome container and keeping its sessions in check; taking review screenshots at phone and desktop width in light and dark mode; and writing RSpec specs for generated PDFs. The skills run bidi2pdf in a shell, so they need the gem (Ruby 3.4 or later) and Chrome or Chromium, or bidi2pdf's Docker image.",
+        "developerName": "dieter-medium",
+        "category": "Developer Tools",
+        "capabilities": ["Write"],
+        "websiteURL": "https://dieter-medium.github.io/bidi2pdf/",
+        "defaultPrompt": [
+          "Render https://example.com to a PDF with bidi2pdf and tell me how many pages it has.",
+          "My PDF from bidi2pdf comes out blank - find out why.",
+          "Take phone and desktop screenshots of my app's start page in light and dark mode."
+        ],
+        "brandColor": "#D34933",
+        "composerIcon": "./.claude-plugin/icon.png",
+        "logo": "./.claude-plugin/icon.png"
+      }
+    }
+  }
+}

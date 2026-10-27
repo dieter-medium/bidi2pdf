@@ -1,0 +1,21 @@
+{
+  "name": "bidi2pdf",
+  "interface": {
+    "displayName": "bidi2pdf"
+  },
+  "plugins": [
+    {
+      "name": "bidi2pdf",
+      "source": {
+        "source": "local",
+        "path": "./claude-plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE",
+        "products": ["CODEX"]
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -79,6 +79,80 @@ RSpec.describe "The Claude Code plugin" do # rubocop:disable RSpec/DescribeClass
         .to eq([true, true, true, true])
     end
 
+    # Codex reads the same plugin folder through its portable manifest (Agent Plugins 1.0.0, plugin.json at the
+    # plugin root, OpenAI's listing under extensions.com.openai.interface) and the repository's
+    # .agents/plugins/marketplace.json. Limits from developers.openai.com/plugins/deploy/submission.
+    describe "for Codex" do
+      def portable = JSON.parse(File.read(File.join(plugin_dir, "plugin.json")))
+
+      def listing = portable.dig("extensions", "com.openai", "interface")
+
+      # WCAG relative luminance of a #RRGGBB colour.
+      def luminance(hex)
+        hex.delete("#").scan(/../).map { |pair| Integer(pair, 16) / 255.0 }
+           .map { |c| c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055)**2.4 }
+           .zip([0.2126, 0.7152, 0.0722]).sum { |c, weight| c * weight }
+      end
+
+      it "names the same plugin at the same version as the Claude Code manifest" do
+        claude = JSON.parse(File.read(File.join(plugin_dir, ".claude-plugin", "plugin.json")))
+
+        expect(portable.values_at("$schema", "name", "version", "description"))
+          .to eq(["https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", *claude.values_at("name", "version", "description")])
+      end
+
+      it "has a name the Agent Plugins schema accepts" do
+        expect(portable["name"]).to match(/\A(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\z/)
+      end
+
+      it "keeps the listing within the directory's limits" do
+        lengths = listing.values_at("displayName", "shortDescription", "longDescription", "developerName").map { |text| text.to_s.length }
+
+        expect(lengths.zip([30, 30, 4000, 80]).reject { |length, limit| length.between?(1, limit) }).to eq([])
+      end
+
+      it "offers at most three distinct prompts of at most 128 characters, without @-mentions" do
+        prompts = Array(listing["defaultPrompt"])
+
+        expect([prompts.size <= 3, prompts.uniq == prompts, prompts.all? { |prompt| prompt.length <= 128 && !prompt.include?("@") }])
+          .to eq([true, true, true])
+      end
+
+      it "names a category and at most 20 capabilities of at most 120 characters" do
+        capabilities = listing["capabilities"]
+
+        expect([listing["category"].to_s.empty?, capabilities.is_a?(Array) && capabilities.size <= 20 && capabilities.all? { |c| c.length <= 120 }])
+          .to eq([false, true])
+      end
+
+      it "has a brand colour with at least 2:1 contrast against white" do
+        color = listing["brandColor"]
+
+        expect([color.match?(/\A#\h{6}\z/), (1.05 / (luminance(color) + 0.05)).round(2) >= 2.0]).to eq([true, true])
+      end
+
+      it "points composerIcon and logo at square PNGs inside the plugin, 48 to 4096 px, at most 5 MiB" do
+        wrong = listing.values_at("composerIcon", "logo").reject do |path|
+          file = File.expand_path(path, plugin_dir)
+          bytes = File.file?(file) ? File.binread(file) : ""
+          width, height = bytes[16, 8].to_s.unpack("NN")
+          path.start_with?("./") && !path.include?("..") && file.start_with?("#{plugin_dir}/") &&
+            bytes.start_with?("\x89PNG\r\n\x1A\n".b) && width == height && (48..4096).cover?(width.to_i) && bytes.bytesize <= 5 * 1024 * 1024
+        end
+
+        expect(wrong).to eq([])
+      end
+
+      it "is listed in the repository's Codex marketplace, for Codex only, at a folder that holds it" do
+        marketplace = JSON.parse(File.read(File.join(root, ".agents", "plugins", "marketplace.json")))
+        entries = marketplace.fetch("plugins").map do |plugin|
+          [File.file?(File.join(root, plugin.dig("source", "path"), "plugin.json")), plugin.dig("policy", "products")]
+        end
+
+        expect(entries).to eq([[true, ["CODEX"]]])
+      end
+    end
+
     it "has skills" do
       expect(skill_files.map { |path| File.basename(File.dirname(path)) }).to include("render-pdf", "pdf-recipe")
     end

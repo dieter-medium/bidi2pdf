@@ -29,8 +29,8 @@ ruby "$SKILL_DIR/scripts/screenshots.rb" --base http://app:4000 --pages /,/prici
   --widths 360,1280 --out tmp/screenshots --remote-browser-url http://remote-chrome:3000/session
 ```
 
-`$SKILL_DIR` stands for this skill's own folder - the base directory Claude Code names when it loads
-the skill; in a checkout of bidi2pdf it is `claude-plugin/skills/page-screenshots`. Run the script by
+`$SKILL_DIR` stands for this skill's own folder - the folder of this SKILL.md, which the agent (Claude
+Code, Codex) names when it loads the skill; in a checkout of bidi2pdf it is `claude-plugin/skills/page-screenshots`. Run the script by
 that path, not relative to the project you are shooting.
 
 It writes one PNG for every page, width and colour scheme and prints each path:
