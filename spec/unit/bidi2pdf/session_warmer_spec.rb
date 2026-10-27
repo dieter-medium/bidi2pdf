@@ -354,6 +354,238 @@ RSpec.describe Bidi2pdf::SessionWarmer do
         expect(yielded).to eq(tab)
       end
     end
+
+    # A Puma worker: Rails boots the app - and configures the warmer - in the master, then forks.
+    describe "in a forked child" do
+      # Runs the block in a forked child and returns what it wrote to the pipe, one line per write. A
+      # child that raises exits non-zero and fails the example; one that hangs is killed after
+      # +timeout+ seconds and fails it too.
+      def in_child(timeout: 10, &)
+        reader, writer = IO.pipe
+        pid = fork_reporting(reader, writer, &)
+        writer.close
+        child_status = wait_for(pid, timeout)
+        raise "child #{pid} failed: #{child_status.inspect}" unless child_status&.success?
+
+        reader.read.split("\n")
+      ensure
+        reader&.close
+      end
+
+      # The child's exit status says whether its block finished: 0, or 1 for anything it raised.
+      def fork_reporting(reader, writer)
+        fork do
+          reader.close
+          status = 1
+          begin
+            yield writer
+            status = 0
+          rescue Exception => e # rubocop:disable Lint/RescueException -- report anything, then exit!
+            warn "child failed: #{e.class}: #{e.message}"
+          ensure
+            writer.close
+            exit!(status)
+          end
+        end
+      end
+
+      def wait_for(pid, timeout)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+        loop do
+          _, status = Process.waitpid2(pid, Process::WNOHANG)
+          return status if status
+
+          if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+            Process.kill("KILL", pid)
+            Process.waitpid2(pid)
+            return nil
+          end
+          sleep 0.01
+        end
+      end
+
+      # A slot whose session says what was done to it: closed (the session ended) or released (only
+      # this process's copy of its sockets dropped).
+      def slot_reporting(label, writer)
+        reporting_session = instance_double(Bidi2pdf::Bidi::Session, started?: true, client: client)
+        allow(reporting_session).to receive(:close) { writer&.puts("#{label} closed") }
+        allow(reporting_session).to receive(:release_after_fork) { writer&.puts("#{label} released") }
+        { session: reporting_session, browser: browser, manager: nil }
+      end
+
+      before { skip "needs fork" unless Process.respond_to?(:fork) }
+
+      it "renders on slots of its own, not on the ones it inherited" do
+        described_class.configure { |c| c.slot_factory = -> { slot_reporting("parent", nil) } }
+
+        lines = in_child do |writer|
+          described_class.config.slot_factory = lambda {
+            writer.puts("child warmed")
+            slot_reporting("child", nil)
+          }
+          described_class.with_tab { writer.puts("child rendered") }
+        end
+
+        expect(lines.first(2)).to eq(["child warmed", "child rendered"])
+      end
+
+      it "never closes its parent's slots, not even when it shuts down - it only drops its own copies of their sockets" do
+        reader, writer = IO.pipe
+        described_class.configure { |c| c.slot_factory = -> { slot_reporting("parent", writer) } }
+
+        in_child do |child_writer|
+          described_class.config.slot_factory = -> { slot_reporting("child", child_writer) }
+          described_class.with_tab { nil }
+          described_class.shutdown
+        end
+        writer.close
+
+        expect(reader.read).to eq("parent released\n")
+      ensure
+        reader&.close
+        writer&.close unless writer.nil? || writer.closed?
+      end
+
+      it "leaves the parent its own instance" do
+        described_class.configure { |c| c.slot_factory = -> { slot } }
+        parent_instance = described_class.instance
+
+        in_child do |writer|
+          described_class.config.slot_factory = -> { slot }
+          writer.puts(described_class.instance.equal?(parent_instance) ? "same" : "own")
+        end
+
+        expect(described_class.instance).to equal(parent_instance)
+      end
+
+      # Slots labelled in the order the factory builds them; each says what was done to it, and by
+      # which process - the parent closes its own slots after a render, legitimately.
+      def labelled_factory(writer, failing: [])
+        built = 0
+        lambda do
+          built += 1
+          label = "parent-#{built}"
+          inherited = instance_double(Bidi2pdf::Bidi::Session, started?: true, client: client)
+          allow(inherited).to receive(:close) { writer.puts("#{label} closed by #{Process.pid}") }
+          allow(inherited).to receive(:release_after_fork) do
+            raise IOError, "#{label} would not let go" if failing.include?(label)
+
+            writer.puts("#{label} released by #{Process.pid}")
+          end
+          { session: inherited, browser: browser, manager: nil }
+        end
+      end
+
+      it "lets go of a slot the parent was rendering on when it forked, as well as the spare" do
+        reader, writer = IO.pipe
+        described_class.configure { |c| c.slot_factory = labelled_factory(writer) }
+        in_render = Thread::Queue.new
+        finish = Thread::Queue.new
+        render = Thread.new do
+          described_class.with_tab do |_tab|
+            in_render << true
+            finish.pop
+          end
+        end
+        in_render.pop
+        eventually { described_class.instance.instance_variable_get(:@available).size == 1 }
+
+        lines = in_child do |child_writer|
+          described_class.config.slot_factory = -> { slot }
+          described_class.instance
+          child_writer.puts(Process.pid)
+        end
+        child = lines.first
+        finish << true
+        render.join(5)
+        writer.close
+
+        expect([render.alive?, reader.read.lines.map(&:chomp).select { |line| line.end_with?(" by #{child}") }.sort])
+          .to eq([false, ["parent-1 released by #{child}", "parent-2 released by #{child}"]])
+      ensure
+        reader&.close
+        writer&.close unless writer.nil? || writer.closed?
+      end
+
+      it "lets go of a slot the parent was still retiring when it forked" do
+        reader, writer = IO.pipe
+        closing = Thread::Queue.new
+        closed = Thread::Queue.new
+        retiring = instance_double(Bidi2pdf::Bidi::Session, started?: true, client: client)
+        allow(retiring).to receive(:close) do
+          closing << true
+          closed.pop
+        end
+        allow(retiring).to receive(:release_after_fork) { writer.puts("retiring released by #{Process.pid}") }
+        later = instance_double(Bidi2pdf::Bidi::Session, started?: true, client: client, close: nil)
+        allow(later).to receive(:release_after_fork) { writer.puts("spare released by #{Process.pid}") }
+        built = 0
+        described_class.configure do |c|
+          c.slot_factory = lambda {
+            built += 1
+            { session: built == 1 ? retiring : later, browser: browser, manager: nil }
+          }
+        end
+        render = Thread.new { described_class.with_tab { |_tab| nil } }
+        closing.pop
+
+        lines = in_child do |child_writer|
+          described_class.config.slot_factory = -> { slot }
+          described_class.instance
+          child_writer.puts(Process.pid)
+        end
+        closed << true
+        render.join(5)
+        writer.close
+
+        expect(reader.read.lines.map(&:chomp)).to include("retiring released by #{lines.first}")
+      ensure
+        reader&.close
+        writer&.close unless writer.nil? || writer.closed?
+      end
+
+      it "lets go of every other inherited slot when one fails to, and still builds its own warmer" do
+        reader, writer = IO.pipe
+        described_class.configure do |c|
+          c.size = 2
+          c.slot_factory = labelled_factory(writer, failing: ["parent-1"])
+        end
+
+        lines = in_child do |child_writer|
+          allow(Bidi2pdf.logger).to receive(:warn) { |message| child_writer.puts("warn: #{message}") }
+          described_class.config.slot_factory = lambda {
+            child_writer.puts("child warmed")
+            slot
+          }
+          described_class.instance
+          child_writer.puts("pid #{Process.pid}")
+        end
+        writer.close
+        child = lines.last.to_s.delete_prefix("pid ")
+        by_child = reader.read.lines.map(&:chomp).select { |line| line.end_with?(" by #{child}") }
+
+        expect([lines.grep(/\Awarn: .*parent-1 would not let go/).size, lines.count("child warmed"), by_child])
+          .to eq([1, 2, ["parent-2 released by #{child}"]])
+      ensure
+        reader&.close
+        writer&.close unless writer.nil? || writer.closed?
+      end
+
+      it "warms its own slots at once with .after_fork" do
+        described_class.configure { |c| c.slot_factory = -> { slot } }
+
+        lines = in_child do |writer|
+          described_class.config.slot_factory = lambda {
+            writer.puts("warmed in #{Process.pid}")
+            slot
+          }
+          described_class.after_fork
+          writer.puts("pid #{Process.pid}")
+        end
+
+        expect(lines.first.delete_prefix("warmed in ")).to eq(lines.last.delete_prefix("pid "))
+      end
+    end
   end
 
   describe "#with_tab" do

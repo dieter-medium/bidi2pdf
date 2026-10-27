@@ -157,11 +157,13 @@ module Bidi2pdf
       def configure
         @config = Configuration.new
         yield @config if block_given?
+        abandon_inherited_instance
         @instance&.shutdown
         # Cleared first: if the constructor below raises, a stale, already-shut-down instance must
         # not stay registered (it would keep serving cold slots but never warm again).
         @instance = nil
         @instance = new(@config, slot_factory: @config.slot_factory)
+        @instance_pid = Process.pid
       end
 
       # Returns the warmer's configuration, initializing defaults if needed.
@@ -197,9 +199,18 @@ module Bidi2pdf
         Bidi2pdf.logger.warn "session_warmer: error closing #{label}: #{e.message}"
       end
 
-      # Returns the shared singleton warmer instance, creating it (and pre-warming it) on first call.
+      # Returns the shared singleton warmer instance, creating it (and pre-warming it) on first call -
+      # and in a forked child, its own one instead of the copy it inherited (see
+      # #abandon_inherited_instance).
       def instance
-        @instance ||= new(config, slot_factory: config.slot_factory)
+        abandon_inherited_instance
+        @instance ||= new(config, slot_factory: config.slot_factory).tap { @instance_pid = Process.pid }
+      end
+
+      # Warms this process's own slots now - for a forked child (a Puma worker's on_worker_boot), so
+      # its first render does not pay for them. Without it the child warms on its first render.
+      def after_fork
+        instance
       end
 
       # Checks out a slot, yields a fresh tab for one render, then retires the slot.
@@ -210,16 +221,36 @@ module Bidi2pdf
       # Sweeps the remote chromedriver with the configured sweeper; nil when there is none (or no
       # warmer yet - this never creates one).
       def sweep!(reason: :manual)
+        abandon_inherited_instance
         @instance&.sweep!(reason: reason)
       end
 
-      # Retires every currently-warm spare and resets the singleton.
+      # Retires every currently-warm spare and resets the singleton. In a forked child it only drops
+      # the inherited copy: those spares are the parent's.
       def shutdown
+        abandon_inherited_instance
         @instance&.shutdown
         @instance = nil
       end
 
       private
+
+      # The instance belongs to the process that created it. A forked child (a Puma worker - Rails
+      # boots the app, and with it this warmer, in the master before the fork) inherits a copy whose
+      # threads did not survive the fork and whose slots are its parent's, WebSocket connections
+      # included: a render on one sent its commands down the parent's socket, the parent's reader
+      # thread took the answers ("Unknown response"), and the child timed out. So the child lets go
+      # of its copy - closing only its own copies of the spare slots' sockets, never their sessions,
+      # which are its parent's (#release_after_fork) - and builds its own from the same
+      # configuration.
+      def abandon_inherited_instance
+        return if @instance.nil? || @instance_pid == Process.pid
+
+        inherited = @instance
+        @instance = nil
+        @instance_pid = nil
+        inherited.release_after_fork
+      end
 
       # Records each part in +parts+ the moment it exists, so #default_slot_factory's rescue can
       # retire exactly what was created so far. Mirrors Launcher#session's local/remote branch.
@@ -250,6 +281,9 @@ module Bidi2pdf
       @slot_factory = slot_factory || self.class.default_slot_factory(config)
       @mutex = Mutex.new
       @available = []
+      # Every slot from its creation to its retirement - warm, out for a render, or in between - so a
+      # forked child can let go of all of them (#release_after_fork).
+      @live = []
       @replenish_threads = []
       @warming = 0
       @shutdown = false
@@ -260,6 +294,29 @@ module Bidi2pdf
       @sweeper = build_sweeper
       prewarm
       start_background_work
+    end
+
+    # In a forked child, for the copy it inherited: closes the child's copies of the sockets of every
+    # slot the parent had - warm, out for a render, or between the two (being checked out, being
+    # retired) - locally (Session#release_after_fork: no close frame, no session end), and forgets the
+    # slots. The parent's sessions, its renders in flight, its leases and its threads are untouched.
+    # One slot that fails to release does not stop the others. The warmer itself is unusable
+    # afterwards - .instance builds the child its own.
+    #
+    # Not covered: a session still being built when the parent forked - between chromedriver's
+    # answer and #create_slot listing it, a fraction of a second. Its socket copy in the child is left
+    # to garbage collection. That needs a fork from a process that is building a slot on another
+    # thread at that moment; Puma's master never renders, so its forks do not meet it.
+    def release_after_fork
+      inherited = @live.dup
+      @available = []
+      @live = []
+      inherited.each do |slot|
+        session = slot[:session]
+        session.release_after_fork if session.respond_to?(:release_after_fork)
+      rescue StandardError => e
+        Bidi2pdf.logger.warn "session_warmer: releasing an inherited slot failed: #{e.message}"
+      end
     end
 
     # Sweeps the remote chromedriver now - for an application that suspects leaked sessions.
@@ -381,7 +438,10 @@ module Bidi2pdf
       slot = new_slot
       id = session_id_of(slot)
       @registry&.hold(id)
-      @mutex.synchronize { @own_sessions << id } if id
+      @mutex.synchronize do
+        @own_sessions << id if id
+        @live << slot
+      end
       slot
     end
 
@@ -563,7 +623,10 @@ module Bidi2pdf
       self.class.retire_slot(session: slot[:session], manager: slot[:manager])
       id = session_id_of(slot)
       @registry&.forget(id)
-      @mutex.synchronize { @own_sessions.delete(id) }
+      @mutex.synchronize do
+        @own_sessions.delete(id)
+        @live.delete_if { |live| live.equal?(slot) }
+      end
     end
 
     def safe_close(label, &)

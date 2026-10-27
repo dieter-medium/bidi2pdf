@@ -154,6 +154,12 @@ module Bidi2pdf
       end
 
       # Closes the WebSocket connection.
+      # In a forked child: lets go of the parent's connection locally (BufferedWebSocketClient#release_after_fork).
+      def release_after_fork
+        @socket&.release_after_fork
+        @socket = nil
+      end
+
       def close
         return unless @socket
 

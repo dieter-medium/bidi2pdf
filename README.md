@@ -825,6 +825,61 @@ session becomes a leftover like any other. Only processes that share the registr
 each other's leases: give job workers in another container the same `registry_dir` on a shared
 volume. Sessions other tools opened have no lease; under `scope: :all` only `min_age` protects them.
 
+**Forked processes (Puma workers).** The warmer belongs to the process that configured it. A child
+forked after that - Rails boots the app, and with it the warmer, in Puma's master before it forks its
+workers - does not use the copy it inherits: its threads did not survive the fork, and its slots,
+WebSocket connections included, are the parent's (a render on one used to time out while the parent
+took the answers). The child drops that copy - it closes only its own copies of the spare slots'
+sockets, locally, with no WebSocket close frame and no session end, so nothing of its parent's is
+touched - and builds its own warmer. The parent keeps its warmer.
+
+Without further setup the child builds it on its first render, and that render then waits for the
+whole warm-up: `size` new Chrome sessions, one after the other. To warm each worker before it takes
+requests:
+
+```ruby
+# config/puma.rb
+on_worker_boot do
+  Bidi2pdf::SessionWarmer.after_fork
+end
+```
+
+Every worker then holds `size` spares of its own, besides the master's: with `W` workers, `size * (W + 1)`
+idle sessions after boot - 2 workers at `size = 1` keep 3 Chromes waiting - and during renders one more
+per render in flight plus the replacements warming. Count them in when sizing the chromedriver
+(`max_sessions`, its memory and its process limit).
+
+Puma's master renders nothing. To keep it from holding warm sessions nobody uses, end its warmer before
+it forks - at that point no worker exists yet, so no child holds a copy of those sessions:
+
+```ruby
+# config/puma.rb
+before_fork do
+  Bidi2pdf::SessionWarmer.shutdown
+end
+```
+
+With `fork_worker`, worker 0 serves requests and forks the other workers itself; `before_fork` runs only
+in the master and does not cover those forks. Puma runs `before_refork` in worker 0 before it forks and
+`after_refork` once the cycle is done, so end worker 0's warmer before and give it a new one after:
+
+```ruby
+# config/puma.rb, with fork_worker
+before_refork do
+  Bidi2pdf::SessionWarmer.shutdown
+end
+
+after_refork do
+  Bidi2pdf::SessionWarmer.after_fork # builds worker 0 a warmer of its own again
+end
+```
+
+The workers worker 0 forks run `on_worker_boot` like any other. A render still in flight in worker 0 when
+it forks is fine: a child releases every slot it inherited - warm, out for a render, or being checked out
+or retired - and a release that fails is logged while the others go on. Not covered is a session still
+being built in the forking process at that instant: its socket copy in the child is left to garbage
+collection (a file descriptor, nothing the child or the parent uses).
+
 **Last resort: pressure.** `sweep!(pressure: true)` closes every session nobody holds that is past
 `min_age`, without waiting for `orphan_age`, the unresponsive checks or the limit. `with_retry` does
 that when its block fails with a resource error - chromedriver refusing a session
