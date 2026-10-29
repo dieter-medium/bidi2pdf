@@ -6,12 +6,28 @@ RSpec.describe Bidi2pdf::SessionGate do
   around do |example|
     limit = Bidi2pdf.session_start_concurrency
     timeout = Bidi2pdf.session_start_timeout
+    gate = Bidi2pdf.session_gate
     described_class.reset!
     example.run
   ensure
     Bidi2pdf.session_start_concurrency = limit
     Bidi2pdf.session_start_timeout = timeout
+    Bidi2pdf.session_gate = gate
     described_class.reset!
+  end
+
+  # A gate of one's own, e.g. a lock shared by several processes: counts its permits.
+  def counting_gate
+    Class.new do
+      attr_reader :permits
+
+      def initialize = @permits = 0
+
+      def with_permit
+        @permits += 1
+        yield
+      end
+    end.new
   end
 
   # The most blocks that ran at the same time when +threads+ threads each took a permit for a short while.
@@ -59,6 +75,65 @@ RSpec.describe Bidi2pdf::SessionGate do
     expect(described_class.with_permit { :next }).to eq(:next)
   end
 
+  # Review of PR #184, finding 1: the notification ran between taking the permit and the ensure that returns it.
+  it "keeps the permit free after a notification subscriber raised" do
+    Bidi2pdf.session_start_concurrency = 1
+    Bidi2pdf.session_start_timeout = 0.1
+    subscriber = Bidi2pdf.notification_service.subscribe("session_gate.bidi2pdf") { raise "broken subscriber" }
+    2.times do
+      described_class.with_permit { nil }
+    rescue Bidi2pdf::NotificationsError
+      nil
+    end
+    Bidi2pdf.notification_service.unsubscribe("session_gate.bidi2pdf", subscriber)
+
+    expect(described_class.with_permit { :free }).to eq(:free)
+  ensure
+    Bidi2pdf.notification_service.unsubscribe("session_gate.bidi2pdf", subscriber) if subscriber
+  end
+
+  # Review of PR #184, finding 2: a new limit built a new semaphore and the setups in flight stopped counting.
+  describe "changing the limit while setups run" do
+    def holding(count, seconds)
+      holders = Array.new(count) { Thread.new { described_class.with_permit { sleep seconds } } }
+      sleep 0.05
+      yield
+    ensure
+      holders&.each(&:join)
+    end
+
+    it "makes a new setup wait while the setups in flight already reach the lower limit" do
+      Bidi2pdf.session_start_concurrency = 2
+      Bidi2pdf.session_start_timeout = 0.1
+
+      holding(2, 0.4) do
+        Bidi2pdf.session_start_concurrency = 1
+
+        expect { described_class.with_permit { :third } }.to raise_error(Bidi2pdf::SessionStartTimeoutError)
+      end
+    end
+
+    it "lets setups through again once the setups in flight are done" do
+      Bidi2pdf.session_start_concurrency = 2
+      Bidi2pdf.session_start_timeout = 0.1
+      holding(2, 0.2) { Bidi2pdf.session_start_concurrency = 1 }
+      Bidi2pdf.session_start_timeout = 2
+
+      expect(peak_at_once(3)).to eq(1)
+    end
+
+    it "lets a setup through at once when the limit goes up" do
+      Bidi2pdf.session_start_concurrency = 1
+      Bidi2pdf.session_start_timeout = 0.1
+
+      holding(1, 0.3) do
+        Bidi2pdf.session_start_concurrency = 2
+
+        expect(described_class.with_permit { :second }).to eq(:second)
+      end
+    end
+  end
+
   it "raises SessionStartTimeoutError when no permit comes free in time" do
     Bidi2pdf.session_start_concurrency = 1
     Bidi2pdf.session_start_timeout = 0.1
@@ -103,6 +178,40 @@ RSpec.describe Bidi2pdf::SessionGate do
     expect(reader.read).to eq("got a permit")
   ensure
     holder&.join
+  end
+
+  describe "a gate of one's own (Bidi2pdf.session_gate)" do
+    it "hands the permit to it and returns what the block returns" do
+      gate = counting_gate
+      Bidi2pdf.session_gate = gate
+
+      expect([described_class.with_permit { :tab }, gate.permits]).to eq([:tab, 1])
+    end
+
+    it "reports its wait, naming it" do
+      events = []
+      subscriber = Bidi2pdf.notification_service.subscribe("session_gate.bidi2pdf") { |event| events << event.payload }
+      gate = counting_gate
+      stub_const("FileLockGate", gate.class)
+      Bidi2pdf.session_gate = gate
+      described_class.with_permit { nil }
+
+      expect(events.map { |payload| payload.slice(:acquired, :gate) }).to eq([{ acquired: true, gate: "FileLockGate" }])
+    ensure
+      Bidi2pdf.notification_service.unsubscribe("session_gate.bidi2pdf", subscriber) if subscriber
+    end
+
+    it "passes its timeout on to the caller" do
+      gate = Object.new
+      def gate.with_permit = raise(Bidi2pdf::SessionStartTimeoutError, "lock busy")
+      Bidi2pdf.session_gate = gate
+
+      expect { described_class.with_permit { :never } }.to raise_error(Bidi2pdf::SessionStartTimeoutError, "lock busy")
+    end
+
+    it "refuses an object that has no with_permit" do
+      expect { Bidi2pdf.session_gate = Object.new }.to raise_error(Bidi2pdf::InvalidConfigError, /with_permit/)
+    end
   end
 
   it "refuses a limit that is not a positive Integer" do

@@ -10,8 +10,16 @@ module Bidi2pdf
   # limited, only the setup before it.
   #
   # The limit holds per process: processes sharing one Chrome (Puma workers, a job process) divide its budget
-  # between them. nil turns the gate off. A forked child gets a semaphore of its own, so permits held by the parent's
-  # threads at the fork cannot be lost in it.
+  # between them. It is one budget for the process, whichever Chrome a setup goes to - two independent chromedrivers
+  # still take turns (an endpoint-scoped gate would not; not built). nil turns the gate off. Changing the limit
+  # resizes the one semaphore, so setups in flight keep counting: a lower limit lets new setups wait until enough of
+  # them are done. A forked child gets a semaphore of its own, so permits held by the parent's threads at the fork
+  # cannot be lost in it.
+  #
+  # Bidi2pdf.session_gate replaces the semaphore with an object of your own - one that answers +with_permit+ with a
+  # block - to share the budget across processes (a file lock, a database or Redis lock). Every setup path still
+  # comes through here, so the notification below is sent either way; session_start_concurrency and
+  # session_start_timeout then apply only if that object reads them.
   module SessionGate
     LOCK = Mutex.new
 
@@ -19,15 +27,18 @@ module Bidi2pdf
       # Runs the block with a permit, released however the block ends. Waits for one at most
       # Bidi2pdf.session_start_timeout (default: Bidi2pdf.default_timeout) seconds, then raises
       # SessionStartTimeoutError - a queue behind a hung setup fails loudly instead of growing.
-      def with_permit
+      def with_permit(&)
+        return with_custom_gate(Bidi2pdf.session_gate, &) if Bidi2pdf.session_gate
+
         semaphore, limit = current
         return yield unless semaphore
 
         acquired, waited = acquire(semaphore)
-        Bidi2pdf.notification_service.instrument("session_gate.bidi2pdf", { limit: limit, wait: waited, acquired: acquired })
-        raise SessionStartTimeoutError.new(timeout_message(limit, waited), details: { limit: limit, waited: waited }) unless acquired
+        refuse(limit, waited) unless acquired
 
+        # Everything after the permit is taken sits inside the ensure - a raising subscriber must not keep it.
         begin
+          Bidi2pdf.notification_service.instrument("session_gate.bidi2pdf", { limit: limit, wait: waited, acquired: true })
           yield
         ensure
           semaphore.release(1)
@@ -41,20 +52,48 @@ module Bidi2pdf
 
       private
 
-      # The semaphore for the configured limit in this process - a new one after a fork or a change of the limit
-      # (whoever holds a permit of the old one still returns it there).
+      # The wait is the time until the custom gate runs the block - it reports a timeout itself, by raising.
+      def with_custom_gate(gate)
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        gate.with_permit do
+          waited = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).round(3)
+          Bidi2pdf.notification_service.instrument("session_gate.bidi2pdf", { limit: nil, wait: waited, acquired: true, gate: gate.class.name })
+          yield
+        end
+      end
+
+      # The semaphore for the configured limit in this process: built on first use and after a fork, resized when
+      # the limit changes.
       def current
         limit = Bidi2pdf.session_start_concurrency
-        return [nil, nil] if limit.nil?
 
         LOCK.synchronize do
-          if @semaphore.nil? || @limit != limit || @pid != Process.pid
-            @semaphore = Concurrent::Semaphore.new(limit)
-            @limit = limit
+          if @pid != Process.pid
+            @semaphore = limit && Concurrent::Semaphore.new(limit)
             @pid = Process.pid
+          elsif @limit != limit
+            resize(limit)
           end
+          @limit = limit
           [@semaphore, @limit]
         end
+      end
+
+      # Keeps the permits in flight counted: free permits may go below zero, so a lower limit makes new setups wait
+      # until enough holders are done. From nil, only setups that start afterwards count.
+      def resize(limit)
+        if limit.nil? || @semaphore.nil?
+          @semaphore = limit && Concurrent::Semaphore.new(limit)
+        elsif limit > @limit
+          @semaphore.release(limit - @limit)
+        else
+          @semaphore.reduce_permits(@limit - limit)
+        end
+      end
+
+      def refuse(limit, waited)
+        Bidi2pdf.notification_service.instrument("session_gate.bidi2pdf", { limit: limit, wait: waited, acquired: false })
+        raise SessionStartTimeoutError.new(timeout_message(limit, waited), details: { limit: limit, waited: waited })
       end
 
       def acquire(semaphore)

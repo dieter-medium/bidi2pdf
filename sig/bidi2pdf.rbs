@@ -1,6 +1,8 @@
 module Bidi2pdf
   self.@session_start_concurrency: untyped
 
+  self.@session_gate: untyped
+
   self.@session_start_timeout: untyped
 
   self.@logger: untyped
@@ -171,6 +173,8 @@ module Bidi2pdf
 
   attr_reader self.session_start_timeout: untyped
 
+  attr_reader self.session_gate: untyped
+
   attr_reader self.logging_subscriber: untyped
 
   attr_reader self.logger: untyped
@@ -183,6 +187,10 @@ module Bidi2pdf
 
   # How many Chrome session setups may run at once in this process (Bidi2pdf::SessionGate); nil: no limit.
   def self.session_start_concurrency=: (untyped limit) -> untyped
+
+  # An object of your own for the session start limit - anything answering +with_permit { ... }+, e.g. a lock shared
+  # by several processes (Bidi2pdf::SessionGate); nil: the built-in per-process semaphore.
+  def self.session_gate=: (untyped gate) -> untyped
 
   # Seconds a setup waits for a permit; nil: default_timeout.
   def self.session_start_timeout=: (untyped seconds) -> untyped

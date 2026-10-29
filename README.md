@@ -738,6 +738,7 @@ end
 | `chromedriver_log_level`            | `nil`   | ChromeDriver's own `--log-level` (`"ALL"`/`"INFO"`/`"WARNING"`/`"SEVERE"`). Unset mirrors `Bidi2pdf.logger.level`; set explicitly to quiet ChromeDriver's own (often very verbose) output independently of your app's log level. |
 | `session_start_concurrency`         | `2`     | How many Chrome session setups (session request to first open tab) may run at once in this process; `nil` turns the limit off. See "Session start limit".                                                                    |
 | `session_start_timeout`             | `nil`   | Seconds a setup waits for its turn before it fails with `SessionStartTimeoutError` (code `BROWSER_LAUNCH_FAILED`, retryable); `nil` uses `default_timeout`.                                                                 |
+| `session_gate`                      | `nil`   | An object of your own answering `with_permit { ... }` - e.g. a lock shared by several processes - instead of the per-process semaphore. See "Session start limit".                                                         |
 
 `Bidi2pdf.logger`, `Bidi2pdf.network_events_logger`, `Bidi2pdf.browser_console_logger`, and
 `Bidi2pdf.notification_service` are also configurable in the same block, for more advanced
@@ -761,6 +762,62 @@ limited: eight PDFs can render side by side while their setups took turns. A set
 Chrome divide its budget: two processes with a limit of 1 each are as safe as one with 2 - two with 2 each failed in
 every run. With Puma workers and a job process on one remote chromedriver, set the limit so that limit x processes
 stays at about 2, or give the processes Chromes of their own.
+
+It is one budget per process, whichever Chrome a setup goes to: two independent chromedrivers (a local one and a
+remote one, or two remote endpoints) still take turns. Changing `session_start_concurrency` at runtime resizes the
+gate without forgetting the setups in flight: after lowering it, new setups wait until enough of the running ones are
+done; turning it on from `nil` counts only the setups that start afterwards.
+
+**A gate across processes.** `config.session_gate` takes an object of your own instead of the per-process
+semaphore - anything answering `with_permit { ... }` - so several processes can share one budget. Every setup
+path (CLI, `Bidi2pdf::DSL`, the session warmer, bidi2pdf-rails) asks it, and `session_gate.bidi2pdf` is
+instrumented as before. Your gate has to run the block with a permit, give the permit back however the block ends,
+raise `Bidi2pdf::SessionStartTimeoutError` when none comes free in time, and not lose permits when a process dies
+or forks (`session_start_concurrency` and `session_start_timeout` apply only if it reads them). A sketch for
+processes on one host - the kernel drops a `flock` when its process ends:
+
+```ruby
+# N lock files in a directory every process can reach: one free file is one permit.
+class FileLockGate
+  def initialize(dir, slots: 2, timeout: 60)
+    @paths = Array.new(slots) { |index| File.join(dir, "session-start-#{index}.lock") }
+    @timeout = timeout
+  end
+
+  def with_permit
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + @timeout
+    loop do
+      @paths.each do |path|
+        File.open(path, File::RDWR | File::CREAT, 0o600) do |file|
+          return yield if file.flock(File::LOCK_EX | File::LOCK_NB) # closing the file releases the lock
+        end
+      end
+      raise Bidi2pdf::SessionStartTimeoutError, "no session start permit free" if Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+
+      sleep 0.05
+    end
+  end
+end
+
+Bidi2pdf.configure { |config| config.session_gate = FileLockGate.new("/var/lib/myapp/bidi2pdf", slots: 2) }
+```
+
+**Related reports.** No upstream report of exactly this was found (searched 2026-10-29: chromium-bidi, ChromeDriver,
+Selenium, Puppeteer, WebdriverIO); these show the same symptom or a related one:
+
+- [puppeteer#4039](https://github.com/puppeteer/puppeteer/issues/4039) "browser.newPage freezes (never resolves)" -
+  the same symptom, a new page that never comes back; no root cause was found, closed as out of scope.
+- [webdriverio#16051](https://github.com/webdriverio/webdriverio/issues/16051) - pending BiDi commands waiting for
+  their whole timeout after the connection closed: the same symptom from a client that never rejected them. Ruled
+  out for bidi2pdf by tracing: the unanswered commands were written to an open socket, and no reply with their id
+  ever arrived.
+- [ChromeDriver release notes](https://developer.chrome.com/docs/chromedriver/downloads): 127 fixed a race between
+  ChromeDriver and the BiDi mapper at session creation; 126 and 144 address Chrome throttling background and
+  occluded windows in BiDi sessions (bidi2pdf already passes `--disable-background-timer-throttling`,
+  `--disable-renderer-backgrounding` and `--disable-backgrounding-occluded-windows`).
+- [Mozilla bug 2019511](https://bugzilla.mozilla.org/show_bug.cgi?id=2019511) - in Firefox,
+  `browsingContext.setViewport` can time out when several contexts are created in parallel: a related class of
+  failure in another browser.
 
 ### Pre-warmed sessions (`Bidi2pdf::SessionWarmer`)
 

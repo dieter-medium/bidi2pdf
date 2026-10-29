@@ -6,9 +6,19 @@ module Bidi2pdf
   # limited, only the setup before it.
   #
   # The limit holds per process: processes sharing one Chrome (Puma workers, a job process) divide its budget
-  # between them. nil turns the gate off. A forked child gets a semaphore of its own, so permits held by the parent's
-  # threads at the fork cannot be lost in it.
+  # between them. It is one budget for the process, whichever Chrome a setup goes to - two independent chromedrivers
+  # still take turns (an endpoint-scoped gate would not; not built). nil turns the gate off. Changing the limit
+  # resizes the one semaphore, so setups in flight keep counting: a lower limit lets new setups wait until enough of
+  # them are done. A forked child gets a semaphore of its own, so permits held by the parent's threads at the fork
+  # cannot be lost in it.
+  #
+  # Bidi2pdf.session_gate replaces the semaphore with an object of your own - one that answers +with_permit+ with a
+  # block - to share the budget across processes (a file lock, a database or Redis lock). Every setup path still
+  # comes through here, so the notification below is sent either way; session_start_concurrency and
+  # session_start_timeout then apply only if that object reads them.
   module SessionGate
+    self.@semaphore: untyped
+
     LOCK: untyped
 
     # Runs the block with a permit, released however the block ends. Waits for one at most
@@ -21,9 +31,18 @@ module Bidi2pdf
 
     private
 
-    # The semaphore for the configured limit in this process - a new one after a fork or a change of the limit
-    # (whoever holds a permit of the old one still returns it there).
-    def self.current: () -> (::Array[nil] | untyped)
+    # The wait is the time until the custom gate runs the block - it reports a timeout itself, by raising.
+    def self.with_custom_gate: (untyped gate) { () -> untyped } -> untyped
+
+    # The semaphore for the configured limit in this process: built on first use and after a fork, resized when
+    # the limit changes.
+    def self.current: () -> untyped
+
+    # Keeps the permits in flight counted: free permits may go below zero, so a lower limit makes new setups wait
+    # until enough holders are done. From nil, only setups that start afterwards count.
+    def self.resize: (untyped limit) -> untyped
+
+    def self.refuse: (untyped limit, untyped waited) -> untyped
 
     def self.acquire: (untyped semaphore) -> ::Array[untyped]
 

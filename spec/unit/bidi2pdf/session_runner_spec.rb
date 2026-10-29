@@ -126,6 +126,21 @@ RSpec.describe Bidi2pdf::SessionRunner do
       end
     end
 
+    it "takes its permit from a gate of one's own when one is set" do
+      permits = []
+      gate = Object.new
+      gate.define_singleton_method(:with_permit) do |&block|
+        permits << :taken
+        block.call
+      end
+      Bidi2pdf.session_gate = gate
+      runner.run
+
+      expect(permits).to eq([:taken])
+    ensure
+      Bidi2pdf.session_gate = nil
+    end
+
     it "prints after giving the permit back" do
       runner.run
 

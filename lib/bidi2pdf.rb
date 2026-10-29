@@ -185,13 +185,21 @@ module Bidi2pdf # rubocop:disable Metrics/ModuleLength
 
   class << self
     attr_accessor :default_timeout, :enable_default_logging_subscriber, :log_truncate_limit, :chromedriver_log_level
-    attr_reader :session_start_concurrency, :session_start_timeout, :logging_subscriber, :logger, :network_events_logger, :browser_console_logger, :notification_service
+    attr_reader :session_start_concurrency, :session_start_timeout, :session_gate, :logging_subscriber, :logger, :network_events_logger, :browser_console_logger, :notification_service
 
     # How many Chrome session setups may run at once in this process (Bidi2pdf::SessionGate); nil: no limit.
     def session_start_concurrency=(limit)
       raise InvalidConfigError, "session_start_concurrency must be nil or a positive Integer, got #{limit.inspect}" unless limit.nil? || (limit.is_a?(Integer) && limit.positive?)
 
       @session_start_concurrency = limit
+    end
+
+    # An object of your own for the session start limit - anything answering +with_permit { ... }+, e.g. a lock shared
+    # by several processes (Bidi2pdf::SessionGate); nil: the built-in per-process semaphore.
+    def session_gate=(gate)
+      raise InvalidConfigError, "session_gate must be nil or respond to with_permit, got #{gate.inspect}" unless gate.nil? || gate.respond_to?(:with_permit)
+
+      @session_gate = gate
     end
 
     # Seconds a setup waits for a permit; nil: default_timeout.
@@ -297,6 +305,7 @@ module Bidi2pdf # rubocop:disable Metrics/ModuleLength
     # Two setups at once: measured clean on chromedriver/Chrome 156, three were not (README "Session start limit").
     config.session_start_concurrency = 2
     config.session_start_timeout = nil
+    config.session_gate = nil
 
     config.log_truncate_limit = 200
 
