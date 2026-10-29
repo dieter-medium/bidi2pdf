@@ -47,6 +47,24 @@ RSpec.describe Bidi2pdf::SessionGate do
     peak.value
   end
 
+  # Holds a permit until the block is done; the holder says when it has it, so nothing in the block runs before
+  # (a sleep could not promise that under CI load - review of bidi2pdf-rails PR #32).
+  def while_a_permit_is_held
+    held = Thread::Queue.new
+    done = Thread::Queue.new
+    holder = Thread.new do
+      described_class.with_permit do
+        held << true
+        done.pop
+      end
+    end
+    held.pop
+    yield
+  ensure
+    done << true
+    holder&.join
+  end
+
   it "returns what the block returns" do
     expect(described_class.with_permit { :tab }).to eq(:tab)
   end
@@ -128,12 +146,10 @@ RSpec.describe Bidi2pdf::SessionGate do
   it "raises SessionStartTimeoutError when no permit comes free in time" do
     Bidi2pdf.session_start_concurrency = 1
     Bidi2pdf.session_start_timeout = 0.1
-    holder = Thread.new { described_class.with_permit { sleep 0.5 } }
-    sleep 0.05
 
-    expect { described_class.with_permit { :never } }.to raise_error(Bidi2pdf::SessionStartTimeoutError, /1 other session setup/)
-  ensure
-    holder&.join
+    while_a_permit_is_held do
+      expect { described_class.with_permit { :never } }.to raise_error(Bidi2pdf::SessionStartTimeoutError, /1 other session setup/)
+    end
   end
 
   it "reports the wait and whether a permit came" do
@@ -152,23 +168,21 @@ RSpec.describe Bidi2pdf::SessionGate do
     Bidi2pdf.session_start_concurrency = 1
     Bidi2pdf.session_start_timeout = 0.5
     reader, writer = IO.pipe
-    holder = Thread.new { described_class.with_permit { sleep 1 } }
-    sleep 0.1
-    pid = fork do
-      reader.close
-      writer.write(described_class.with_permit { "got a permit" })
-    rescue Bidi2pdf::SessionStartTimeoutError
-      writer.write("timed out")
-    ensure
+    while_a_permit_is_held do
+      pid = fork do
+        reader.close
+        writer.write(described_class.with_permit { "got a permit" })
+      rescue Bidi2pdf::SessionStartTimeoutError
+        writer.write("timed out")
+      ensure
+        writer.close
+        exit!(0)
+      end
       writer.close
-      exit!(0)
+      Process.wait(pid)
     end
-    writer.close
-    Process.wait(pid)
 
     expect(reader.read).to eq("got a permit")
-  ensure
-    holder&.join
   end
 
   describe "a gate of one's own (Bidi2pdf.session_gate)" do
