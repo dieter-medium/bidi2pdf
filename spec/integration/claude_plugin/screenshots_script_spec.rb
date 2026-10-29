@@ -19,11 +19,13 @@ RSpec.describe "The page-screenshots script", :chromedriver, :nginx do # rubocop
   # The width of a PNG, from its IHDR chunk.
   def png_width(path) = File.binread(path, 24).unpack1("@16N")
 
-  # Pages without Paged.js: Paged.js lays sample.html out on A4 sheets, 794 px wide, and a full-page shot taken after
-  # it finished is as wide as the sheet - so whether that page came out at 360 depended on timing (CI, PR #184).
+  # A full-page shot is as wide as the document, so only a page that fits into 360 px comes out at 360: sample.html
+  # (Paged.js, A4 sheets, 794 px once laid out) and sample-without-page-settings.html (a table, 386 px) do not - both
+  # failed this on CI for PR #184. simple.html has nothing wider; its second address (a query) is a page of its own
+  # to the script and gets a name of its own.
   it "writes one shot per page, width and scheme, at the width asked for" do
     Dir.mktmpdir do |out|
-      _output, status = run_script(out, "--pages", "/simple.html,/sample-without-page-settings.html", "--widths", "360", "--schemes", "light,dark")
+      _output, status = run_script(out, "--pages", "/simple.html,/simple.html?view=second", "--widths", "360", "--schemes", "light,dark")
       shots = Dir[File.join(out, "**", "*.png")]
 
       expect([status.success?, shots.size, shots.map { |shot| png_width(shot) }.uniq]).to eq([true, 4, [360]])
