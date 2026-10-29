@@ -1,0 +1,91 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Reproduces the hang the session start limit works around (README "Session start limit"): THREADS threads each set
+# up RENDERS sessions - session request, user context, window, tab - against one chromedriver and print a small page.
+# LIMIT gates the setups like Bidi2pdf::SessionGate ("none": all at once). One JSON line per render on stdout:
+# permit wait, setup and render seconds, the error class of a render that failed.
+#
+#   REMOTE=http://localhost:3000/session THREADS=6 LIMIT=none bin/session-start-repro   # failed renders expected
+#   REMOTE=http://localhost:3000/session THREADS=6 LIMIT=2 bin/session-start-repro      # clean
+#
+# Sweep the chromedriver between runs (Bidi2pdf::ChromeSweeper.sweep!): a hung setup leaves an unanswering session
+# behind, which makes the runs after it fail for another reason. Measured 2026-10-28 on chromedriver/Chrome 156:
+# LIMIT=2 0 of 720 renders failed at 4, 6 and 8 threads; LIMIT=3 and ungated failed from the first round.
+require "bundler/setup"
+require "bidi2pdf"
+require "json"
+
+remote = ENV.fetch("REMOTE", "http://localhost:3000/session")
+threads = Integer(ENV.fetch("THREADS", "6"))
+renders = Integer(ENV.fetch("RENDERS", "4"))
+limit = ENV.fetch("LIMIT", "none")
+gate = limit == "none" ? nil : Concurrent::Semaphore.new(Integer(limit))
+Bidi2pdf.logger.level = Logger::FATAL
+Bidi2pdf.default_timeout = Integer(ENV.fetch("TIMEOUT", "20"))
+Bidi2pdf.session_start_concurrency = nil # this script gates itself, so LIMIT is the only limit
+
+page = "<!doctype html><html lang=en><body><h1>Session start</h1>#{"<p>#{"Text " * 40}</p>" * 20}" \
+       "<script>window.loaded = true</script></body></html>"
+def now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+# Runs the block on a turn of the gate, the wait recorded in +row+.
+def with_turn(gate, row)
+  waiting = now
+  gate&.acquire
+  row[:wait] = (now - waiting).round(3)
+  yield
+ensure
+  gate&.release
+end
+
+# Session, user context, window and tab - into +parts+ as each one exists, so a setup that fails halfway still
+# closes what it opened. Returns the tab.
+def open_tab(remote, parts)
+  session = Bidi2pdf::Bidi::Session.new(session_url: remote, headless: true)
+  parts << session
+  session.start
+  parts << session.browser.create_user_context
+  parts << parts.last.create_browser_window
+  parts << parts.last.create_browser_tab
+  parts.last
+end
+
+# The render - not limited. Returns its seconds.
+def print_page(tab, page)
+  started = now
+  tab.render_html_content(page)
+  tab.wait_until_page_loaded
+  tab.print
+  (now - started).round(3)
+end
+
+def close_all(parts)
+  parts.reverse_each do |part|
+    part.close
+  rescue StandardError
+    nil
+  end
+end
+
+def render_once(remote, gate, page, row)
+  parts = []
+  started = now
+  tab = with_turn(gate, row) { open_tab(remote, parts) }
+  row[:setup] = (now - started - row[:wait]).round(3)
+  row.merge(render: print_page(tab, page), ok: true)
+rescue StandardError => e
+  row.merge(ok: false, error: e.class.name)
+ensure
+  close_all(parts)
+end
+
+out = Mutex.new
+Array.new(threads) do |thread|
+  Thread.new do
+    renders.times do
+      row = render_once(remote, gate, page, { thread: thread, limit: limit })
+      out.synchronize { puts row.to_json }
+    end
+  end
+end.each(&:join)

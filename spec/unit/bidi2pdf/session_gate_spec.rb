@@ -92,45 +92,36 @@ RSpec.describe Bidi2pdf::SessionGate do
     Bidi2pdf.notification_service.unsubscribe("session_gate.bidi2pdf", subscriber) if subscriber
   end
 
-  # Review of PR #184, finding 2: a new limit built a new semaphore and the setups in flight stopped counting.
-  describe "changing the limit while setups run" do
-    def holding(count, seconds)
-      holders = Array.new(count) { Thread.new { described_class.with_permit { sleep seconds } } }
-      sleep 0.05
-      yield
-    ensure
-      holders&.each(&:join)
-    end
-
-    it "makes a new setup wait while the setups in flight already reach the lower limit" do
+  # Review of PR #184: changing the limit live built a new semaphore, then resized it with an API Concurrent::Semaphore
+  # does not document. The limit is read once per process instead.
+  describe "changing the limit after the first setup" do
+    it "keeps the limit the process started with" do
       Bidi2pdf.session_start_concurrency = 2
-      Bidi2pdf.session_start_timeout = 0.1
-
-      holding(2, 0.4) do
-        Bidi2pdf.session_start_concurrency = 1
-
-        expect { described_class.with_permit { :third } }.to raise_error(Bidi2pdf::SessionStartTimeoutError)
-      end
-    end
-
-    it "lets setups through again once the setups in flight are done" do
-      Bidi2pdf.session_start_concurrency = 2
-      Bidi2pdf.session_start_timeout = 0.1
-      holding(2, 0.2) { Bidi2pdf.session_start_concurrency = 1 }
       Bidi2pdf.session_start_timeout = 2
+      described_class.with_permit { nil }
+      Bidi2pdf.session_start_concurrency = 1
+
+      expect(peak_at_once(4)).to eq(2)
+    end
+
+    it "warns once that the new limit waits for a restart" do
+      Bidi2pdf.session_start_concurrency = 2
+      described_class.with_permit { nil }
+      Bidi2pdf.session_start_concurrency = 1
+      allow(Bidi2pdf.logger).to receive(:warn)
+      3.times { described_class.with_permit { nil } }
+
+      expect(Bidi2pdf.logger).to have_received(:warn).with(/stays in force until the process restarts/).once
+    end
+
+    it "takes the new limit after a restart" do
+      Bidi2pdf.session_start_concurrency = 2
+      Bidi2pdf.session_start_timeout = 2
+      described_class.with_permit { nil }
+      Bidi2pdf.session_start_concurrency = 1
+      described_class.reset!
 
       expect(peak_at_once(3)).to eq(1)
-    end
-
-    it "lets a setup through at once when the limit goes up" do
-      Bidi2pdf.session_start_concurrency = 1
-      Bidi2pdf.session_start_timeout = 0.1
-
-      holding(1, 0.3) do
-        Bidi2pdf.session_start_concurrency = 2
-
-        expect(described_class.with_permit { :second }).to eq(:second)
-      end
     end
   end
 

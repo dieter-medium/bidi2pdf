@@ -764,9 +764,9 @@ every run. With Puma workers and a job process on one remote chromedriver, set t
 stays at about 2, or give the processes Chromes of their own.
 
 It is one budget per process, whichever Chrome a setup goes to: two independent chromedrivers (a local one and a
-remote one, or two remote endpoints) still take turns. Changing `session_start_concurrency` at runtime resizes the
-gate without forgetting the setups in flight: after lowering it, new setups wait until enough of the running ones are
-done; turning it on from `nil` counts only the setups that start afterwards.
+remote one, or two remote endpoints) still take turns. The limit is read once per process, at its first session
+setup (and again in a forked child): set it at boot, in an initializer. A later change is logged and takes effect
+after a restart.
 
 **A gate across processes.** `config.session_gate` takes an object of your own instead of the per-process
 semaphore - anything answering `with_permit { ... }` - so several processes can share one budget. Every setup
@@ -802,22 +802,42 @@ end
 Bidi2pdf.configure { |config| config.session_gate = FileLockGate.new("/var/lib/myapp/bidi2pdf", slots: 2) }
 ```
 
+**The evidence.** bidi2pdf's own measurements come first (2026-10-28, chromedriver/Chrome 156, one remote
+chromedriver, the chromedriver swept between runs): at a limit of 2, 0 of 720 renders failed at 4, 6 and 8 renders at
+once in ten interleaved rounds; at 3, renders failed from the first round on a freshly started Chrome; ungated, 104 of
+160 failed. Every unanswered command was traced as written to an open WebSocket, with no reply carrying its id ever
+read and no error raised - the client loses nothing. `bin/session-start-repro` reproduces it against any chromedriver
+(`LIMIT=none` against `LIMIT=2`).
+
 **Related reports.** No upstream report of exactly this was found (searched 2026-10-29: chromium-bidi, ChromeDriver,
-Selenium, Puppeteer, WebdriverIO); these show the same symptom or a related one:
+Selenium, Puppeteer, WebdriverIO, Mozilla). What follows is context, not confirmation - no other project has
+reported this bug.
+
+Related concurrency and lifecycle defects in WebDriver BiDi:
+
+- [Mozilla bug 2019511](https://bugzilla.mozilla.org/show_bug.cgi?id=2019511) "browsingContext.setViewport can
+  timeout if several contexts are created in parallel" - the closest analogy. In Firefox's BiDi a context's active
+  state could change before a waiting command ran, so a command depending on it timed out under parallel context
+  creation; fixed in Firefox 150 by always updating the dimensions synchronously in `browsingContext.create`.
+  Another browser and another cause, but the same kind of race: parallel context creation leaving a command
+  waiting.
+- ChromeDriver 127, [crbug 341048786](https://crbug.com/341048786) and [crbug 1503101](https://crbug.com/1503101)
+  ([crrev.com/c/5575497](https://crrev.com/c/5575497)): a race between ChromeDriver and the BiDi mapper during
+  session creation, fixed by waiting for `browsingContext.getTree` to return a non-empty list. The same phase - a
+  session's start - but already fixed in the 156 measured here, so what bidi2pdf meets is a race still left there.
+- ChromeDriver 126, [crbug 4762](https://crbug.com/4762) ([crrev.com/c/5515013](https://crrev.com/c/5515013)), and
+  144, [crbug 458027819](https://crbug.com/458027819) ([crrev.com/c/7128058](https://crrev.com/c/7128058)): Chrome
+  throttling background and occluded windows in BiDi sessions. bidi2pdf already passes
+  `--disable-background-timer-throttling`, `--disable-renderer-backgrounding` and
+  `--disable-backgrounding-occluded-windows`.
+
+The same symptom, no shown common cause:
 
 - [puppeteer#4039](https://github.com/puppeteer/puppeteer/issues/4039) "browser.newPage freezes (never resolves)" -
-  the same symptom, a new page that never comes back; no root cause was found, closed as out of scope.
+  a new page that never comes back; no root cause was found, closed as out of scope.
 - [webdriverio#16051](https://github.com/webdriverio/webdriverio/issues/16051) - pending BiDi commands waiting for
-  their whole timeout after the connection closed: the same symptom from a client that never rejected them. Ruled
-  out for bidi2pdf by tracing: the unanswered commands were written to an open socket, and no reply with their id
-  ever arrived.
-- [ChromeDriver release notes](https://developer.chrome.com/docs/chromedriver/downloads): 127 fixed a race between
-  ChromeDriver and the BiDi mapper at session creation; 126 and 144 address Chrome throttling background and
-  occluded windows in BiDi sessions (bidi2pdf already passes `--disable-background-timer-throttling`,
-  `--disable-renderer-backgrounding` and `--disable-backgrounding-occluded-windows`).
-- [Mozilla bug 2019511](https://bugzilla.mozilla.org/show_bug.cgi?id=2019511) - in Firefox,
-  `browsingContext.setViewport` can time out when several contexts are created in parallel: a related class of
-  failure in another browser.
+  their whole timeout after the connection closed, because the client never rejected them; fixed in WebdriverIO
+  (PR #16054). A client-side cause of the same symptom, ruled out for bidi2pdf by the trace above.
 
 ### Pre-warmed sessions (`Bidi2pdf::SessionWarmer`)
 

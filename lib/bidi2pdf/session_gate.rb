@@ -11,15 +11,19 @@ module Bidi2pdf
   #
   # The limit holds per process: processes sharing one Chrome (Puma workers, a job process) divide its budget
   # between them. It is one budget for the process, whichever Chrome a setup goes to - two independent chromedrivers
-  # still take turns (an endpoint-scoped gate would not; not built). nil turns the gate off. Changing the limit
-  # resizes the one semaphore, so setups in flight keep counting: a lower limit lets new setups wait until enough of
-  # them are done. A forked child gets a semaphore of its own, so permits held by the parent's threads at the fork
-  # cannot be lost in it.
+  # still take turns (an endpoint-scoped gate would not; not built). nil turns the gate off.
   #
-  # Bidi2pdf.session_gate replaces the semaphore with an object of your own - one that answers +with_permit+ with a
-  # block - to share the budget across processes (a file lock, a database or Redis lock). Every setup path still
-  # comes through here, so the notification below is sent either way; session_start_concurrency and
-  # session_start_timeout then apply only if that object reads them.
+  # The limit is read once per process - at its first setup, and again in a forked child, whose semaphore is its own
+  # so permits held by the parent's threads at the fork cannot be lost in it. A later change takes effect after a
+  # restart and is logged: set it at boot (an initializer), not while setups run. Changing it live would have to
+  # keep the setups in flight counted, which needs an API Concurrent::Semaphore does not document.
+  #
+  # Bidi2pdf.session_gate replaces the semaphore with an object of your own, to share the budget across processes
+  # (a file lock, a database or Redis lock). Its contract: +with_permit+ runs the block only while it holds a permit,
+  # gives the permit back however the block ends, raises Bidi2pdf::SessionStartTimeoutError when none comes free in
+  # time, and loses no permit when a process dies or forks. Every setup path still comes through here, so the
+  # notification below is sent either way - it trusts that the block runs under a permit. session_start_concurrency
+  # and session_start_timeout then apply only if that object reads them.
   module SessionGate
     LOCK = Mutex.new
 
@@ -47,7 +51,7 @@ module Bidi2pdf
 
       # Forgets the semaphore; the next permit builds one for the configured limit. For specs.
       def reset!
-        LOCK.synchronize { @semaphore = @limit = @pid = nil }
+        LOCK.synchronize { @semaphore = @limit = @pid = @warned_limit = nil }
       end
 
       private
@@ -62,33 +66,28 @@ module Bidi2pdf
         end
       end
 
-      # The semaphore for the configured limit in this process: built on first use and after a fork, resized when
-      # the limit changes.
+      # The semaphore of this process, built for the limit configured at its first setup (and in a forked child).
       def current
-        limit = Bidi2pdf.session_start_concurrency
-
         LOCK.synchronize do
-          if @pid != Process.pid
-            @semaphore = limit && Concurrent::Semaphore.new(limit)
+          if @pid == Process.pid
+            warn_changed_limit
+          else
+            @limit = Bidi2pdf.session_start_concurrency
+            @semaphore = @limit && Concurrent::Semaphore.new(@limit)
             @pid = Process.pid
-          elsif @limit != limit
-            resize(limit)
           end
-          @limit = limit
           [@semaphore, @limit]
         end
       end
 
-      # Keeps the permits in flight counted: free permits may go below zero, so a lower limit makes new setups wait
-      # until enough holders are done. From nil, only setups that start afterwards count.
-      def resize(limit)
-        if limit.nil? || @semaphore.nil?
-          @semaphore = limit && Concurrent::Semaphore.new(limit)
-        elsif limit > @limit
-          @semaphore.release(limit - @limit)
-        else
-          @semaphore.reduce_permits(@limit - limit)
-        end
+      # Once per new value: the limit in force stays until a restart.
+      def warn_changed_limit
+        configured = Bidi2pdf.session_start_concurrency
+        return if [@limit, @warned_limit].include?(configured)
+
+        @warned_limit = configured
+        Bidi2pdf.logger.warn "session_gate: session_start_concurrency changed to #{configured.inspect} after the first session " \
+                             "setup - #{@limit.inspect} stays in force until the process restarts"
       end
 
       def refuse(limit, waited)
