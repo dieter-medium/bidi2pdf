@@ -73,7 +73,9 @@ tab.wait_until_network_idle
 tab.screenshot("tmp/pricing-360-dark.png")
 ```
 
-`screenshot(origin: "viewport")` captures exactly the viewport instead of the whole page. A
+`screenshot(origin: "viewport")` captures exactly the viewport instead of the whole page. A full-page
+shot is as wide as the document, not the viewport: a page laid out by Paged.js comes out at its sheet
+width (794 px for A4) once Paged.js has finished - a print layout, not a 360 px one. A
 page that toggles dark mode by a class or `data-theme` instead of `prefers-color-scheme` needs that
 attribute set (`tab.execute_script(...)`) - emulation changes only the media feature.
 

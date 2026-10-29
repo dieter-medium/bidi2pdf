@@ -326,23 +326,17 @@ module Bidi2pdf
       @sweeper&.sweep!(reason: reason)
     end
 
-    # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
-    # then unconditionally closes those resources and retires the underlying slot.
+    # Checks out a slot, yields its tab - in a UserContext of its own, created with the slot (#new_slot) - for one
+    # render, then unconditionally closes the tab, window and user context and retires the slot.
     def with_tab
       slot = checkout
-      user_context = nil
-      window = nil
-      tab = nil
 
       begin
-        user_context = slot[:browser].create_user_context
-        window = user_context.create_browser_window
-        tab = window.create_browser_tab
-        yield tab
+        yield slot[:tab]
       ensure
-        safe_close("tab") { tab&.close }
-        safe_close("window") { window&.close }
-        safe_close("user context") { user_context&.close }
+        safe_close("tab") { slot[:tab]&.close }
+        safe_close("window") { slot[:window]&.close }
+        safe_close("user context") { slot[:user_context]&.close }
         retire(slot)
       end
     end
@@ -446,14 +440,28 @@ module Bidi2pdf
     end
 
     # A chromedriver out of room for another Chrome refuses the session; with a sweeper, close
-    # everything nobody holds (a pressure sweep) and try once more.
+    # everything nobody holds (a pressure sweep) and try once more. Each attempt waits for the session
+    # start limit (Bidi2pdf::SessionGate), the sweep between them does not.
     def new_slot
-      @slot_factory.call
+      Bidi2pdf::SessionGate.with_permit { with_first_tab(@slot_factory.call) }
     rescue Bidi2pdf::SessionNotStartedError
       raise unless @sweeper && @config.retry_refused_sessions
 
       @sweeper.sweep!(reason: :create_failed, pressure: true)
-      @slot_factory.call
+      Bidi2pdf::SessionGate.with_permit { with_first_tab(@slot_factory.call) }
+    end
+
+    # The slot's user context, window and tab, opened together with its session under one permit: what the limit
+    # has to bound is the number of sessions between their request and their first tab - split into two permits,
+    # sessions started in between waited for their tab side by side, and chromedriver left setups unanswered
+    # (docs: README "Session start limit"). A slot whose tab cannot be opened is retired at once.
+    def with_first_tab(slot)
+      user_context = slot[:browser].create_user_context
+      window = user_context.create_browser_window
+      slot.merge(user_context: user_context, window: window, tab: window.create_browser_tab)
+    rescue StandardError
+      self.class.retire_slot(session: slot[:session], manager: slot[:manager])
+      raise
     end
 
     def start_background_work

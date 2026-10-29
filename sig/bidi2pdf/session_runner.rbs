@@ -58,12 +58,6 @@ module Bidi2pdf
 
     @emulate_media: untyped
 
-    @window: untyped
-
-    @tab: untyped
-
-    @user_context: untyped
-
     @uri: untyped
 
     # rubocop: disable Metrics/ParameterLists
@@ -83,6 +77,10 @@ module Bidi2pdf
     def close_all: () -> untyped
 
     private
+
+    # The session's setup, up to its first tab, waits for the session start limit (Bidi2pdf::SessionGate);
+    # everything after it does not.
+    def open_tab: () -> untyped
 
     def setup_browser: () -> untyped
 
