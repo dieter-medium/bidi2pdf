@@ -102,12 +102,22 @@ RSpec.describe Bidi2pdf::SessionRunner do
       Bidi2pdf::SessionGate.reset!
     end
 
+    # The holder says when it has the only permit and keeps it until the block is done - a sleep could not promise
+    # that under CI load (review of bidi2pdf-rails PR #32).
     def with_every_permit_taken
-      holder = Thread.new { Bidi2pdf::SessionGate.with_permit { sleep 0.4 } }
-      sleep 0.05
+      held = Thread::Queue.new
+      done = Thread::Queue.new
+      holder = Thread.new do
+        Bidi2pdf::SessionGate.with_permit do
+          held << true
+          done.pop
+        end
+      end
+      held.pop
       yield
     ensure
-      holder.join
+      done << true
+      holder&.join
     end
 
     it "starts no session while every permit is taken" do
