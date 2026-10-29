@@ -87,6 +87,52 @@ RSpec.describe Bidi2pdf::SessionRunner do
     end
   end
 
+  # Bidi2pdf::SessionGate: the session's setup waits for a permit, the render after it does not.
+  describe "the session start limit" do
+    around do |example|
+      limit = Bidi2pdf.session_start_concurrency
+      timeout = Bidi2pdf.session_start_timeout
+      Bidi2pdf.session_start_concurrency = 1
+      Bidi2pdf.session_start_timeout = 0.1
+      Bidi2pdf::SessionGate.reset!
+      example.run
+    ensure
+      Bidi2pdf.session_start_concurrency = limit
+      Bidi2pdf.session_start_timeout = timeout
+      Bidi2pdf::SessionGate.reset!
+    end
+
+    def with_every_permit_taken
+      holder = Thread.new { Bidi2pdf::SessionGate.with_permit { sleep 0.4 } }
+      sleep 0.05
+      yield
+    ensure
+      holder.join
+    end
+
+    it "starts no session while every permit is taken" do
+      with_every_permit_taken do
+        runner.run
+      rescue Bidi2pdf::SessionStartTimeoutError
+        nil
+      end
+
+      expect(session).not_to have_received(:start)
+    end
+
+    it "fails with SessionStartTimeoutError when no permit comes free in time" do
+      with_every_permit_taken do
+        expect { runner.run }.to raise_error(Bidi2pdf::SessionStartTimeoutError)
+      end
+    end
+
+    it "prints after giving the permit back" do
+      runner.run
+
+      expect(Bidi2pdf::SessionGate.with_permit { :free }).to eq(:free)
+    end
+  end
+
   describe "#run_diagnose" do
     it "navigates to the given URL" do
       runner.run_diagnose

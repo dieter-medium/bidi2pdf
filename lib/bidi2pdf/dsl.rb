@@ -40,6 +40,8 @@ module Bidi2pdf
     def self.with_tab(remote_browser_url: nil, port: 0, headless: true, chrome_args: Bidi2pdf::Bidi::Session::DEFAULT_CHROME_ARGS.dup)
       manager = nil
       session = nil
+      context = nil
+      window = nil
       tab = nil
 
       begin
@@ -56,13 +58,16 @@ module Bidi2pdf
                     manager.session
                   end
 
-        session.start
-        session.client.on_close { Bidi2pdf.logger.info "WebSocket session closed" }
+        # Only the setup waits for the session start limit, the work in the tab does not.
+        Bidi2pdf::SessionGate.with_permit do
+          session.start
+          session.client.on_close { Bidi2pdf.logger.info "WebSocket session closed" }
 
-        browser = session.browser
-        context = browser.create_user_context
-        window = context.create_browser_window
-        tab = window.create_browser_tab
+          browser = session.browser
+          context = browser.create_user_context
+          window = context.create_browser_window
+          tab = window.create_browser_tab
+        end
 
         yield(tab)
       ensure

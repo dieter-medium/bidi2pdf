@@ -56,9 +56,7 @@ module Bidi2pdf
     # rubocop: enable Metrics/ParameterLists
 
     def run
-      @session.start
-      @session.client.on_close { Bidi2pdf.logger.info "WebSocket closed" }
-
+      open_tab
       setup_browser
       run_flow
     end
@@ -69,9 +67,7 @@ module Bidi2pdf
     #
     # @return [Bidi2pdf::Bidi::BrowserTab] the navigated tab.
     def run_diagnose
-      @session.start
-      @session.client.on_close { Bidi2pdf.logger.info "WebSocket closed" }
-
+      open_tab
       setup_browser
       navigate_and_wait
 
@@ -88,18 +84,21 @@ module Bidi2pdf
 
     private
 
+    # The session's setup, up to its first tab, waits for the session start limit (Bidi2pdf::SessionGate);
+    # everything after it does not.
+    def open_tab
+      Bidi2pdf::SessionGate.with_permit do
+        @session.start
+        @session.client.on_close { Bidi2pdf.logger.info "WebSocket closed" }
+
+        @user_context = @session.browser.create_user_context
+        @window = @user_context.create_browser_window
+        @tab = @window.create_browser_tab
+      end
+    end
+
     def setup_browser
-      browser = @session.browser
-      user_context = browser.create_user_context
-
-      window = user_context.create_browser_window
-      tab = window.create_browser_tab
-
-      @window = window
-      @tab = tab
-      @user_context = user_context
-
-      add_cookies(tab)
+      add_cookies(@tab)
 
       add_headers
       add_basic_auth

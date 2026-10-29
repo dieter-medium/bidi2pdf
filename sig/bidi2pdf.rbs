@@ -1,4 +1,8 @@
 module Bidi2pdf
+  self.@session_start_concurrency: untyped
+
+  self.@session_start_timeout: untyped
+
   self.@logger: untyped
 
   self.@network_events_logger: untyped
@@ -31,6 +35,14 @@ module Bidi2pdf
     def retryable?: () -> true
 
     def hint: () -> "Check Chrome/chromedriver are installed and reachable, or that --remote-browser-url points at a running instance"
+  end
+
+  # No permit of the session start limit (Bidi2pdf::SessionGate) came free in time: other session setups in this
+  # process held them all. Reported like a session that did not start (BROWSER_LAUNCH_FAILED).
+  class SessionStartTimeoutError < Error
+    def retryable?: () -> true
+
+    def hint: () -> "Start fewer renders at once, or raise session_start_concurrency / session_start_timeout"
   end
 
   class WebsocketError < Error
@@ -155,6 +167,10 @@ module Bidi2pdf
 
   attr_accessor self.chromedriver_log_level: untyped
 
+  attr_reader self.session_start_concurrency: untyped
+
+  attr_reader self.session_start_timeout: untyped
+
   attr_reader self.logging_subscriber: untyped
 
   attr_reader self.logger: untyped
@@ -164,6 +180,12 @@ module Bidi2pdf
   attr_reader self.browser_console_logger: untyped
 
   attr_reader self.notification_service: untyped
+
+  # How many Chrome session setups may run at once in this process (Bidi2pdf::SessionGate); nil: no limit.
+  def self.session_start_concurrency=: (untyped limit) -> untyped
+
+  # Seconds a setup waits for a permit; nil: default_timeout.
+  def self.session_start_timeout=: (untyped seconds) -> untyped
 
   # Allow configuration through a block
   def self.configure: () ?{ (untyped) -> untyped } -> untyped

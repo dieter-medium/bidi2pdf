@@ -18,6 +18,7 @@ module Bidi2pdf
       InvalidRecipeError => "INVALID_RECIPE",
       PdfInspectionUnavailableError => "PDF_INSPECTION_UNAVAILABLE",
       SessionNotStartedError => "BROWSER_LAUNCH_FAILED",
+      SessionStartTimeoutError => "BROWSER_LAUNCH_FAILED",
       CmdTimeoutError => "COMMAND_TIMEOUT",
       WebsocketError => "BROWSER_DISCONNECTED",
       NavigationTimeoutError => "NAVIGATION_TIMEOUT",

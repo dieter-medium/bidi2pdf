@@ -248,8 +248,8 @@ module Bidi2pdf
     # @return [ChromeSweeper::Result, nil] nil when no sweeper is configured.
     def sweep!: (?reason: ::Symbol) -> untyped
 
-    # Checks out a slot, creates an isolated UserContext/Window/Tab for one render, yields the tab,
-    # then unconditionally closes those resources and retires the underlying slot.
+    # Checks out a slot, yields its tab - in a UserContext of its own, created with the slot (#new_slot) - for one
+    # render, then unconditionally closes the tab, window and user context and retires the slot.
     def with_tab: () { (untyped) -> untyped } -> untyped
 
     # Retires every currently-warm spare and waits for any in-flight background replenishment to
@@ -297,8 +297,15 @@ module Bidi2pdf
     def create_slot: () -> untyped
 
     # A chromedriver out of room for another Chrome refuses the session; with a sweeper, close
-    # everything nobody holds (a pressure sweep) and try once more.
+    # everything nobody holds (a pressure sweep) and try once more. Each attempt waits for the session
+    # start limit (Bidi2pdf::SessionGate), the sweep between them does not.
     def new_slot: () -> untyped
+
+    # The slot's user context, window and tab, opened together with its session under one permit: what the limit
+    # has to bound is the number of sessions between their request and their first tab - split into two permits,
+    # sessions started in between waited for their tab side by side, and chromedriver left setups unanswered
+    # (docs: README "Session start limit"). A slot whose tab cannot be opened is retired at once.
+    def with_first_tab: (untyped slot) -> untyped
 
     def start_background_work: () -> untyped
 

@@ -1162,4 +1162,70 @@ RSpec.describe Bidi2pdf::SessionWarmer do
       end
     end
   end
+
+  # Bidi2pdf::SessionGate: a slot's whole setup - its session, user context, window and tab - waits for the session
+  # start limit under one permit; the render in the tab does not.
+  describe "the session start limit" do
+    around do |example|
+      limit = Bidi2pdf.session_start_concurrency
+      Bidi2pdf.session_start_concurrency = 1
+      Bidi2pdf::SessionGate.reset!
+      example.run
+    ensure
+      Bidi2pdf.session_start_concurrency = limit
+      Bidi2pdf::SessionGate.reset!
+    end
+
+    # A block that records the most calls running at the same time in +peak+.
+    def overlapping(peak, running, result)
+      lambda do |*|
+        now = running.increment
+        peak.update { |seen| [seen, now].max }
+        sleep 0.02
+        running.decrement
+        result
+      end
+    end
+
+    def render_in_threads(warmer, count)
+      Array.new(count) { Thread.new { warmer.with_tab { |_tab| sleep 0.02 } } }.each(&:join)
+    end
+
+    it "starts one slot's session at a time" do
+      peak = Concurrent::AtomicFixnum.new
+      warmer = described_class.new(config, slot_factory: overlapping(peak, Concurrent::AtomicFixnum.new, slot))
+      render_in_threads(warmer, 4)
+      warmer.shutdown
+
+      expect(peak.value).to eq(1)
+    end
+
+    it "opens a warm slot's tab while warming, before any checkout" do
+      described_class.new(config, slot_factory: -> { slot })
+
+      expect(window).to have_received(:create_browser_tab)
+    end
+
+    it "retires a slot whose tab cannot be opened" do
+      allow(window).to receive(:create_browser_tab).and_raise(Bidi2pdf::CmdTimeoutError, "no answer")
+
+      begin
+        described_class.new(config, slot_factory: -> { slot })
+      rescue Bidi2pdf::CmdTimeoutError
+        nil
+      end
+
+      expect(session).to have_received(:close)
+    end
+
+    it "sets up one tab at a time" do
+      peak = Concurrent::AtomicFixnum.new
+      allow(browser).to receive(:create_user_context, &overlapping(peak, Concurrent::AtomicFixnum.new, user_context))
+      warmer = described_class.new(config, slot_factory: -> { slot })
+      render_in_threads(warmer, 4)
+      warmer.shutdown
+
+      expect(peak.value).to eq(1)
+    end
+  end
 end

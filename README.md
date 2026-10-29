@@ -725,6 +725,8 @@ Bidi2pdf.configure do |config|
   config.enable_default_logging_subscriber = true
   config.log_truncate_limit = 200 # bytes - see below
   config.chromedriver_log_level = "WARNING" # see below
+  config.session_start_concurrency = 2 # Chrome session setups at once in this process - see "Session start limit"
+  config.session_start_timeout = nil # seconds a setup waits for its turn; nil: default_timeout
 end
 ```
 
@@ -734,16 +736,38 @@ end
 | `enable_default_logging_subscriber` | `true`  | Subscribes a default logger to the gem's internal instrumentation events.                                                                                                                                                        |
 | `log_truncate_limit`                | `200`   | Max bytes kept when logging a value that can be large (e.g. a `data:` URL) - truncated at a byte, not character, boundary.                                                                                                       |
 | `chromedriver_log_level`            | `nil`   | ChromeDriver's own `--log-level` (`"ALL"`/`"INFO"`/`"WARNING"`/`"SEVERE"`). Unset mirrors `Bidi2pdf.logger.level`; set explicitly to quiet ChromeDriver's own (often very verbose) output independently of your app's log level. |
+| `session_start_concurrency`         | `2`     | How many Chrome session setups (session request to first open tab) may run at once in this process; `nil` turns the limit off. See "Session start limit".                                                                    |
+| `session_start_timeout`             | `nil`   | Seconds a setup waits for its turn before it fails with `SessionStartTimeoutError` (code `BROWSER_LAUNCH_FAILED`, retryable); `nil` uses `default_timeout`.                                                                 |
 
 `Bidi2pdf.logger`, `Bidi2pdf.network_events_logger`, `Bidi2pdf.browser_console_logger`, and
 `Bidi2pdf.notification_service` are also configurable in the same block, for more advanced
 logging/instrumentation needs.
 
+### Session start limit
+
+When several new Chrome sessions are set up at the same moment, chromedriver/Chrome sometimes leaves one of the
+setup commands unanswered (the first `browsingContext.create` or `navigate` of a fresh session): the render waits
+out its command timeout, and the session is left behind unanswering, which wears the Chrome down for the renders
+after it. Measured on chromedriver/Chrome 156 against one remote chromedriver: two setups at once stayed clean in
+720 renders; three at once failed in the first round.
+
+So bidi2pdf lets at most `session_start_concurrency` setups run at once in a process - from the session request to
+the first open tab, in every path (the CLI, `Bidi2pdf::DSL.with_tab`, the session warmer). Rendering is never
+limited: eight PDFs can render side by side while their setups took turns. A setup that cannot get a turn within
+`session_start_timeout` fails with `SessionStartTimeoutError` instead of queueing for ever. Every turn instruments
+`session_gate.bidi2pdf` (`limit`, `wait` in seconds, `acquired`).
+
+**The limit holds per process.** Chrome sees the setups of every process that talks to it, so processes sharing one
+Chrome divide its budget: two processes with a limit of 1 each are as safe as one with 2 - two with 2 each failed in
+every run. With Puma workers and a job process on one remote chromedriver, set the limit so that limit x processes
+stays at about 2, or give the processes Chromes of their own.
+
 ### Pre-warmed sessions (`Bidi2pdf::SessionWarmer`)
 
 Optional. Keeps a few Chrome sessions started in the background so a render skips browser startup.
 Every slot is still used for exactly one render and then discarded - isolation is the same as
-launching a fresh Chrome per PDF.
+launching a fresh Chrome per PDF. A slot is warmed together with its user context, window and tab,
+under one turn of the session start limit, so a checkout sets up nothing.
 
 ```ruby
 Bidi2pdf::SessionWarmer.configure do |c|

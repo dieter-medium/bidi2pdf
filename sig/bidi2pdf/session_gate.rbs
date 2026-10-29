@@ -1,0 +1,32 @@
+module Bidi2pdf
+  # At most Bidi2pdf.session_start_concurrency Chrome session setups at once in this process - from the session
+  # request to the first open tab (README "Session start limit"). When several new sessions are set up at the same
+  # moment, chromedriver/Chrome sometimes leaves a setup command unanswered and the session hangs until the command
+  # times out (measured on chromedriver/Chrome 156: three setups at once failed, two did not). Rendering is never
+  # limited, only the setup before it.
+  #
+  # The limit holds per process: processes sharing one Chrome (Puma workers, a job process) divide its budget
+  # between them. nil turns the gate off. A forked child gets a semaphore of its own, so permits held by the parent's
+  # threads at the fork cannot be lost in it.
+  module SessionGate
+    LOCK: untyped
+
+    # Runs the block with a permit, released however the block ends. Waits for one at most
+    # Bidi2pdf.session_start_timeout (default: Bidi2pdf.default_timeout) seconds, then raises
+    # SessionStartTimeoutError - a queue behind a hung setup fails loudly instead of growing.
+    def self.with_permit: () { () -> untyped } -> untyped
+
+    # Forgets the semaphore; the next permit builds one for the configured limit. For specs.
+    def self.reset!: () -> untyped
+
+    private
+
+    # The semaphore for the configured limit in this process - a new one after a fork or a change of the limit
+    # (whoever holds a permit of the old one still returns it there).
+    def self.current: () -> (::Array[nil] | untyped)
+
+    def self.acquire: (untyped semaphore) -> ::Array[untyped]
+
+    def self.timeout_message: (untyped limit, untyped waited) -> ::String
+  end
+end
